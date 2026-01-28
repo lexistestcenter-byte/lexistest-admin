@@ -10,12 +10,32 @@ import {
 const READING_FORMATS = [
   "fill_blank_typing",
   "fill_blank_drag",
-  "heading_matching",
-  "mcq",
+  "mcq_single",
+  "mcq_multiple",
+  "matching",
+  "true_false_ng",
   "flowchart",
 ] as const;
 
-const DIFFICULTIES = ["easy", "medium", "hard"] as const;
+// Listening 문제 형식
+const LISTENING_FORMATS = [
+  "fill_blank_typing",
+  "fill_blank_drag",
+  "mcq_single",
+  "mcq_multiple",
+  "matching",
+] as const;
+
+// Writing 문제 형식
+const WRITING_FORMATS = ["essay"] as const;
+
+// Speaking 문제 형식
+const SPEAKING_FORMATS = [
+  "speaking_part1",
+  "speaking_part2",
+  "speaking_part3",
+] as const;
+
 
 // ============================================================
 // GET: 문제 목록 조회
@@ -38,7 +58,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const questionType = searchParams.get("question_type") || null;
     const questionFormat = searchParams.get("question_format") || null;
-    const difficulty = searchParams.get("difficulty") || null;
     const isActive = searchParams.get("is_active");
     const isPractice = searchParams.get("is_practice");
     const search = searchParams.get("search") || null;
@@ -53,7 +72,6 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase.rpc("get_questions", {
       p_question_type: questionType,
       p_question_format: questionFormat,
-      p_difficulty: difficulty,
       p_is_active: isActive === null ? null : isActive === "true",
       p_is_practice: isPractice === null ? null : isPractice === "true",
       p_search: search,
@@ -119,25 +137,17 @@ export async function POST(request: NextRequest) {
     // 추가 검증
     const errors = [...validation.errors];
 
-    // Reading 타입인 경우 형식 체크
-    if (
-      body.question_type === "reading" &&
-      body.question_format &&
-      !READING_FORMATS.includes(body.question_format)
-    ) {
-      errors.push(
-        `유효하지 않은 Reading 형식입니다. 가능한 값: ${READING_FORMATS.join(", ")}`
-      );
-    }
-
-    // difficulty 체크
-    if (
-      body.difficulty &&
-      !DIFFICULTIES.includes(body.difficulty)
-    ) {
-      errors.push(
-        `유효하지 않은 난이도입니다. 가능한 값: ${DIFFICULTIES.join(", ")}`
-      );
+    // 문제 유형별 형식 체크
+    if (body.question_format) {
+      if (body.question_type === "reading" && !READING_FORMATS.includes(body.question_format)) {
+        errors.push(`유효하지 않은 Reading 형식입니다. 가능한 값: ${READING_FORMATS.join(", ")}`);
+      } else if (body.question_type === "listening" && !LISTENING_FORMATS.includes(body.question_format)) {
+        errors.push(`유효하지 않은 Listening 형식입니다. 가능한 값: ${LISTENING_FORMATS.join(", ")}`);
+      } else if (body.question_type === "writing" && !WRITING_FORMATS.includes(body.question_format)) {
+        errors.push(`유효하지 않은 Writing 형식입니다. 가능한 값: ${WRITING_FORMATS.join(", ")}`);
+      } else if (body.question_type === "speaking" && !SPEAKING_FORMATS.includes(body.question_format)) {
+        errors.push(`유효하지 않은 Speaking 형식입니다. 가능한 값: ${SPEAKING_FORMATS.join(", ")}`);
+      }
     }
 
     // points 범위 체크
@@ -171,7 +181,6 @@ export async function POST(request: NextRequest) {
       p_audio_duration_seconds: body.audio_duration_seconds || null,
       p_audio_transcript: sanitizedBody.audio_transcript,
       p_points: body.points || 1,
-      p_difficulty: body.difficulty ? sanitizeText(body.difficulty) : null,
       p_is_practice: body.is_practice || false,
       p_generate_followup: body.generate_followup || false,
       p_tags: sanitizedBody.tags,

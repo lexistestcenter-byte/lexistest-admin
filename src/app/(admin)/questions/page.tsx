@@ -92,9 +92,9 @@ const formatLabels: Record<string, string> = {
 
 const typeFilters = [
   { id: "all", label: "전체", icon: null },
-  { id: "listening", label: "Listening", icon: Headphones, color: "text-sky-500" },
   { id: "reading", label: "Reading", icon: BookOpen, color: "text-emerald-500" },
   { id: "writing", label: "Writing", icon: PenTool, color: "text-amber-500" },
+  { id: "listening", label: "Listening", icon: Headphones, color: "text-sky-500" },
   { id: "speaking", label: "Speaking", icon: Mic, color: "text-violet-500" },
 ];
 

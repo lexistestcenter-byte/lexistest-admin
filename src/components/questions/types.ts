@@ -7,19 +7,25 @@ export type QuestionType = "listening" | "reading" | "writing" | "speaking";
 // 문제 형태 (question_type별로 다름)
 // =============================================================================
 
-// Reading 문제 형태 (5가지)
+// Reading 문제 형태
 export type ReadingFormat =
   | "fill_blank_typing"    // 빈칸채우기 (직접입력)
   | "fill_blank_drag"      // 빈칸채우기 (드래그앤드랍/Word Bank)
-  | "heading_matching"     // 제목 매칭
-  | "mcq"                  // 4지선다
+  | "mcq"                  // 객관식 (UI 통합, 저장 시 mcq_single/mcq_multiple로 분리)
+  | "mcq_single"           // 객관식 단일선택 (DB 저장용)
+  | "mcq_multiple"         // 객관식 복수선택 (DB 저장용)
+  | "true_false_ng"        // True/False/Not Given
+  | "matching"             // 매칭 (드래그앤드랍)
   | "flowchart";           // 플로우차트 빈칸채우기
 
 // Listening 문제 형태
 export type ListeningFormat =
   | "fill_blank_typing"    // 빈칸채우기 (직접입력)
   | "fill_blank_drag"      // 빈칸채우기 (드래그앤드랍)
-  | "mcq";                 // 4지선다
+  | "mcq"                  // 객관식 (UI 통합)
+  | "mcq_single"           // 객관식 단일선택 (DB 저장용)
+  | "mcq_multiple"         // 객관식 복수선택 (DB 저장용)
+  | "matching";            // 매칭 (드래그앤드랍)
 
 // Writing 문제 형태
 export type WritingFormat = "essay";
@@ -38,11 +44,14 @@ export type QuestionFormat =
 // 문제 형태 레이블
 // =============================================================================
 export const formatLabels: Record<string, string> = {
-  // Reading (5가지)
+  // Reading/Listening
   fill_blank_typing: "빈칸채우기 (직접입력)",
   fill_blank_drag: "빈칸채우기 (드래그앤드랍)",
-  heading_matching: "제목 매칭",
-  mcq: "4지선다",
+  mcq: "객관식",
+  mcq_single: "객관식 (단일선택)",
+  mcq_multiple: "객관식 (복수선택)",
+  true_false_ng: "True/False/Not Given",
+  matching: "매칭 (드래그앤드랍)",
   flowchart: "플로우차트",
   // Writing
   essay: "에세이",
@@ -53,18 +62,21 @@ export const formatLabels: Record<string, string> = {
 };
 
 // question_type별 사용 가능한 format 목록
+// UI에서는 "mcq"로 통합 표시, 저장 시 isMultiple에 따라 mcq_single/mcq_multiple로 결정
 export const questionFormats = {
   reading: [
+    { value: "mcq", label: "객관식" },
+    { value: "true_false_ng", label: "True/False/Not Given" },
+    { value: "matching", label: "매칭 (드래그앤드랍)" },
     { value: "fill_blank_typing", label: "빈칸채우기 (직접입력)" },
     { value: "fill_blank_drag", label: "빈칸채우기 (드래그앤드랍)" },
-    { value: "heading_matching", label: "제목 매칭" },
-    { value: "mcq", label: "4지선다" },
     { value: "flowchart", label: "플로우차트" },
   ],
   listening: [
+    { value: "mcq", label: "객관식" },
+    { value: "matching", label: "매칭 (드래그앤드랍)" },
     { value: "fill_blank_typing", label: "빈칸채우기 (직접입력)" },
     { value: "fill_blank_drag", label: "빈칸채우기 (드래그앤드랍)" },
-    { value: "mcq", label: "4지선다" },
   ],
   writing: [
     { value: "essay", label: "에세이" },
@@ -91,16 +103,32 @@ export interface Blank {
 // MCQ 선택지
 export interface MCQOption {
   id: string;
-  label: string;    // A, B, C, D
+  label: string;    // A, B, C, D, E, ...
   text: string;
   isCorrect: boolean;
 }
 
-// 제목 매칭 - 제목 항목
-export interface HeadingItem {
+// T/F/NG 문항
+export interface TFNGItem {
   id: string;
+  number: number;         // 문제 번호
+  statement: string;      // 진술문
+  answer: "true" | "false" | "not_given";
+}
+
+// 매칭 보기 항목
+export interface MatchingOption {
+  id: string;
+  label: string;          // A, B, C, ...
   text: string;
-  matchedSection: number | null;  // null이면 오답(distractor)
+}
+
+// 매칭 문항
+export interface MatchingItem {
+  id: string;
+  number: number;         // 문제 번호
+  statement: string;      // 문항 내용
+  correctLabel: string;   // 정답 레이블 (A, B, C, ...)
 }
 
 // 플로우차트 노드
@@ -140,26 +168,41 @@ export interface FillBlankDragOptionsData {
   }[];
 }
 
-// 제목 매칭
-export interface HeadingMatchingOptionsData {
-  sections: {
-    number: number;
-    preview: string;
-  }[];
-  headings: {
-    id: string;
-    text: string;
-    correctSection: number | null;
-  }[];
-}
-
-// 4지선다
+// MCQ (단일/복수선택)
 export interface MCQOptionsData {
-  question: string;
+  title?: string;           // 문항 제목
+  question: string;         // 문제
+  isMultiple: boolean;      // 복수선택 여부
+  maxSelections?: number;   // 복수선택 시 정답 개수
   options: {
     label: string;
     text: string;
     isCorrect: boolean;
+  }[];
+}
+
+// T/F/NG
+export interface TFNGOptionsData {
+  title?: string;           // 문항 제목
+  items: {
+    number: number;
+    statement: string;
+    answer: "true" | "false" | "not_given";
+  }[];
+}
+
+// 매칭 (드래그앤드랍)
+export interface MatchingOptionsData {
+  title?: string;           // 문항 제목
+  allowDuplicate: boolean;  // 같은 보기 중복 사용 가능 여부
+  options: {                // 보기 목록
+    label: string;
+    text: string;
+  }[];
+  items: {                  // 문항 목록
+    number: number;
+    statement: string;
+    correctLabel: string;
   }[];
 }
 

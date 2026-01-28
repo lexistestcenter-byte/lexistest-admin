@@ -61,7 +61,8 @@ import {
   questionFormats,
   Blank,
   MCQOption,
-  HeadingItem,
+  MatchingOption,
+  MatchingItem,
   FlowchartNode,
 } from "@/components/questions/types";
 
@@ -69,13 +70,6 @@ import {
 // question_type 별 정보
 // =============================================================================
 const questionTypeInfo = [
-  {
-    id: "listening" as QuestionType,
-    name: "Listening",
-    nameKo: "듣기",
-    icon: Headphones,
-    color: "bg-sky-50 text-sky-600 border-sky-200",
-  },
   {
     id: "reading" as QuestionType,
     name: "Reading",
@@ -91,6 +85,13 @@ const questionTypeInfo = [
     color: "bg-amber-50 text-amber-600 border-amber-200",
   },
   {
+    id: "listening" as QuestionType,
+    name: "Listening",
+    nameKo: "듣기",
+    icon: Headphones,
+    color: "bg-sky-50 text-sky-600 border-sky-200",
+  },
+  {
     id: "speaking" as QuestionType,
     name: "Speaking",
     nameKo: "말하기",
@@ -103,10 +104,13 @@ const questionTypeInfo = [
 // format별 아이콘 및 정보
 // =============================================================================
 const formatIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  mcq: CheckCircle2,
+  mcq_single: CheckCircle2,
+  mcq_multiple: CheckCircle2,
+  true_false_ng: ListOrdered,
+  matching: GripVertical,
   fill_blank_typing: Type,
   fill_blank_drag: GripVertical,
-  heading_matching: ListOrdered,
-  mcq: CheckCircle2,
   flowchart: GitBranch,
   essay: FileText,
   speaking_part1: Mic,
@@ -147,17 +151,30 @@ export default function EditQuestionPage({
   const [wordBank, setWordBank] = useState<string[]>([]);
   const [contentTitle, setContentTitle] = useState("");
 
-  // 제목 매칭
-  const [sections, setSections] = useState<{ number: number; preview: string }[]>([]);
-  const [headings, setHeadings] = useState<HeadingItem[]>([]);
-
-  // 4지선다
+  // MCQ (통합: 단일/복수)
   const [mcqQuestion, setMcqQuestion] = useState("");
   const [mcqOptions, setMcqOptions] = useState<MCQOption[]>([
     { id: "a", label: "A", text: "", isCorrect: false },
     { id: "b", label: "B", text: "", isCorrect: false },
     { id: "c", label: "C", text: "", isCorrect: false },
     { id: "d", label: "D", text: "", isCorrect: false },
+  ]);
+  const [mcqIsMultiple, setMcqIsMultiple] = useState(false);
+  const [mcqMaxSelections, setMcqMaxSelections] = useState(2);
+
+  // T/F/NG (단일 진술문)
+  const [tfngStatement, setTfngStatement] = useState("");
+  const [tfngAnswer, setTfngAnswer] = useState<"true" | "false" | "not_given">("true");
+
+  // 매칭 (드래그앤드랍)
+  const [matchingTitle, setMatchingTitle] = useState("");
+  const [matchingAllowDuplicate, setMatchingAllowDuplicate] = useState(false);
+  const [matchingOptions, setMatchingOptions] = useState<MatchingOption[]>([
+    { id: "o1", label: "A", text: "" },
+    { id: "o2", label: "B", text: "" },
+  ]);
+  const [matchingItems, setMatchingItems] = useState<MatchingItem[]>([
+    { id: "m1", number: 1, statement: "", correctLabel: "" },
   ]);
 
   // 플로우차트
@@ -239,40 +256,53 @@ export default function EditQuestionPage({
             setWordBank(optionsData.word_bank);
           }
         }
-        // MCQ
-        else if (format === "mcq") {
+        // MCQ (단일/복수선택 → 통합 mcq로 변환)
+        else if (format === "mcq_single" || format === "mcq_multiple") {
+          // UI에서는 통합 mcq로 표시
+          setSelectedFormat("mcq" as QuestionFormat);
+          setMcqIsMultiple(format === "mcq_multiple");
           setMcqQuestion(content);
-          if (Array.isArray(optionsData)) {
-            setMcqOptions(optionsData.map((o: { label: string; content: string; is_correct: boolean }) => ({
-              id: o.label.toLowerCase(),
-              label: o.label,
-              text: o.content,
-              isCorrect: o.is_correct,
-            })));
-          }
-        }
-        // Heading matching
-        else if (format === "heading_matching") {
-          try {
-            const parsed = JSON.parse(content);
-            setSections(parsed.sections || []);
-            setHeadings((parsed.headings || []).map((h: { id: string; text: string; matchedSection?: number | null }) => ({
-              id: h.id,
-              text: h.text,
-              matchedSection: null,
-            })));
-            // 정답 매핑
-            if (answerData?.matches) {
-              const matchMap = new Map<string, number>(
-                answerData.matches.map((m: { heading_id: string; section: number }) => [m.heading_id, m.section])
-              );
-              setHeadings((prev) => prev.map((h) => ({
-                ...h,
-                matchedSection: matchMap.get(h.id) ?? null,
+          if (optionsData) {
+            if (optionsData.maxSelections) {
+              setMcqMaxSelections(optionsData.maxSelections);
+            }
+            if (Array.isArray(optionsData.options)) {
+              setMcqOptions(optionsData.options.map((o: { label: string; text: string; isCorrect: boolean }, idx: number) => ({
+                id: `o${idx}`,
+                label: o.label,
+                text: o.text,
+                isCorrect: o.isCorrect,
               })));
             }
-          } catch {
-            console.error("Failed to parse heading matching content");
+          }
+        }
+        // T/F/NG
+        else if (format === "true_false_ng") {
+          setTfngStatement(content || "");
+          if (answerData?.answer) {
+            setTfngAnswer(answerData.answer as "true" | "false" | "not_given");
+          }
+        }
+        // 매칭
+        else if (format === "matching") {
+          if (optionsData) {
+            setMatchingTitle(optionsData.title || "");
+            setMatchingAllowDuplicate(optionsData.allowDuplicate || false);
+            if (Array.isArray(optionsData.options)) {
+              setMatchingOptions(optionsData.options.map((o: { label: string; text: string }, idx: number) => ({
+                id: `o${idx}`,
+                label: o.label,
+                text: o.text,
+              })));
+            }
+            if (Array.isArray(optionsData.items)) {
+              setMatchingItems(optionsData.items.map((i: { number: number; statement: string; correctLabel: string }, idx: number) => ({
+                id: `m${idx}`,
+                number: i.number,
+                statement: i.statement,
+                correctLabel: i.correctLabel,
+              })));
+            }
           }
         }
         // Flowchart
@@ -359,26 +389,74 @@ export default function EditQuestionPage({
   const removeWord = (index: number) => setWordBank(wordBank.filter((_, i) => i !== index));
 
   // ==========================================================================
-  // 제목 매칭 관련 함수
-  // ==========================================================================
-  const addSection = () => {
-    const nextNum = sections.length > 0 ? Math.max(...sections.map(s => s.number)) + 1 : 1;
-    setSections([...sections, { number: nextNum, preview: "" }]);
-  };
-
-  const addHeading = () => {
-    setHeadings([...headings, { id: `h${Date.now()}`, text: "", matchedSection: null }]);
-  };
-
-  // ==========================================================================
   // MCQ 관련 함수
   // ==========================================================================
+  const addMcqOption = () => {
+    const labels = "ABCDEFGHIJ";
+    const nextLabel = labels[mcqOptions.length] || `O${mcqOptions.length + 1}`;
+    setMcqOptions([...mcqOptions, { id: `o${Date.now()}`, label: nextLabel, text: "", isCorrect: false }]);
+  };
+
+  const removeMcqOption = (id: string) => {
+    if (mcqOptions.length <= 2) {
+      toast.error("최소 2개의 선택지가 필요합니다.");
+      return;
+    }
+    const newOptions = mcqOptions.filter(o => o.id !== id);
+    const labels = "ABCDEFGHIJ";
+    setMcqOptions(newOptions.map((o, i) => ({ ...o, label: labels[i] || `O${i + 1}` })));
+  };
+
   const updateMcqOption = (id: string, field: keyof MCQOption, value: unknown) => {
     setMcqOptions(mcqOptions.map(o => o.id === id ? { ...o, [field]: value } : o));
   };
 
-  const selectCorrectAnswer = (correctId: string) => {
-    setMcqOptions(mcqOptions.map(o => ({ ...o, isCorrect: o.id === correctId })));
+  const toggleMcqCorrect = (id: string, isMultiple: boolean) => {
+    if (isMultiple) {
+      setMcqOptions(mcqOptions.map(o => o.id === id ? { ...o, isCorrect: !o.isCorrect } : o));
+    } else {
+      setMcqOptions(mcqOptions.map(o => ({ ...o, isCorrect: o.id === id })));
+    }
+  };
+
+  // ==========================================================================
+  // 매칭 관련 함수
+  // ==========================================================================
+  const addMatchingOption = () => {
+    const labels = "ABCDEFGHIJ";
+    const nextLabel = labels[matchingOptions.length] || `O${matchingOptions.length + 1}`;
+    setMatchingOptions([...matchingOptions, { id: `o${Date.now()}`, label: nextLabel, text: "" }]);
+  };
+
+  const removeMatchingOption = (id: string) => {
+    if (matchingOptions.length <= 2) {
+      toast.error("최소 2개의 보기가 필요합니다.");
+      return;
+    }
+    const newOptions = matchingOptions.filter(o => o.id !== id);
+    const labels = "ABCDEFGHIJ";
+    setMatchingOptions(newOptions.map((o, i) => ({ ...o, label: labels[i] || `O${i + 1}` })));
+  };
+
+  const updateMatchingOption = (id: string, text: string) => {
+    setMatchingOptions(matchingOptions.map(o => o.id === id ? { ...o, text } : o));
+  };
+
+  const addMatchingItem = () => {
+    const nextNum = matchingItems.length > 0 ? Math.max(...matchingItems.map(i => i.number)) + 1 : 1;
+    setMatchingItems([...matchingItems, { id: `m${Date.now()}`, number: nextNum, statement: "", correctLabel: "" }]);
+  };
+
+  const updateMatchingItem = (id: string, field: keyof MatchingItem, value: unknown) => {
+    setMatchingItems(matchingItems.map(i => i.id === id ? { ...i, [field]: value } : i));
+  };
+
+  const removeMatchingItem = (id: string) => {
+    if (matchingItems.length <= 1) {
+      toast.error("최소 1개의 문항이 필요합니다.");
+      return;
+    }
+    setMatchingItems(matchingItems.filter(i => i.id !== id));
   };
 
   // ==========================================================================
@@ -413,16 +491,42 @@ export default function EditQuestionPage({
     if (selectedFormat === "mcq") {
       const emptyOptions = mcqOptions.filter(o => !o.text.trim());
       if (emptyOptions.length > 0) {
-        toast.error("4지선다 선택지를 모두 입력해주세요.");
+        toast.error("모든 선택지를 입력해주세요.");
         return;
       }
-      const hasCorrect = mcqOptions.some(o => o.isCorrect);
-      if (!hasCorrect) {
-        toast.error("4지선다 정답을 선택해주세요.");
+      const correctCount = mcqOptions.filter(o => o.isCorrect).length;
+      if (correctCount === 0) {
+        toast.error("정답을 선택해주세요.");
+        return;
+      }
+      if (mcqIsMultiple && correctCount !== mcqMaxSelections) {
+        toast.error(`복수선택 개수(${mcqMaxSelections}개)만큼 정답을 선택해주세요.`);
         return;
       }
       if (!mcqQuestion.trim()) {
-        toast.error("4지선다 문제를 입력해주세요.");
+        toast.error("문제를 입력해주세요.");
+        return;
+      }
+    }
+
+    // T/F/NG 유효성 검사
+    if (selectedFormat === "true_false_ng") {
+      if (!tfngStatement.trim()) {
+        toast.error("진술문을 입력해주세요.");
+        return;
+      }
+    }
+
+    // 매칭 유효성 검사
+    if (selectedFormat === "matching") {
+      const emptyOptions = matchingOptions.filter(o => !o.text.trim());
+      if (emptyOptions.length > 0) {
+        toast.error("모든 보기를 입력해주세요.");
+        return;
+      }
+      const emptyItems = matchingItems.filter(i => !i.statement.trim() || !i.correctLabel);
+      if (emptyItems.length > 0) {
+        toast.error("모든 문항과 정답을 입력해주세요.");
         return;
       }
     }
@@ -434,6 +538,8 @@ export default function EditQuestionPage({
       let optionsData = null;
       let answerData = null;
       let modelAnswers = null;
+      // 실제 저장할 format (MCQ의 경우 isMultiple에 따라 결정)
+      let actualFormat: string = selectedFormat;
 
       // Fill blank
       if (selectedFormat === "fill_blank_typing" || selectedFormat === "fill_blank_drag") {
@@ -449,24 +555,53 @@ export default function EditQuestionPage({
           optionsData = { word_bank: wordBank };
         }
       }
-      // MCQ
+      // MCQ (통합: 단일/복수)
       else if (selectedFormat === "mcq") {
+        // 저장 시 isMultiple에 따라 실제 format 결정
+        actualFormat = mcqIsMultiple ? "mcq_multiple" : "mcq_single";
         content = mcqQuestion;
-        optionsData = mcqOptions.map(o => ({
-          label: o.label,
-          content: o.text,
-          is_correct: o.isCorrect,
-        }));
-        const correctOption = mcqOptions.find(o => o.isCorrect);
-        answerData = { correct: correctOption?.label || "" };
+        optionsData = {
+          isMultiple: mcqIsMultiple,
+          ...(mcqIsMultiple ? { maxSelections: mcqMaxSelections } : {}),
+          options: mcqOptions.map(o => ({
+            label: o.label,
+            text: o.text,
+            isCorrect: o.isCorrect,
+          })),
+        };
+        if (mcqIsMultiple) {
+          const correctOptions = mcqOptions.filter(o => o.isCorrect);
+          answerData = { correct: correctOptions.map(o => o.label) };
+        } else {
+          const correctOption = mcqOptions.find(o => o.isCorrect);
+          answerData = { correct: correctOption?.label || "" };
+        }
       }
-      // Heading matching
-      else if (selectedFormat === "heading_matching") {
-        content = JSON.stringify({ sections, headings });
+      // T/F/NG
+      else if (selectedFormat === "true_false_ng") {
+        content = tfngStatement;
         answerData = {
-          matches: headings
-            .filter(h => h.matchedSection !== null)
-            .map(h => ({ heading_id: h.id, section: h.matchedSection })),
+          answer: tfngAnswer,
+        };
+      }
+      // 매칭
+      else if (selectedFormat === "matching") {
+        content = "";
+        optionsData = {
+          title: matchingTitle || null,
+          allowDuplicate: matchingAllowDuplicate,
+          options: matchingOptions.map(o => ({
+            label: o.label,
+            text: o.text,
+          })),
+          items: matchingItems.map(i => ({
+            number: i.number,
+            statement: i.statement,
+            correctLabel: i.correctLabel,
+          })),
+        };
+        answerData = {
+          matches: matchingItems.map(i => ({ number: i.number, correctLabel: i.correctLabel })),
         };
       }
       // Flowchart
@@ -502,15 +637,15 @@ export default function EditQuestionPage({
 
       const questionData = {
         question_type: selectedQuestionType,
-        question_format: selectedFormat,
+        question_format: actualFormat,
         content,
         title: contentTitle || flowchartTitle || null,
-        instructions: instructions || null,
+        instructions: (selectedFormat !== "mcq" && selectedFormat !== "true_false_ng") ? (instructions || null) : null,
         options_data: optionsData,
         answer_data: answerData,
         model_answers: modelAnswers,
         generate_followup: generateFollowup,
-        tags: tags ? tags.split(",").map(t => t.trim()) : null,
+        tags: (selectedFormat !== "mcq" && selectedFormat !== "true_false_ng") && tags ? tags.split(",").map(t => t.trim()) : null,
       };
 
       const response = await fetch(`/api/questions/${id}`, {
@@ -641,7 +776,8 @@ export default function EditQuestionPage({
 
       {/* 메인 콘텐츠 */}
       <div className="flex-1 flex overflow-hidden">
-        {/* 왼쪽: 설정 패널 */}
+        {/* 왼쪽: 설정 패널 (MCQ, T/F/NG 제외) */}
+        {selectedFormat !== "mcq" && selectedFormat !== "true_false_ng" && (
         <div className="w-80 border-r bg-slate-50 overflow-y-auto">
           <div className="p-4 space-y-6">
             {/* 기본 설정 */}
@@ -731,10 +867,56 @@ export default function EditQuestionPage({
             )}
           </div>
         </div>
+        )}
 
         {/* 오른쪽: 에디터 영역 */}
         <div className="flex-1 overflow-y-auto bg-white">
           <div className="max-w-4xl mx-auto p-8">
+            {/* MCQ (통합: 단일/복수) */}
+            {selectedFormat === "mcq" && (
+              <MCQEditor
+                question={mcqQuestion}
+                setQuestion={setMcqQuestion}
+                options={mcqOptions}
+                addOption={addMcqOption}
+                removeOption={removeMcqOption}
+                updateOption={updateMcqOption}
+                toggleCorrect={(id) => toggleMcqCorrect(id, mcqIsMultiple)}
+                isMultiple={mcqIsMultiple}
+                setIsMultiple={setMcqIsMultiple}
+                maxSelections={mcqMaxSelections}
+                setMaxSelections={setMcqMaxSelections}
+              />
+            )}
+
+            {/* T/F/NG */}
+            {selectedFormat === "true_false_ng" && (
+              <TFNGEditor
+                statement={tfngStatement}
+                setStatement={setTfngStatement}
+                answer={tfngAnswer}
+                setAnswer={setTfngAnswer}
+              />
+            )}
+
+            {/* 매칭 */}
+            {selectedFormat === "matching" && (
+              <MatchingEditor
+                title={matchingTitle}
+                setTitle={setMatchingTitle}
+                allowDuplicate={matchingAllowDuplicate}
+                setAllowDuplicate={setMatchingAllowDuplicate}
+                options={matchingOptions}
+                addOption={addMatchingOption}
+                removeOption={removeMatchingOption}
+                updateOption={updateMatchingOption}
+                items={matchingItems}
+                addItem={addMatchingItem}
+                updateItem={updateMatchingItem}
+                removeItem={removeMatchingItem}
+              />
+            )}
+
             {/* 빈칸채우기 */}
             {(selectedFormat === "fill_blank_typing" || selectedFormat === "fill_blank_drag") && (
               <FillBlankEditor
@@ -746,29 +928,6 @@ export default function EditQuestionPage({
                 addBlank={addBlank}
                 updateBlank={updateBlank}
                 removeBlank={removeBlank}
-              />
-            )}
-
-            {/* 제목 매칭 */}
-            {selectedFormat === "heading_matching" && (
-              <HeadingMatchingEditor
-                sections={sections}
-                setSections={setSections}
-                addSection={addSection}
-                headings={headings}
-                setHeadings={setHeadings}
-                addHeading={addHeading}
-              />
-            )}
-
-            {/* 4지선다 */}
-            {selectedFormat === "mcq" && (
-              <MCQEditor
-                question={mcqQuestion}
-                setQuestion={setMcqQuestion}
-                options={mcqOptions}
-                updateOption={updateMcqOption}
-                selectCorrect={selectCorrectAnswer}
               />
             )}
 
@@ -871,10 +1030,16 @@ export default function EditQuestionPage({
         contentHtml={contentHtml}
         blanks={blanks}
         wordBank={wordBank}
-        sections={sections}
-        headings={headings}
         mcqQuestion={mcqQuestion}
         mcqOptions={mcqOptions}
+        mcqMaxSelections={mcqMaxSelections}
+        mcqIsMultiple={mcqIsMultiple}
+        tfngStatement={tfngStatement}
+        tfngAnswer={tfngAnswer}
+        matchingTitle={matchingTitle}
+        matchingOptions={matchingOptions}
+        matchingItems={matchingItems}
+        matchingAllowDuplicate={matchingAllowDuplicate}
         flowchartTitle={flowchartTitle}
         flowchartNodes={flowchartNodes}
         flowchartBlanks={flowchartBlanks}
@@ -1035,98 +1200,152 @@ function FillBlankEditor({
 }
 
 // =============================================================================
-// 제목 매칭 에디터
+// MCQ 에디터 (단일선택/복수선택 통합)
 // =============================================================================
-function HeadingMatchingEditor({
-  sections, setSections, addSection, headings, setHeadings, addHeading
+function MCQEditor({
+  question, setQuestion, options, addOption, removeOption, updateOption, toggleCorrect,
+  isMultiple, setIsMultiple, maxSelections, setMaxSelections
 }: {
-  sections: { number: number; preview: string }[];
-  setSections: (v: { number: number; preview: string }[]) => void;
-  addSection: () => void;
-  headings: HeadingItem[];
-  setHeadings: (v: HeadingItem[]) => void;
-  addHeading: () => void;
+  question: string;
+  setQuestion: (v: string) => void;
+  options: MCQOption[];
+  addOption: () => void;
+  removeOption: (id: string) => void;
+  updateOption: (id: string, field: keyof MCQOption, value: unknown) => void;
+  toggleCorrect: (id: string) => void;
+  isMultiple: boolean;
+  setIsMultiple: (v: boolean) => void;
+  maxSelections: number;
+  setMaxSelections: (v: number) => void;
 }) {
+  const correctCount = options.filter(o => o.isCorrect).length;
+  // 선택지 개수에 따라 정답 개수 옵션 제한
+  const maxSelectableCount = Math.min(options.length, 5);
+
   return (
-    <div className="space-y-8">
-      <div className="space-y-3">
+    <div className="space-y-6">
+      {/* 단일/복수 선택 모드 스위치 */}
+      <div className="p-4 bg-slate-50 border rounded-lg">
         <div className="flex items-center justify-between">
-          <Label className="text-lg font-semibold">List of Headings</Label>
-          <Button variant="outline" size="sm" onClick={addHeading}>
-            <Plus className="mr-2 h-4 w-4" />
-            제목 추가
-          </Button>
+          <div>
+            <Label className="text-base font-medium">복수 선택 모드</Label>
+            <p className="text-sm text-muted-foreground">
+              {isMultiple ? "여러 개의 정답을 선택할 수 있습니다" : "하나의 정답만 선택할 수 있습니다"}
+            </p>
+          </div>
+          <Switch
+            checked={isMultiple}
+            onCheckedChange={setIsMultiple}
+          />
         </div>
-        <div className="space-y-2">
-          {headings.map((heading, index) => (
-            <div key={heading.id} className="flex items-center gap-3 p-3 border rounded-lg bg-slate-50">
-              <span className="text-sm text-muted-foreground w-8">{String.fromCharCode(105 + index)}.</span>
-              <Input
-                value={heading.text}
-                onChange={(e) => setHeadings(headings.map(h => h.id === heading.id ? { ...h, text: e.target.value } : h))}
-                placeholder="제목 내용"
-                className="flex-1"
-              />
-              <Select
-                value={heading.matchedSection?.toString() || "distractor"}
-                onValueChange={(v) => setHeadings(headings.map(h => h.id === heading.id ? { ...h, matchedSection: v === "distractor" ? null : parseInt(v) } : h))}
-              >
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="distractor">오답 (Distractor)</SelectItem>
-                  {sections.map(s => (
-                    <SelectItem key={s.number} value={s.number.toString()}>
-                      정답: {s.number}번
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {headings.length > 2 && (
-                <Button variant="ghost" size="icon" onClick={() => setHeadings(headings.filter(h => h.id !== heading.id))}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          ))}
+      </div>
+
+      {isMultiple && (
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center gap-4">
+            <Label className="text-sm">정답 개수:</Label>
+            <Select value={maxSelections.toString()} onValueChange={(v) => setMaxSelections(parseInt(v))}>
+              <SelectTrigger className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: maxSelectableCount - 1 }, (_, i) => i + 2).map(n => (
+                  <SelectItem key={n} value={n.toString()}>{n}개</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-sm text-muted-foreground">(현재 선택: {correctCount}개)</span>
+          </div>
         </div>
+      )}
+
+      <div className="space-y-2">
+        <RequiredLabel required>문제</RequiredLabel>
+        <Textarea
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          placeholder="예: Which TWO of the following statements are true?"
+          rows={3}
+        />
       </div>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label className="text-lg font-semibold">문제 섹션</Label>
-          <Button variant="outline" size="sm" onClick={addSection}>
+          <RequiredLabel required>선택지</RequiredLabel>
+          <Button variant="outline" size="sm" onClick={addOption}>
             <Plus className="mr-2 h-4 w-4" />
-            섹션 추가
+            선택지 추가
           </Button>
         </div>
-        <div className="space-y-4">
-          {sections.map((section, index) => (
-            <div key={index} className="border rounded-lg p-4 space-y-3">
-              <div className="flex items-center gap-4">
-                <Input
-                  type="number"
-                  value={section.number}
-                  onChange={(e) => setSections(sections.map((s, i) => i === index ? { ...s, number: parseInt(e.target.value) || 0 } : s))}
-                  className="w-20 text-center font-mono"
-                />
-                <span className="text-sm text-muted-foreground">← 문제 번호</span>
-              </div>
-              <Textarea
-                value={section.preview}
-                onChange={(e) => setSections(sections.map((s, i) => i === index ? { ...s, preview: e.target.value } : s))}
-                placeholder="섹션 내용 미리보기"
-                rows={3}
-                className="text-sm"
-              />
-              {sections.length > 2 && (
-                <Button variant="ghost" size="sm" onClick={() => setSections(sections.filter((_, i) => i !== index))} className="text-destructive">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  섹션 삭제
-                </Button>
-              )}
+        {options.map((option) => (
+          <div key={option.id} className="flex items-center gap-3">
+            <div
+              className={`w-10 h-10 flex items-center justify-center font-medium cursor-pointer transition-all ${
+                isMultiple
+                  ? `rounded border-2 ${option.isCorrect ? "border-green-500 bg-green-500 text-white" : "border-slate-300 hover:border-primary"}`
+                  : `rounded-full border-2 ${option.isCorrect ? "border-green-500 bg-green-500 text-white ring-2 ring-green-200" : "border-slate-300 hover:border-primary hover:bg-primary/10"}`
+              }`}
+              onClick={() => toggleCorrect(option.id)}
+            >
+              {option.label}
             </div>
+            <Input
+              value={option.text}
+              onChange={(e) => updateOption(option.id, "text", e.target.value)}
+              placeholder={`선택지 ${option.label}`}
+              className="flex-1"
+            />
+            {option.isCorrect && <span className="text-xs text-green-600 font-medium">정답</span>}
+            {options.length > 2 && (
+              <Button variant="ghost" size="icon" onClick={() => removeOption(option.id)}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// T/F/NG 에디터
+// =============================================================================
+function TFNGEditor({
+  statement, setStatement, answer, setAnswer
+}: {
+  statement: string;
+  setStatement: (v: string) => void;
+  answer: "true" | "false" | "not_given";
+  setAnswer: (v: "true" | "false" | "not_given") => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <RequiredLabel required>문항 제목</RequiredLabel>
+        <Textarea
+          value={statement}
+          onChange={(e) => setStatement(e.target.value)}
+          placeholder="예: The number of students increased significantly in 2020."
+          rows={3}
+        />
+      </div>
+
+      <div className="space-y-3">
+        <Label>정답</Label>
+        <div className="flex gap-3">
+          {(["true", "false", "not_given"] as const).map((opt) => (
+            <button
+              key={opt}
+              onClick={() => setAnswer(opt)}
+              className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all border-2 ${
+                answer === opt
+                  ? "bg-primary text-white border-primary"
+                  : "bg-slate-50 hover:bg-slate-100 border-slate-200"
+              }`}
+            >
+              {opt === "true" ? "TRUE" : opt === "false" ? "FALSE" : "NOT GIVEN"}
+            </button>
           ))}
         </div>
       </div>
@@ -1135,62 +1354,105 @@ function HeadingMatchingEditor({
 }
 
 // =============================================================================
-// 4지선다 에디터
+// 매칭 에디터
 // =============================================================================
-function MCQEditor({
-  question, setQuestion, options, updateOption, selectCorrect
+function MatchingEditor({
+  title, setTitle, allowDuplicate, setAllowDuplicate,
+  options, addOption, removeOption, updateOption,
+  items, addItem, updateItem, removeItem
 }: {
-  question: string;
-  setQuestion: (v: string) => void;
-  options: MCQOption[];
-  updateOption: (id: string, field: keyof MCQOption, value: unknown) => void;
-  selectCorrect: (id: string) => void;
+  title: string;
+  setTitle: (v: string) => void;
+  allowDuplicate: boolean;
+  setAllowDuplicate: (v: boolean) => void;
+  options: MatchingOption[];
+  addOption: () => void;
+  removeOption: (id: string) => void;
+  updateOption: (id: string, text: string) => void;
+  items: MatchingItem[];
+  addItem: () => void;
+  updateItem: (id: string, field: keyof MatchingItem, value: unknown) => void;
+  removeItem: (id: string) => void;
 }) {
-  // 허용된 특수문자만 필터링 (영문, 숫자, 한글, 공백, 기본 특수문자)
-  const sanitizeText = (text: string) => {
-    return text.replace(/[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ\s.,!?'"\-():;]/g, "");
-  };
-
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <RequiredLabel required>문제</RequiredLabel>
-        <Textarea
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="예: In paragraph one, the writer suggests that companies could consider"
-          rows={3}
-        />
+        <Label>문항 제목</Label>
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: Questions 1-5" />
+      </div>
+
+      <div className="p-4 bg-slate-50 border rounded-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label className="text-sm">같은 보기 중복 사용 허용</Label>
+            <p className="text-xs text-muted-foreground">활성화 시 같은 보기를 여러 문항에 사용 가능</p>
+          </div>
+          <Switch checked={allowDuplicate} onCheckedChange={setAllowDuplicate} />
+        </div>
       </div>
 
       <div className="space-y-3">
-        <RequiredLabel required>선택지 (4개 모두 필수)</RequiredLabel>
-        {options.map((option) => (
-          <div key={option.id} className="flex items-center gap-3">
-            <div
-              className={`w-10 h-10 rounded-full border-2 flex items-center justify-center font-medium cursor-pointer transition-all ${
-                option.isCorrect
-                  ? "border-green-500 bg-green-500 text-white ring-2 ring-green-200"
-                  : "border-slate-300 hover:border-primary hover:bg-primary/10"
-              }`}
-              onClick={() => selectCorrect(option.id)}
-            >
-              {option.label}
+        <div className="flex items-center justify-between">
+          <RequiredLabel required>보기</RequiredLabel>
+          <Button variant="outline" size="sm" onClick={addOption}>
+            <Plus className="mr-2 h-4 w-4" />
+            보기 추가
+          </Button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {options.map((option) => (
+            <div key={option.id} className="flex items-center gap-2 p-2 border rounded bg-slate-50">
+              <span className="w-8 h-8 rounded bg-primary text-white flex items-center justify-center font-medium">
+                {option.label}
+              </span>
+              <Input value={option.text} onChange={(e) => updateOption(option.id, e.target.value)} placeholder="보기 내용" className="flex-1" />
+              {options.length > 2 && (
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeOption(option.id)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <RequiredLabel required>문항</RequiredLabel>
+          <Button variant="outline" size="sm" onClick={addItem}>
+            <Plus className="mr-2 h-4 w-4" />
+            문항 추가
+          </Button>
+        </div>
+        {items.map((item) => (
+          <div key={item.id} className="flex items-center gap-3 p-3 border rounded-lg">
             <Input
-              value={option.text}
-              onChange={(e) => updateOption(option.id, "text", sanitizeText(e.target.value))}
-              placeholder={`선택지 ${option.label} (필수)`}
+              type="number"
+              value={item.number}
+              onChange={(e) => updateItem(item.id, "number", parseInt(e.target.value) || 0)}
+              className="w-16 text-center font-mono"
+            />
+            <Input
+              value={item.statement}
+              onChange={(e) => updateItem(item.id, "statement", e.target.value)}
+              placeholder="문항 내용"
               className="flex-1"
             />
-            {option.isCorrect && (
-              <span className="text-xs text-green-600 font-medium">정답</span>
+            <Select value={item.correctLabel} onValueChange={(v) => updateItem(item.id, "correctLabel", v)}>
+              <SelectTrigger className="w-24">
+                <SelectValue placeholder="정답" />
+              </SelectTrigger>
+              <SelectContent>
+                {options.map(o => <SelectItem key={o.id} value={o.label}>{o.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {items.length > 1 && (
+              <Button variant="ghost" size="icon" onClick={() => removeItem(item.id)}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
             )}
           </div>
         ))}
-        <p className="text-xs text-muted-foreground">
-          원형 버튼을 클릭하여 정답을 선택하세요. 허용 특수문자: . ! ? &apos; &quot; , - ( ) : ;
-        </p>
       </div>
     </div>
   );
@@ -1738,7 +2000,9 @@ function WritingPreview({
 function PreviewDialog({
   open, onClose, questionType, format, instructions,
   contentTitle, contentHtml, blanks, wordBank,
-  sections, headings, mcqQuestion, mcqOptions,
+  mcqQuestion, mcqOptions, mcqMaxSelections, mcqIsMultiple,
+  tfngStatement, tfngAnswer,
+  matchingTitle, matchingOptions, matchingItems, matchingAllowDuplicate,
   flowchartTitle, flowchartNodes, flowchartBlanks,
   writingTitle, writingCondition, writingPrompt, writingImageUrl,
   speakingQuestion, cueCardTopic, cueCardPoints
@@ -1752,10 +2016,16 @@ function PreviewDialog({
   contentHtml: string;
   blanks: Blank[];
   wordBank: string[];
-  sections: { number: number; preview: string }[];
-  headings: HeadingItem[];
   mcqQuestion: string;
   mcqOptions: MCQOption[];
+  mcqMaxSelections: number;
+  mcqIsMultiple: boolean;
+  tfngStatement: string;
+  tfngAnswer: "true" | "false" | "not_given";
+  matchingTitle: string;
+  matchingOptions: MatchingOption[];
+  matchingItems: MatchingItem[];
+  matchingAllowDuplicate: boolean;
   flowchartTitle: string;
   flowchartNodes: FlowchartNode[];
   flowchartBlanks: Blank[];
@@ -1768,7 +2038,7 @@ function PreviewDialog({
   cueCardPoints: string[];
 }) {
   // [숫자] 형식을 빈칸 UI로 변환
-  const renderContent = (text: string) => {
+  const renderContent = (text: string, blankList: Blank[]) => {
     if (!text) return null;
 
     const parts = text.split(/\[(\d+)\]/g);
@@ -1825,7 +2095,7 @@ function PreviewDialog({
                   <h2 className="text-lg font-bold border-b pb-3">{contentTitle}</h2>
                 )}
                 <div className="leading-relaxed whitespace-pre-wrap">
-                  {renderContent(contentHtml)}
+                  {renderContent(contentHtml, blanks)}
                 </div>
               </div>
             )}
@@ -1840,48 +2110,82 @@ function PreviewDialog({
               />
             )}
 
-            {/* 제목 매칭 */}
-            {format === "heading_matching" && (
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  {sections.map((section) => (
-                    <div key={section.number} className="bg-white rounded-lg border p-4">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-14 h-9 border-2 border-dashed border-slate-400 rounded flex items-center justify-center font-mono font-bold">
-                          {section.number}
-                        </div>
+            {/* MCQ (통합: 단일/복수 선택) */}
+            {(format === "mcq" || format === "mcq_single" || format === "mcq_multiple") && (
+              <div className="bg-white rounded-lg border p-6 space-y-4">
+                <p className="text-lg">{mcqQuestion || "(문제 입력)"}</p>
+                {mcqIsMultiple && (
+                  <p className="text-sm text-blue-600">Choose {mcqMaxSelections} answers.</p>
+                )}
+                <div className="space-y-3 mt-4">
+                  {mcqOptions.map((option) => (
+                    <label key={option.id} className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-slate-50">
+                      <div className={`w-8 h-8 border-2 flex items-center justify-center ${mcqIsMultiple ? "rounded" : "rounded-full"}`}>
+                        {option.label}
                       </div>
-                      <p className="text-sm text-muted-foreground">{section.preview || "(섹션 미리보기)"}</p>
-                    </div>
+                      <span>{option.text || `(선택지 ${option.label})`}</span>
+                    </label>
                   ))}
                 </div>
-                <div className="bg-white rounded-lg border p-4">
-                  <h3 className="font-semibold mb-4">List of Headings</h3>
-                  <div className="space-y-2">
-                    {headings.map((heading, i) => (
-                      <div key={heading.id} className="p-3 bg-slate-50 rounded border-l-4 border-primary cursor-pointer hover:bg-slate-100">
-                        <span className="text-muted-foreground mr-2">{String.fromCharCode(105 + i)}.</span>
-                        <span className="font-medium">{heading.text || "(제목 입력)"}</span>
-                      </div>
+              </div>
+            )}
+
+            {/* T/F/NG */}
+            {format === "true_false_ng" && (
+              <div className="bg-white rounded-lg border p-6 space-y-4">
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded text-sm">
+                  Do the following statements agree with the information given in the passage?
+                  <div className="mt-2 text-xs">
+                    <strong>TRUE</strong> if the statement agrees with the information<br/>
+                    <strong>FALSE</strong> if the statement contradicts the information<br/>
+                    <strong>NOT GIVEN</strong> if there is no information on this
+                  </div>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <p className="mb-4">{tfngStatement || "(진술문 입력)"}</p>
+                  <div className="flex gap-2">
+                    {["TRUE", "FALSE", "NOT GIVEN"].map((label) => (
+                      <span key={label} className="px-4 py-2 border rounded text-sm cursor-pointer hover:bg-slate-50">
+                        {label}
+                      </span>
                     ))}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* 4지선다 */}
-            {format === "mcq" && (
-              <div className="bg-white rounded-lg border p-6 space-y-4">
-                <p className="text-lg">{mcqQuestion || "(문제 입력)"}</p>
-                <div className="space-y-3 mt-4">
-                  {mcqOptions.map((option) => (
-                    <label key={option.id} className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-slate-50">
-                      <div className="w-8 h-8 rounded-full border-2 flex items-center justify-center">
-                        {option.label}
+            {/* 매칭 */}
+            {format === "matching" && (
+              <div className="grid grid-cols-2 gap-6">
+                {/* 왼쪽: 문항 */}
+                <div className="bg-white rounded-lg border p-4 space-y-3">
+                  {matchingTitle && <h3 className="font-semibold text-muted-foreground">{matchingTitle}</h3>}
+                  {matchingItems.map((item) => (
+                    <div key={item.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                      <span className="font-mono font-bold">{item.number}</span>
+                      <span className="flex-1">{item.statement || "(문항 입력)"}</span>
+                      <div className="w-10 h-8 border-2 border-dashed border-slate-400 rounded flex items-center justify-center">
+                        ?
                       </div>
-                      <span>{option.text || `(선택지 ${option.label})`}</span>
-                    </label>
+                    </div>
                   ))}
+                </div>
+                {/* 오른쪽: 보기 */}
+                <div className="bg-white rounded-lg border p-4">
+                  <h3 className="font-semibold mb-4">보기 (드래그하여 매칭)</h3>
+                  {matchingAllowDuplicate && (
+                    <p className="text-xs text-blue-600 mb-3">* 같은 보기를 여러 번 사용할 수 있습니다</p>
+                  )}
+                  <div className="space-y-2">
+                    {matchingOptions.map((option) => (
+                      <div key={option.id} className="p-3 bg-slate-50 rounded border-l-4 border-primary cursor-grab hover:bg-slate-100 flex items-center gap-3">
+                        <span className="w-8 h-8 rounded bg-primary text-white flex items-center justify-center font-medium">
+                          {option.label}
+                        </span>
+                        <span>{option.text || "(보기 입력)"}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -1904,7 +2208,7 @@ function PreviewDialog({
                         node.type === "branch" ? "border-blue-300 bg-blue-50" : "border-slate-300 bg-slate-50"
                       }`}>
                         {node.label && <div className="font-semibold mb-1">{node.label}</div>}
-                        <div className="text-sm">{renderContent(node.content || "(내용 입력)")}</div>
+                        <div className="text-sm">{renderContent(node.content || "(내용 입력)", flowchartBlanks)}</div>
                       </div>
                     </div>
                   ))}

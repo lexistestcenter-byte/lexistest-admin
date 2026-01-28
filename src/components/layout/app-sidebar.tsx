@@ -120,46 +120,46 @@ const navigationGroups: NavGroup[] = [
       },
     ],
   },
-  {
-    title: "Test & Scoring",
-    items: [
-      {
-        title: "응시 현황",
-        href: "/sessions",
-        icon: ClipboardList,
-        permission: "sessions",
-      },
-      {
-        title: "성적 관리",
-        href: "/scores",
-        icon: BarChart3,
-        permission: "scores",
-      },
-      {
-        title: "피드백 관리",
-        href: "/feedback",
-        icon: MessageSquare,
-        permission: "feedback",
-      },
-    ],
-  },
-  {
-    title: "Notifications & Logs",
-    items: [
-      {
-        title: "알림 관리",
-        href: "/notifications",
-        icon: Bell,
-        permission: "notifications",
-      },
-      {
-        title: "활동 로그",
-        href: "/logs",
-        icon: Activity,
-        permission: "logs",
-      },
-    ],
-  },
+  // {
+  //   title: "Test & Scoring",
+  //   items: [
+  //     {
+  //       title: "응시 현황",
+  //       href: "/sessions",
+  //       icon: ClipboardList,
+  //       permission: "sessions",
+  //     },
+  //     {
+  //       title: "성적 관리",
+  //       href: "/scores",
+  //       icon: BarChart3,
+  //       permission: "scores",
+  //     },
+  //     {
+  //       title: "피드백 관리",
+  //       href: "/feedback",
+  //       icon: MessageSquare,
+  //       permission: "feedback",
+  //     },
+  //   ],
+  // },
+  // {
+  //   title: "Notifications & Logs",
+  //   items: [
+  //     {
+  //       title: "알림 관리",
+  //       href: "/notifications",
+  //       icon: Bell,
+  //       permission: "notifications",
+  //     },
+  //     {
+  //       title: "활동 로그",
+  //       href: "/logs",
+  //       icon: Activity,
+  //       permission: "logs",
+  //     },
+  //   ],
+  // },
   {
     title: "System",
     items: [
