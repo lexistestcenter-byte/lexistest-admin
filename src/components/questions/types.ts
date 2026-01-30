@@ -51,7 +51,7 @@ export const formatLabels: Record<string, string> = {
   mcq_single: "객관식 (단일선택)",
   mcq_multiple: "객관식 (복수선택)",
   true_false_ng: "True/False/Not Given",
-  matching: "매칭 (드래그앤드랍)",
+  matching: "제목 매칭 (드래그앤드랍)",
   flowchart: "플로우차트",
   // Writing
   essay: "에세이",
@@ -67,14 +67,14 @@ export const questionFormats = {
   reading: [
     { value: "mcq", label: "객관식" },
     { value: "true_false_ng", label: "True/False/Not Given" },
-    { value: "matching", label: "매칭 (드래그앤드랍)" },
+    { value: "matching", label: "제목 매칭 (드래그앤드랍)" },
     { value: "fill_blank_typing", label: "빈칸채우기 (직접입력)" },
     { value: "fill_blank_drag", label: "빈칸채우기 (드래그앤드랍)" },
     { value: "flowchart", label: "플로우차트" },
   ],
   listening: [
     { value: "mcq", label: "객관식" },
-    { value: "matching", label: "매칭 (드래그앤드랍)" },
+    { value: "matching", label: "제목 매칭 (드래그앤드랍)" },
     { value: "fill_blank_typing", label: "빈칸채우기 (직접입력)" },
     { value: "fill_blank_drag", label: "빈칸채우기 (드래그앤드랍)" },
   ],

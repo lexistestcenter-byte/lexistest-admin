@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,14 +16,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import {
   Plus,
   Trash2,
@@ -43,7 +41,11 @@ import {
   Mic,
   Loader2,
   AlertCircle,
+  Bold,
+  Italic,
 } from "lucide-react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
 import Link from "next/link";
 import {
   QuestionType,
@@ -109,7 +111,7 @@ const formatIcons: Record<string, React.ComponentType<{ className?: string }>> =
 const formatDescriptions: Record<string, string> = {
   mcq: "단일선택(라디오) 또는 복수선택(체크박스) 객관식",
   true_false_ng: "True / False / Not Given 중 선택 (순서 고정)",
-  matching: "보기를 드래그하여 문항에 매칭",
+  matching: "지문 단락에 맞는 제목을 매칭",
   fill_blank_typing: "학생이 텍스트를 직접 입력",
   fill_blank_drag: "주어진 단어 목록에서 드래그하여 선택",
   flowchart: "플로우차트의 빈칸을 채우는 방식",
@@ -147,6 +149,7 @@ interface QuestionTab {
   contentHtml: string;
   blanks: Blank[];
   wordBank: string[];
+  blankMode: "word" | "sentence";
 
   // Flowchart
   flowchartTitle: string;
@@ -205,6 +208,7 @@ const createDefaultTab = (): QuestionTab => ({
   contentHtml: "",
   blanks: [],
   wordBank: [],
+  blankMode: "word",
 
   flowchartTitle: "",
   flowchartNodes: [{ id: "n1", type: "box", content: "", row: 0, col: 0 }],
@@ -570,6 +574,7 @@ export default function NewQuestionPage() {
             answer: tab.tfngAnswer,
           };
         } else if (tab.format === "matching") {
+          content = tab.contentHtml;
           optionsData = {
             title: tab.matchingTitle || undefined,
             allowDuplicate: tab.matchingAllowDuplicate,
@@ -583,10 +588,14 @@ export default function NewQuestionPage() {
               correctLabel: i.correctLabel,
             })),
           };
+          answerData = {
+            matches: tab.matchingItems.map(i => ({ number: i.number, correctLabel: i.correctLabel })),
+          };
         } else if (tab.format === "fill_blank_typing" || tab.format === "fill_blank_drag") {
           content = tab.contentHtml;
           optionsData = {
             title: tab.contentTitle || undefined,
+            blank_mode: tab.blankMode,
             ...(tab.format === "fill_blank_drag" ? { word_bank: tab.wordBank } : {}),
           };
           answerData = {
@@ -824,7 +833,12 @@ export default function NewQuestionPage() {
       {/* 헤더 */}
       <div className="border-b px-6 py-4 flex items-center justify-between bg-white">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => updateCurrentTab("format", null)}>
+          <Button variant="ghost" size="sm" onClick={() => {
+            const defaultTab = createDefaultTab();
+            setTabs(prevTabs => prevTabs.map((tab, idx) =>
+              idx === activeTabIndex ? { ...defaultTab, id: tab.id } : tab
+            ));
+          }}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             형태 변경
           </Button>
@@ -922,55 +936,56 @@ export default function NewQuestionPage() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs">태그</Label>
-                  <Input
-                    className="h-9 text-sm"
-                    placeholder="쉼표로 구분"
-                    value={currentTab.tags}
-                    onChange={(e) => updateCurrentTab("tags", e.target.value)}
-                  />
-                </div>
               </div>
-
-              {/* 지시문 (Reading/Listening) */}
-              {(selectedQuestionType === "reading" || selectedQuestionType === "listening") && (
-                <div className="space-y-2">
-                  <Label className="text-xs">지시문 (Instructions)</Label>
-                  <Textarea
-                    className="text-sm resize-none"
-                    rows={3}
-                    placeholder="예: Write ONE WORD from the text"
-                    value={currentTab.instructions}
-                    onChange={(e) => updateCurrentTab("instructions", e.target.value)}
-                  />
-                </div>
-              )}
 
               {/* Word Bank (fill_blank_drag) */}
               {currentTab.format === "fill_blank_drag" && (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs">단어 목록 (Word Bank)</Label>
-                    <Button variant="ghost" size="sm" onClick={addWord} className="h-7 text-xs">
-                      <Plus className="h-3 w-3 mr-1" />
-                      추가
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    {currentTab.wordBank.map((word, i) => (
-                      <div key={i} className="flex gap-2">
-                        <Input
-                          className="h-8 text-sm"
-                          value={word}
-                          onChange={(e) => updateWord(i, e.target.value)}
-                          placeholder={`단어 ${i + 1}`}
-                        />
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeWord(i)}>
-                          <X className="h-3 w-3" />
-                        </Button>
+                  <Label className="text-xs">Word Bank</Label>
+                  {/* 정답 단어 (자동) */}
+                  {currentTab.blanks.filter(b => b.answer.trim()).length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">정답 단어 (자동)</p>
+                      <div className="flex flex-wrap gap-1">
+                        {currentTab.blanks.filter(b => b.answer.trim()).map((b) => (
+                          <span key={b.id} className="px-2 py-0.5 text-xs bg-primary/10 text-primary rounded border border-primary/20">
+                            {b.answer}
+                          </span>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+                  )}
+                  {/* 함정 단어 (수동) */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">함정 단어 (수동)</p>
+                      <Button variant="ghost" size="sm" onClick={addWord} className="h-6 text-[10px] px-2">
+                        <Plus className="h-3 w-3 mr-1" />
+                        추가
+                      </Button>
+                    </div>
+                    <div className="space-y-1.5">
+                      {currentTab.wordBank.filter(w => !currentTab.blanks.some(b => b.answer === w)).length === 0 && currentTab.wordBank.filter(w => currentTab.blanks.some(b => b.answer === w)).length === currentTab.wordBank.length && currentTab.blanks.length > 0 ? (
+                        <p className="text-xs text-muted-foreground italic">함정 단어를 추가하세요</p>
+                      ) : null}
+                      {currentTab.wordBank.map((word, i) => {
+                        const isAutoWord = currentTab.blanks.some(b => b.answer === word);
+                        if (isAutoWord) return null;
+                        return (
+                          <div key={i} className="flex gap-1.5">
+                            <Input
+                              className="h-7 text-xs"
+                              value={word}
+                              onChange={(e) => updateWord(i, e.target.value)}
+                              placeholder={`함정 단어`}
+                            />
+                            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeWord(i)}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
@@ -1029,6 +1044,8 @@ export default function NewQuestionPage() {
               <MatchingEditor
                 title={currentTab.matchingTitle}
                 setTitle={(v) => updateCurrentTab("matchingTitle", v)}
+                content={currentTab.contentHtml}
+                setContent={(v) => updateCurrentTab("contentHtml", v)}
                 allowDuplicate={currentTab.matchingAllowDuplicate}
                 setAllowDuplicate={(v) => updateCurrentTab("matchingAllowDuplicate", v)}
                 options={currentTab.matchingOptions}
@@ -1036,24 +1053,37 @@ export default function NewQuestionPage() {
                 removeOption={removeMatchingOption}
                 updateOption={updateMatchingOption}
                 items={currentTab.matchingItems}
-                addItem={addMatchingItem}
-                updateItem={updateMatchingItem}
-                removeItem={removeMatchingItem}
+                setItems={(v) => updateCurrentTab("matchingItems", v)}
               />
             )}
 
-            {/* 빈칸채우기 */}
-            {(currentTab.format === "fill_blank_typing" || currentTab.format === "fill_blank_drag") && (
+            {/* 빈칸채우기 (직접입력) */}
+            {currentTab.format === "fill_blank_typing" && (
               <FillBlankEditor
                 title={currentTab.contentTitle}
                 setTitle={(v) => updateCurrentTab("contentTitle", v)}
                 content={currentTab.contentHtml}
                 setContent={(v) => updateCurrentTab("contentHtml", v)}
                 blanks={currentTab.blanks}
-                addBlank={addBlank}
-                updateBlank={updateBlank}
-                removeBlank={removeBlank}
-                isDrag={currentTab.format === "fill_blank_drag"}
+                setBlanks={(v) => updateCurrentTab("blanks", v)}
+                blankMode={currentTab.blankMode}
+                setBlankMode={(v) => updateCurrentTab("blankMode", v)}
+              />
+            )}
+
+            {/* 빈칸채우기 (드래그앤드랍) */}
+            {currentTab.format === "fill_blank_drag" && (
+              <FillBlankDragEditor
+                title={currentTab.contentTitle}
+                setTitle={(v) => updateCurrentTab("contentTitle", v)}
+                content={currentTab.contentHtml}
+                setContent={(v) => updateCurrentTab("contentHtml", v)}
+                blanks={currentTab.blanks}
+                setBlanks={(v) => updateCurrentTab("blanks", v)}
+                wordBank={currentTab.wordBank}
+                setWordBank={(v) => updateCurrentTab("wordBank", v)}
+                blankMode={currentTab.blankMode}
+                setBlankMode={(v) => updateCurrentTab("blankMode", v)}
               />
             )}
 
@@ -1134,7 +1164,7 @@ export default function NewQuestionPage() {
 const formatLabels: Record<string, string> = {
   mcq: "객관식",
   true_false_ng: "T/F/NG",
-  matching: "매칭",
+  matching: "제목매칭",
   fill_blank_typing: "빈칸(직접입력)",
   fill_blank_drag: "빈칸(드래그)",
   flowchart: "플로우차트",
@@ -1321,121 +1351,197 @@ function TFNGEditor({
 }
 
 // =============================================================================
-// 매칭 에디터
+// 제목 매칭 에디터
 // =============================================================================
 function MatchingEditor({
-  title,
-  setTitle,
-  allowDuplicate,
-  setAllowDuplicate,
-  options,
-  addOption,
-  removeOption,
-  updateOption,
-  items,
-  addItem,
-  updateItem,
-  removeItem,
+  title, setTitle, content, setContent,
+  allowDuplicate, setAllowDuplicate,
+  options, addOption, removeOption, updateOption,
+  items, setItems,
 }: {
-  title: string;
-  setTitle: (v: string) => void;
-  allowDuplicate: boolean;
-  setAllowDuplicate: (v: boolean) => void;
+  title: string; setTitle: (v: string) => void;
+  content: string; setContent: (v: string) => void;
+  allowDuplicate: boolean; setAllowDuplicate: (v: boolean) => void;
   options: MatchingOption[];
   addOption: () => void;
   removeOption: (id: string) => void;
   updateOption: (id: string, text: string) => void;
-  items: MatchingItem[];
-  addItem: () => void;
-  updateItem: (id: string, field: keyof MatchingItem, value: unknown) => void;
-  removeItem: (id: string) => void;
+  items: MatchingItem[]; setItems: (v: MatchingItem[]) => void;
 }) {
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+
+  const editor = useEditor({
+    extensions: [StarterKit.configure({ heading: false, bulletList: false, orderedList: false, listItem: false, blockquote: false, codeBlock: false, code: false, horizontalRule: false })],
+    content,
+    immediatelyRender: false,
+    onUpdate: ({ editor }) => {
+      const html = editor.getHTML();
+      setContent(html);
+      const text = editor.state.doc.textContent;
+      const foundNums: number[] = [];
+      const re = /\[(\d+)\]/g;
+      let match;
+      while ((match = re.exec(text)) !== null) foundNums.push(parseInt(match[1]));
+      const seen = new Set<number>();
+      const duplicates = new Set<number>();
+      for (const n of foundNums) { if (seen.has(n)) duplicates.add(n); seen.add(n); }
+      if (duplicates.size > 0) {
+        toast.warning(`중복된 섹션 번호가 있습니다: [${[...duplicates].join("], [")}]`);
+      }
+      const uniqueNums = [...new Set(foundNums)];
+      const curr = itemsRef.current;
+      let updated = [...curr];
+      let changed = false;
+      for (const num of uniqueNums) {
+        if (!updated.some(i => i.number === num)) {
+          updated.push({ id: `m${Date.now()}-${num}`, number: num, statement: "", correctLabel: "" });
+          changed = true;
+        }
+      }
+      const before = updated.length;
+      updated = updated.filter(i => uniqueNums.includes(i.number));
+      if (updated.length !== before) changed = true;
+      updated.sort((a, b) => a.number - b.number);
+      if (changed) setItems(updated);
+    },
+    editorProps: {
+      attributes: {
+        class: "prose prose-sm max-w-none focus:outline-none min-h-[200px] px-3 py-2 [&_p]:my-1 [&_strong]:font-bold",
+      },
+    },
+  });
+
+  useEffect(() => {
+    if (editor && content !== editor.getHTML()) {
+      editor.commands.setContent(content);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content]);
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (!editor) return;
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const insertSectionMarker = () => {
+    if (!editor) return;
+    const nums = items.map(i => i.number);
+    const nextNum = nums.length > 0 ? Math.max(...nums) + 1 : 1;
+    editor.chain().focus().insertContent(`[${nextNum}]`).run();
+    setContextMenu(null);
+  };
+
+  const removeSectionMarker = (id: string) => {
+    const item = items.find(i => i.id === id);
+    if (!item || !editor) return;
+    const html = editor.getHTML();
+    const newHtml = html.replace(`[${item.number}]`, "");
+    editor.commands.setContent(newHtml);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" onClick={() => setContextMenu(null)}>
       <div className="space-y-2">
-        <Label>문항 제목 (선택)</Label>
-        <Input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="예: Questions 1-5"
-        />
+        <Label>지문 제목 *</Label>
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: The Physics of Traffic Behavior" className="text-lg font-medium" />
       </div>
 
-      <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border">
+      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border">
         <div>
-          <Label className="text-sm">중복 선택 허용</Label>
-          <p className="text-xs text-muted-foreground">같은 보기를 여러 문항에 사용 가능</p>
+          <Label className="text-sm">같은 제목 중복 사용 허용</Label>
+          <p className="text-xs text-muted-foreground">활성화 시 같은 제목을 여러 섹션에 사용 가능</p>
         </div>
         <Switch checked={allowDuplicate} onCheckedChange={setAllowDuplicate} />
       </div>
 
-      {/* 보기 목록 */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Label>보기 (드래그 항목)</Label>
-          <Button variant="outline" size="sm" onClick={addOption}>
-            <Plus className="h-4 w-4 mr-1" />
-            보기 추가
-          </Button>
-        </div>
-        {options.map((option) => (
-          <div key={option.id} className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-lg bg-primary text-white flex items-center justify-center font-bold">
-              {option.label}
-            </span>
-            <Input
-              className="flex-1"
-              value={option.text}
-              onChange={(e) => updateOption(option.id, e.target.value)}
-              placeholder={`보기 ${option.label}`}
-            />
-            {options.length > 2 && (
-              <Button variant="ghost" size="icon" onClick={() => removeOption(option.id)}>
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            )}
+      <div className="space-y-2">
+        <Label>지문 *</Label>
+        <p className="text-xs text-muted-foreground">
+          지문을 입력 후 섹션 시작 위치에서 <strong>우클릭</strong> → 섹션 마커 삽입 / 직접 <code className="bg-slate-100 px-1 rounded">[번호]</code> 입력도 가능
+        </p>
+        <div className="relative">
+          <div className="border rounded-md overflow-hidden" onContextMenu={handleContextMenu}>
+            <div className="flex items-center gap-1 px-2 py-1.5 border-b bg-slate-50">
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().toggleBold().run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive("bold") ? "bg-slate-200" : ""}`}
+              ><Bold className="h-4 w-4" /></Button>
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().toggleItalic().run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive("italic") ? "bg-slate-200" : ""}`}
+              ><Italic className="h-4 w-4" /></Button>
+            </div>
+            <EditorContent editor={editor} className="bg-white" />
           </div>
-        ))}
+          {contextMenu && (
+            <div className="fixed z-50 bg-white border rounded-lg shadow-lg py-1 min-w-[180px]"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+              onClick={(e) => e.stopPropagation()}>
+              <button className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
+                onClick={insertSectionMarker}>
+                <Plus className="h-4 w-4" />
+                섹션 마커 삽입 [{items.length > 0 ? Math.max(...items.map(i => i.number)) + 1 : 1}]
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* 문항 목록 */}
+      {items.length > 0 && (
+        <div className="space-y-3">
+          <Label>섹션 목록 ({items.length}개)</Label>
+          <div className="border rounded-lg divide-y">
+            {items.map((item) => (
+              <div key={item.id} className="px-3 py-2 flex items-center gap-3">
+                <span className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0">{item.number}</span>
+                <Select value={item.correctLabel} onValueChange={(v) => setItems(items.map(i => i.id === item.id ? { ...i, correctLabel: v } : i))}>
+                  <SelectTrigger className="flex-1 h-8 text-sm">
+                    <SelectValue placeholder="정답 제목 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {options.map((o) => (
+                      <SelectItem key={o.id} value={o.label}>{o.label}: {o.text || "(미입력)"}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeSectionMarker(item.id)}>
+                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label>문항 목록</Label>
-          <Button variant="outline" size="sm" onClick={addItem}>
+          <div>
+            <Label>제목 목록 (List of Headings) *</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">학생이 선택할 제목 보기입니다. 정답 + 함정 제목을 모두 추가하세요.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={addOption}>
             <Plus className="h-4 w-4 mr-1" />
-            문항 추가
+            제목 추가
           </Button>
         </div>
-        {items.map((item) => (
-          <div key={item.id} className="flex items-center gap-3">
-            <span className="font-mono font-bold w-8">{item.number}</span>
-            <Input
-              className="flex-1"
-              value={item.statement}
-              onChange={(e) => updateItem(item.id, "statement", e.target.value)}
-              placeholder="문항 내용"
-            />
-            <Select
-              value={item.correctLabel}
-              onValueChange={(v) => updateItem(item.id, "correctLabel", v)}
-            >
-              <SelectTrigger className="w-24">
-                <SelectValue placeholder="정답" />
-              </SelectTrigger>
-              <SelectContent>
-                {options.map((o) => (
-                  <SelectItem key={o.id} value={o.label}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {items.length > 1 && (
-              <Button variant="ghost" size="icon" onClick={() => removeItem(item.id)}>
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            )}
-          </div>
-        ))}
+        <div className="border rounded-lg divide-y">
+          {options.map((option) => (
+            <div key={option.id} className="flex items-center gap-3 px-3 py-2">
+              <span className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shrink-0">
+                {option.label}
+              </span>
+              <Input className="flex-1 h-9" value={option.text} onChange={(e) => updateOption(option.id, e.target.value)} placeholder={`제목 ${option.label} 입력`} />
+              {options.length > 2 && (
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeOption(option.id)}>
+                  <X className="h-3.5 w-3.5 text-destructive" />
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -1445,83 +1551,442 @@ function MatchingEditor({
 // 빈칸채우기 에디터
 // =============================================================================
 function FillBlankEditor({
-  title,
-  setTitle,
-  content,
-  setContent,
-  blanks,
-  addBlank,
-  updateBlank,
-  removeBlank,
-  isDrag,
+  title, setTitle, content, setContent, blanks, setBlanks, blankMode, setBlankMode,
 }: {
-  title: string;
-  setTitle: (v: string) => void;
-  content: string;
-  setContent: (v: string) => void;
-  blanks: Blank[];
-  addBlank: () => void;
-  updateBlank: (id: string, field: keyof Blank, value: unknown) => void;
-  removeBlank: (id: string) => void;
-  isDrag: boolean;
+  title: string; setTitle: (v: string) => void;
+  content: string; setContent: (v: string) => void;
+  blanks: Blank[]; setBlanks: (v: Blank[]) => void;
+  blankMode: "word" | "sentence"; setBlankMode: (v: "word" | "sentence") => void;
 }) {
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; text: string; from: number; to: number } | null>(null);
+  const pendingAnswers = useRef<Map<number, string>>(new Map());
+  const blanksRef = useRef(blanks);
+  blanksRef.current = blanks;
+
+  const editor = useEditor({
+    extensions: [StarterKit.configure({ heading: false, bulletList: false, orderedList: false, listItem: false, blockquote: false, codeBlock: false, code: false, horizontalRule: false })],
+    content,
+    immediatelyRender: false,
+    onUpdate: ({ editor }) => {
+      const html = editor.getHTML();
+      setContent(html);
+      const text = editor.state.doc.textContent;
+      const foundNums: number[] = [];
+      const re = /\[(\d+)\]/g;
+      let match;
+      while ((match = re.exec(text)) !== null) foundNums.push(parseInt(match[1]));
+      const seen = new Set<number>();
+      const duplicates = new Set<number>();
+      for (const n of foundNums) { if (seen.has(n)) duplicates.add(n); seen.add(n); }
+      if (duplicates.size > 0) {
+        toast.warning(`중복된 빈칸 번호가 있습니다: [${[...duplicates].join("], [")}]. 같은 번호를 여러 번 사용할 수 없습니다.`);
+      }
+      const uniqueNums = [...new Set(foundNums)];
+      const curr = blanksRef.current;
+      let updated = [...curr];
+      let changed = false;
+      for (const num of uniqueNums) {
+        if (!updated.some(b => b.number === num)) {
+          const answer = pendingAnswers.current.get(num) || "";
+          pendingAnswers.current.delete(num);
+          updated.push({ id: `b${Date.now()}-${num}`, number: num, answer, alternatives: [] });
+          changed = true;
+        }
+      }
+      const before = updated.length;
+      updated = updated.filter(b => uniqueNums.includes(b.number));
+      if (updated.length !== before) changed = true;
+      updated.sort((a, b) => a.number - b.number);
+      if (changed) setBlanks(updated);
+    },
+    editorProps: {
+      attributes: {
+        class: "prose prose-sm max-w-none focus:outline-none min-h-[200px] px-3 py-2 [&_p]:my-1 [&_strong]:font-bold",
+      },
+    },
+  });
+
+  useEffect(() => {
+    if (editor && content !== editor.getHTML()) {
+      editor.commands.setContent(content);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content]);
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (!editor) return;
+    const { from, to } = editor.state.selection;
+    if (from === to) return;
+    const selectedText = editor.state.doc.textBetween(from, to).trim();
+    if (!selectedText) return;
+    if (blankMode === "word") {
+      if (/\s/.test(selectedText)) {
+        e.preventDefault();
+        toast.warning("공백이 포함된 단어는 빈칸으로 만들 수 없습니다. 단어 하나만 선택해주세요.");
+        return;
+      }
+    } else {
+      if (/^\s/.test(editor.state.doc.textBetween(from, to))) {
+        e.preventDefault();
+        toast.warning("첫 글자가 공백인 텍스트는 빈칸으로 만들 수 없습니다.");
+        return;
+      }
+    }
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, text: selectedText, from, to });
+  };
+
+  const createBlankFromSelection = () => {
+    if (!contextMenu || !editor) return;
+    const { text, from, to } = contextMenu;
+    const nums = blanks.map(b => b.number);
+    const nextNum = nums.length > 0 ? Math.max(...nums) + 1 : 1;
+    pendingAnswers.current.set(nextNum, text);
+    editor.chain().focus().deleteRange({ from, to }).insertContent(`[${nextNum}]`).run();
+    setContextMenu(null);
+  };
+
+  const removeBlankAndRestore = (id: string) => {
+    const blank = blanks.find(b => b.id === id);
+    if (!blank || !editor) return;
+    const html = editor.getHTML();
+    const newHtml = html.replace(`[${blank.number}]`, blank.answer || "");
+    editor.commands.setContent(newHtml);
+  };
+
+  const updateBlankAnswer = (id: string, newAnswer: string) => {
+    const clean = blankMode === "word" ? newAnswer.replace(/\s/g, "") : newAnswer.replace(/^\s+/, "");
+    setBlanks(blanks.map(b => b.id === id ? { ...b, answer: clean } : b));
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" onClick={() => setContextMenu(null)}>
       <div className="space-y-2">
         <Label>제목 (선택)</Label>
-        <Input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="지문 제목"
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="지문 제목" />
+      </div>
+
+      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border">
+        <span className={`text-sm font-medium ${blankMode === "word" ? "text-primary" : "text-muted-foreground"}`}>워드형</span>
+        <Switch
+          checked={blankMode === "sentence"}
+          onCheckedChange={(checked) => {
+            const newMode = checked ? "sentence" : "word";
+            if (content.trim() || blanks.length > 0) {
+              setContent("");
+              setBlanks([]);
+              toast.info("모드가 변경되어 내용이 초기화되었습니다");
+            }
+            setBlankMode(newMode);
+          }}
         />
+        <span className={`text-sm font-medium ${blankMode === "sentence" ? "text-primary" : "text-muted-foreground"}`}>문장형</span>
       </div>
 
       <div className="space-y-2">
         <Label>지문 *</Label>
-        <p className="text-xs text-muted-foreground">빈칸 위치에 [번호] 형식으로 표시하세요 (예: [1], [2])</p>
-        <RichTextEditor
-          value={content}
-          onChange={setContent}
-          placeholder="지문을 입력하세요. 빈칸 위치에 [1], [2] 등을 입력하세요."
-        />
+        <p className="text-xs text-muted-foreground">
+          단어를 드래그로 선택 후 <strong>우클릭</strong> → 빈칸 만들기 / 직접 <code className="bg-slate-100 px-1 rounded">[번호]</code> 입력도 가능
+        </p>
+        <div className="relative">
+          <div className="border rounded-md overflow-hidden" onContextMenu={handleContextMenu}>
+            <div className="flex items-center gap-1 px-2 py-1.5 border-b bg-slate-50">
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().toggleBold().run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive("bold") ? "bg-slate-200" : ""}`}
+              ><Bold className="h-4 w-4" /></Button>
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().toggleItalic().run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive("italic") ? "bg-slate-200" : ""}`}
+              ><Italic className="h-4 w-4" /></Button>
+            </div>
+            <EditorContent editor={editor} className="bg-white" />
+          </div>
+          {contextMenu && (
+            <div className="fixed z-50 bg-white border rounded-lg shadow-lg py-1 min-w-[160px]"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+              onClick={(e) => e.stopPropagation()}>
+              <button className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
+                onClick={createBlankFromSelection}>
+                <Plus className="h-4 w-4" />
+                빈칸 만들기: &ldquo;{contextMenu.text.length > 20 ? contextMenu.text.slice(0, 20) + "…" : contextMenu.text}&rdquo;
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Label>빈칸 정답</Label>
-          <Button variant="outline" size="sm" onClick={addBlank}>
-            <Plus className="h-4 w-4 mr-1" />
-            빈칸 추가
-          </Button>
-        </div>
-        {blanks.map((blank) => (
-          <div key={blank.id} className="p-4 border rounded-lg space-y-3">
-            <div className="flex items-center gap-3">
-              <span className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
-                {blank.number}
-              </span>
-              <Input
-                className="flex-1"
-                value={blank.answer}
-                onChange={(e) => updateBlank(blank.id, "answer", e.target.value)}
-                placeholder="정답"
-              />
-              <Button variant="ghost" size="icon" onClick={() => removeBlank(blank.id)}>
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            </div>
-            <div className="pl-11">
-              <Label className="text-xs">대안 정답 (쉼표로 구분)</Label>
-              <Input
-                className="mt-1"
-                value={blank.alternatives.join(", ")}
-                onChange={(e) => updateBlank(blank.id, "alternatives", e.target.value.split(",").map(s => s.trim()).filter(Boolean))}
-                placeholder="예: answer1, answer2"
-              />
-            </div>
+      {blanks.length > 0 && (
+        <div className="space-y-3">
+          <Label>빈칸 목록 ({blanks.length}개)</Label>
+          <div className="border rounded-lg divide-y">
+            {blanks.map((blank) => (
+              <div key={blank.id} className="px-3 py-2">
+                <div className="flex items-center gap-3">
+                  <span className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0">{blank.number}</span>
+                  <Input className="flex-1 h-8 text-sm" value={blank.answer}
+                    onChange={(e) => updateBlankAnswer(blank.id, e.target.value)}
+                    placeholder={blankMode === "word" ? "정답 단어 입력" : "정답 (문장 가능)"} />
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeBlankAndRestore(blank.id)}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// 빈칸채우기 드래그앤드랍 에디터 (TipTap + 우클릭 빈칸 생성)
+// =============================================================================
+function FillBlankDragEditor({
+  title, setTitle, content, setContent, blanks, setBlanks, wordBank, setWordBank, blankMode, setBlankMode,
+}: {
+  title: string; setTitle: (v: string) => void;
+  content: string; setContent: (v: string) => void;
+  blanks: Blank[]; setBlanks: (v: Blank[]) => void;
+  wordBank: string[]; setWordBank: (v: string[]) => void;
+  blankMode: "word" | "sentence"; setBlankMode: (v: "word" | "sentence") => void;
+}) {
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; text: string; from: number; to: number } | null>(null);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const pendingAnswers = useRef<Map<number, string>>(new Map());
+  const blanksRef = useRef(blanks);
+  const wordBankRef = useRef(wordBank);
+  blanksRef.current = blanks;
+  wordBankRef.current = wordBank;
+
+  const editor = useEditor({
+    extensions: [StarterKit.configure({ heading: false, bulletList: false, orderedList: false, listItem: false, blockquote: false, codeBlock: false, code: false, horizontalRule: false })],
+    content,
+    immediatelyRender: false,
+    onUpdate: ({ editor }) => {
+      const html = editor.getHTML();
+      setContent(html);
+      // [N] 패턴 자동 감지 → 빈칸 목록 동기화
+      const text = editor.state.doc.textContent;
+      const foundNums: number[] = [];
+      const re = /\[(\d+)\]/g;
+      let match;
+      while ((match = re.exec(text)) !== null) foundNums.push(parseInt(match[1]));
+      // 중복 번호 감지
+      const seen = new Set<number>();
+      const duplicates = new Set<number>();
+      for (const n of foundNums) { if (seen.has(n)) duplicates.add(n); seen.add(n); }
+      if (duplicates.size > 0) {
+        toast.warning(`중복된 빈칸 번호가 있습니다: [${[...duplicates].join("], [")}]. 같은 번호를 여러 번 사용할 수 없습니다.`);
+      }
+      const uniqueNums = [...new Set(foundNums)];
+      const curr = blanksRef.current;
+      let updated = [...curr];
+      let changed = false;
+      for (const num of uniqueNums) {
+        if (!updated.some(b => b.number === num)) {
+          const answer = pendingAnswers.current.get(num) || "";
+          pendingAnswers.current.delete(num);
+          updated.push({ id: `b${Date.now()}-${num}`, number: num, answer, alternatives: [] });
+          changed = true;
+        }
+      }
+      const before = updated.length;
+      const removed = updated.filter(b => !uniqueNums.includes(b.number));
+      updated = updated.filter(b => uniqueNums.includes(b.number));
+      if (updated.length !== before) {
+        changed = true;
+        const remainingAnswers = new Set(updated.map(b => b.answer).filter(Boolean));
+        const toRemove = removed.map(b => b.answer).filter(a => a && !remainingAnswers.has(a));
+        if (toRemove.length > 0) setWordBank(wordBankRef.current.filter(w => !toRemove.includes(w)));
+      }
+      updated.sort((a, b) => a.number - b.number);
+      if (changed) setBlanks(updated);
+    },
+    editorProps: {
+      attributes: {
+        class: "prose prose-sm max-w-none focus:outline-none min-h-[200px] px-3 py-2 [&_p]:my-1 [&_strong]:font-bold",
+      },
+    },
+  });
+
+  useEffect(() => {
+    if (editor && content !== editor.getHTML()) {
+      editor.commands.setContent(content);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content]);
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (!editor) return;
+    const { from, to } = editor.state.selection;
+    if (from === to) return;
+    const selectedText = editor.state.doc.textBetween(from, to).trim();
+    if (!selectedText) return;
+    if (blankMode === "word") {
+      if (/\s/.test(selectedText)) {
+        e.preventDefault();
+        toast.warning("공백이 포함된 단어는 빈칸으로 만들 수 없습니다. 단어 하나만 선택해주세요.");
+        return;
+      }
+    } else {
+      if (/^\s/.test(editor.state.doc.textBetween(from, to))) {
+        e.preventDefault();
+        toast.warning("첫 글자가 공백인 텍스트는 빈칸으로 만들 수 없습니다.");
+        return;
+      }
+    }
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, text: selectedText, from, to });
+  };
+
+  const createBlankFromSelection = () => {
+    if (!contextMenu || !editor) return;
+    const { text, from, to } = contextMenu;
+    const nums = blanks.map(b => b.number);
+    const nextNum = nums.length > 0 ? Math.max(...nums) + 1 : 1;
+    pendingAnswers.current.set(nextNum, text);
+    editor.chain().focus().deleteRange({ from, to }).insertContent(`[${nextNum}]`).run();
+    if (!wordBank.includes(text)) setWordBank([...wordBank, text]);
+    setContextMenu(null);
+  };
+
+  const removeBlankAndRestore = (id: string) => {
+    const blank = blanks.find(b => b.id === id);
+    if (!blank || !editor) return;
+    const html = editor.getHTML();
+    const newHtml = html.replace(`[${blank.number}]`, blank.answer || "");
+    editor.commands.setContent(newHtml);
+  };
+
+  const updateBlankAnswer = (id: string, newAnswer: string) => {
+    const clean = blankMode === "word" ? newAnswer.replace(/\s/g, "") : newAnswer.replace(/^\s+/, "");
+    const blank = blanks.find(b => b.id === id);
+    if (!blank) return;
+    const oldAnswer = blank.answer;
+    setBlanks(blanks.map(b => b.id === id ? { ...b, answer: clean } : b));
+    if (oldAnswer && oldAnswer !== clean) {
+      const stillUsed = blanks.some(b => b.id !== id && b.answer === oldAnswer);
+      let wb = [...wordBankRef.current];
+      if (!stillUsed) wb = wb.filter(w => w !== oldAnswer);
+      if (clean && !wb.includes(clean)) wb.push(clean);
+      setWordBank(wb);
+    } else if (clean && !wordBankRef.current.includes(clean)) {
+      setWordBank([...wordBankRef.current, clean]);
+    }
+  };
+
+  return (
+    <div className="space-y-6" onClick={() => setContextMenu(null)}>
+      <div className="space-y-2">
+        <Label>제목 (선택)</Label>
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="지문 제목" />
       </div>
+
+      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border">
+        <span className={`text-sm font-medium ${blankMode === "word" ? "text-primary" : "text-muted-foreground"}`}>워드형</span>
+        <Switch
+          checked={blankMode === "sentence"}
+          onCheckedChange={(checked) => {
+            const newMode = checked ? "sentence" : "word";
+            if (content.trim() || blanks.length > 0) {
+              setContent("");
+              setBlanks([]);
+              setWordBank([]);
+              toast.info("모드가 변경되어 내용이 초기화되었습니다");
+            }
+            setBlankMode(newMode);
+          }}
+        />
+        <span className={`text-sm font-medium ${blankMode === "sentence" ? "text-primary" : "text-muted-foreground"}`}>문장형</span>
+      </div>
+
+      <div className="space-y-2">
+        <Label>지문 *</Label>
+        <p className="text-xs text-muted-foreground">
+          단어를 드래그로 선택 후 <strong>우클릭</strong> → 빈칸 만들기 / 직접 <code className="bg-slate-100 px-1 rounded">[번호]</code> 입력도 가능
+        </p>
+        <div className="relative">
+          <div className="border rounded-md overflow-hidden" onContextMenu={handleContextMenu}>
+            <div className="flex items-center gap-1 px-2 py-1.5 border-b bg-slate-50">
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().toggleBold().run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive("bold") ? "bg-slate-200" : ""}`}
+              ><Bold className="h-4 w-4" /></Button>
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().toggleItalic().run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive("italic") ? "bg-slate-200" : ""}`}
+              ><Italic className="h-4 w-4" /></Button>
+            </div>
+            <EditorContent editor={editor} className="bg-white" />
+          </div>
+          {contextMenu && (
+            <div className="fixed z-50 bg-white border rounded-lg shadow-lg py-1 min-w-[160px]"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+              onClick={(e) => e.stopPropagation()}>
+              <button className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
+                onClick={createBlankFromSelection}>
+                <Plus className="h-4 w-4" />
+                빈칸 만들기: &ldquo;{contextMenu.text.length > 20 ? contextMenu.text.slice(0, 20) + "…" : contextMenu.text}&rdquo;
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {blanks.length > 0 && (
+        <div className="space-y-3">
+          <Label>빈칸 목록 ({blanks.length}개)</Label>
+          <div className="border rounded-lg divide-y">
+            {blanks.map((blank) => (
+              <div key={blank.id} className="px-3 py-2">
+                <div className="flex items-center gap-3">
+                  <span className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0">{blank.number}</span>
+                  <Input className="flex-1 h-8 text-sm" value={blank.answer}
+                    onChange={(e) => updateBlankAnswer(blank.id, e.target.value)}
+                    placeholder="정답 단어 입력" />
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeBlankAndRestore(blank.id)}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {wordBank.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Word Bank 미리보기</Label>
+            <span className="text-[10px] text-muted-foreground">(드래그하여 순서 변경)</span>
+          </div>
+          <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-lg border border-dashed">
+            {wordBank.map((word, i) => {
+              const isAnswer = blanks.some(b => b.answer === word);
+              return (
+                <span key={`${i}-${word}`} draggable
+                  onDragStart={() => setDragIdx(i)}
+                  onDragOver={(e) => { e.preventDefault(); setDragOverIdx(i); }}
+                  onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+                  onDrop={() => {
+                    if (dragIdx === null || dragIdx === i) return;
+                    const r = [...wordBank]; const [mv] = r.splice(dragIdx, 1); r.splice(i, 0, mv);
+                    setWordBank(r); setDragIdx(null); setDragOverIdx(null);
+                  }}
+                  className={`px-3 py-1 rounded-md text-sm border cursor-grab active:cursor-grabbing select-none transition-all ${
+                    dragIdx === i ? "opacity-40 scale-95" : ""} ${
+                    dragOverIdx === i && dragIdx !== i ? "ring-2 ring-primary ring-offset-1" : ""} ${
+                    isAnswer ? "bg-primary/10 text-primary border-primary/20" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
+                  {word}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1821,6 +2286,79 @@ function SpeakingPart3Editor({
 }
 
 // =============================================================================
+// 빈칸채우기 드래그앤드랍 미리보기 (시험 환경 시뮬레이션)
+// =============================================================================
+function FillBlankDragPreview({
+  title, content, blanks, wordBank,
+}: {
+  title: string; content: string; blanks: Blank[]; wordBank: string[];
+}) {
+  const [placedWords, setPlacedWords] = useState<Record<number, string>>({});
+  const [draggedWord, setDraggedWord] = useState<string | null>(null);
+  const availableWords = wordBank.filter(w => w && !Object.values(placedWords).includes(w));
+
+  const handleDrop = (num: number) => {
+    if (draggedWord) {
+      setPlacedWords(prev => ({ ...prev, [num]: draggedWord }));
+      setDraggedWord(null);
+    }
+  };
+
+  const renderContent = () => {
+    if (!content) return null;
+    const parts = content.split(/\[(\d+)\]/g);
+    return parts.map((part, index) => {
+      if (index % 2 === 1) {
+        const num = parseInt(part);
+        const placed = placedWords[num];
+        return (
+          <span key={index} className="inline-flex items-center mx-0.5 align-middle">
+            <span
+              className={`inline-flex items-center justify-center min-w-[120px] h-8 border-2 rounded px-2 text-sm transition-colors ${
+                placed ? "bg-green-50 border-green-400 text-green-800 cursor-pointer" : draggedWord ? "border-dashed border-primary bg-primary/5" : "border-slate-300 bg-white text-slate-400"
+              }`}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => handleDrop(num)}
+              onDoubleClick={() => placed && setPlacedWords(prev => { const n = { ...prev }; delete n[num]; return n; })}
+              title={placed ? "더블클릭하여 제거" : ""}
+            >
+              {placed || num}
+            </span>
+          </span>
+        );
+      }
+      return <span key={index} dangerouslySetInnerHTML={{ __html: part }} />;
+    });
+  };
+
+  return (
+    <div className="bg-[#d6dfe8] rounded-lg p-8">
+      <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
+        {title && <h2 className="text-lg font-bold text-center">{title}</h2>}
+        <div className="leading-[2] text-sm">{renderContent()}</div>
+        <div className="pt-4 border-t mt-4">
+          <div className="flex flex-wrap gap-2">
+            {availableWords.map((word, i) => (
+              <span key={`${word}-${i}`} draggable
+                onDragStart={() => setDraggedWord(word)}
+                onDragEnd={() => setDraggedWord(null)}
+                className={`px-4 py-1.5 bg-white rounded border border-slate-300 cursor-grab hover:bg-slate-50 select-none text-sm ${
+                  draggedWord === word ? "opacity-50 scale-95" : ""
+                }`}>
+                {word}
+              </span>
+            ))}
+            {availableWords.length === 0 && wordBank.length > 0 && (
+              <span className="text-sm text-muted-foreground">모든 단어가 사용되었습니다</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
 // 미리보기 다이얼로그
 // =============================================================================
 function PreviewDialog({
@@ -1862,8 +2400,8 @@ function PreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-[1100px] w-[95vw] h-[85vh] p-0 gap-0">
-        <DialogHeader className="px-6 py-4 border-b">
+      <DialogContent className="sm:max-w-[95vw] max-w-[95vw] w-[95vw] max-h-[85vh] p-0 gap-0 flex flex-col">
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
           <DialogTitle className="flex items-center gap-2">
             미리보기 - 실제 시험 화면
             {typeInfo && (
@@ -1874,7 +2412,7 @@ function PreviewDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1">
+        <div className="flex-1 overflow-y-auto">
           <div className="p-8 bg-slate-100 min-h-full">
             {/* 지시문 */}
             {tab.instructions && (
@@ -1927,33 +2465,33 @@ function PreviewDialog({
               </div>
             )}
 
-            {/* 매칭 */}
+            {/* 제목 매칭 */}
             {tab.format === "matching" && (
-              <div className="grid grid-cols-2 gap-6">
-                <div className="bg-white rounded-lg border p-4 space-y-3">
-                  {tab.matchingTitle && <h3 className="font-semibold text-muted-foreground">{tab.matchingTitle}</h3>}
-                  {tab.matchingItems.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3 p-3 border rounded-lg">
-                      <span className="font-mono font-bold">{item.number}</span>
-                      <span className="flex-1">{item.statement || "(문항 입력)"}</span>
-                      <div className="w-10 h-8 border-2 border-dashed border-slate-400 rounded flex items-center justify-center">
-                        ?
-                      </div>
-                    </div>
-                  ))}
+              <div className="grid grid-cols-[1fr_340px] gap-6">
+                {/* 왼쪽: 지문 */}
+                <div className="bg-white rounded-lg border p-6">
+                  {tab.matchingTitle && <h2 className="text-lg font-bold mb-4">{tab.matchingTitle}</h2>}
+                  <div
+                    className="prose prose-sm max-w-none [&_p]:my-1 [&_strong]:font-bold"
+                    dangerouslySetInnerHTML={{
+                      __html: tab.contentHtml.replace(
+                        /\[(\d+)\]/g,
+                        '<div style="display:inline-block;border:2px solid #94a3b8;border-radius:4px;padding:2px 24px;margin:8px 0;font-weight:bold;text-align:center;min-width:80px;">$1</div>'
+                      )
+                    }}
+                  />
                 </div>
-                <div className="bg-white rounded-lg border p-4">
-                  <h3 className="font-semibold mb-4">보기 (드래그하여 매칭)</h3>
+                {/* 오른쪽: 제목 목록 */}
+                <div className="bg-white rounded-lg border p-4 h-fit">
+                  <h3 className="font-semibold mb-1">List of Headings</h3>
+                  <p className="text-xs text-muted-foreground mb-4">Choose the correct heading for each section.</p>
                   {tab.matchingAllowDuplicate && (
-                    <p className="text-xs text-blue-600 mb-3">* 같은 보기를 여러 번 사용할 수 있습니다</p>
+                    <p className="text-xs text-blue-600 mb-3">* 같은 제목을 여러 번 사용할 수 있습니다</p>
                   )}
                   <div className="space-y-2">
                     {tab.matchingOptions.map((option) => (
-                      <div key={option.id} className="p-3 bg-slate-50 rounded border-l-4 border-primary cursor-grab hover:bg-slate-100 flex items-center gap-3">
-                        <span className="w-8 h-8 rounded bg-primary text-white flex items-center justify-center font-medium">
-                          {option.label}
-                        </span>
-                        <span>{option.text || "(보기 입력)"}</span>
+                      <div key={option.id} className="px-4 py-2.5 bg-slate-50 rounded-lg border cursor-grab hover:bg-slate-100">
+                        <span className="font-semibold">{option.text || `(제목 ${option.label} 입력)`}</span>
                       </div>
                     ))}
                   </div>
@@ -1961,26 +2499,24 @@ function PreviewDialog({
               </div>
             )}
 
-            {/* 빈칸채우기 */}
-            {(tab.format === "fill_blank_typing" || tab.format === "fill_blank_drag") && (
+            {/* 빈칸채우기 (직접입력) */}
+            {tab.format === "fill_blank_typing" && (
               <div className="bg-white rounded-lg border p-6 space-y-4">
                 {tab.contentTitle && <h2 className="text-lg font-bold border-b pb-3">{tab.contentTitle}</h2>}
                 <div className="leading-relaxed whitespace-pre-wrap">
                   {renderContent(tab.contentHtml)}
                 </div>
-                {tab.format === "fill_blank_drag" && tab.wordBank.length > 0 && (
-                  <div className="pt-4 border-t">
-                    <p className="text-sm font-medium mb-2">Word Bank:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {tab.wordBank.map((word, i) => (
-                        <span key={i} className="px-3 py-1.5 bg-slate-100 rounded border cursor-grab">
-                          {word}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
+            )}
+
+            {/* 빈칸채우기 (드래그앤드랍) */}
+            {tab.format === "fill_blank_drag" && (
+              <FillBlankDragPreview
+                title={tab.contentTitle}
+                content={tab.contentHtml}
+                blanks={tab.blanks}
+                wordBank={tab.wordBank}
+              />
             )}
 
             {/* 플로우차트 */}
@@ -2057,7 +2593,7 @@ function PreviewDialog({
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
