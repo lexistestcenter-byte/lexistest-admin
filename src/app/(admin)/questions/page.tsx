@@ -36,7 +36,7 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
-  Copy,
+  Eye,
   Headphones,
   BookOpen,
   PenTool,
@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { QuestionPreviewDialog } from "./question-preview-dialog";
 
 interface QuestionRow {
   id: string;
@@ -78,7 +79,7 @@ const formatLabels: Record<string, string> = {
   fill_blank_typing: "빈칸채우기 (직접입력)",
   fill_blank_drag: "빈칸채우기 (드래그)",
   heading_matching: "제목 매칭",
-  mcq: "4지선다",
+  mcq_single: "단일선택",
   mcq_multiple: "복수선택",
   true_false_ng: "T/F/NG",
   flowchart: "플로우차트",
@@ -104,6 +105,7 @@ export default function QuestionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<QuestionRow | null>(null);
+  const [previewQuestionId, setPreviewQuestionId] = useState<string | null>(null);
 
   // Filters
   const [selectedType, setSelectedType] = useState("all");
@@ -229,7 +231,7 @@ export default function QuestionsPage() {
               연습
             </Badge>
           )}
-          <span className="text-sm line-clamp-1 max-w-[300px]">
+          <span className="text-sm">
             {q.title || q.content}
           </span>
         </div>
@@ -252,9 +254,9 @@ export default function QuestionsPage() {
               <Pencil className="mr-2 h-4 w-4" />
               수정
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Copy className="mr-2 h-4 w-4" />
-              복제
+            <DropdownMenuItem onClick={() => setPreviewQuestionId(q.id)}>
+              <Eye className="mr-2 h-4 w-4" />
+              미리보기
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -350,6 +352,13 @@ export default function QuestionsPage() {
         />
       )}
 
+      {/* 문제 미리보기 다이얼로그 */}
+      <QuestionPreviewDialog
+        questionId={previewQuestionId}
+        open={!!previewQuestionId}
+        onOpenChange={(open) => { if (!open) setPreviewQuestionId(null); }}
+      />
+
       {/* 삭제 확인 다이얼로그 */}
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
@@ -361,7 +370,7 @@ export default function QuestionsPage() {
               <strong className="text-foreground">
                 {deleteTarget?.question_code}
               </strong>{" "}
-              - {deleteTarget?.title || deleteTarget?.content?.slice(0, 50)}
+              - {deleteTarget?.title || deleteTarget?.content}
               <br />
               <br />
               <span className="text-amber-600">

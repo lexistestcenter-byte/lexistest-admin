@@ -91,6 +91,7 @@ export async function PUT(
       "instruction_html",
       "passage_title",
       "passage_content",
+      "passage_footnotes",
       "audio_transcript",
     ];
     for (const field of textFields) {
@@ -130,6 +131,10 @@ export async function PUT(
     if (body.passage_content !== undefined)
       updateData.passage_content = body.passage_content
         ? sanitizeHtml(body.passage_content)
+        : null;
+    if (body.passage_footnotes !== undefined)
+      updateData.passage_footnotes = body.passage_footnotes
+        ? sanitizeHtml(body.passage_footnotes)
         : null;
     if (body.audio_url !== undefined) updateData.audio_url = body.audio_url;
     if (body.audio_duration_seconds !== undefined)

@@ -14,28 +14,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   MoreHorizontal,
   Pencil,
   Trash2,
-  Copy,
-  Eye,
   FileText,
   Headphones,
   BookOpen,
@@ -47,6 +28,7 @@ import {
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { SectionPreview, type PreviewQuestion } from "./new/section-preview";
 
 const typeFilters = [
   { id: "all", label: "전체", icon: null },
@@ -87,12 +69,19 @@ export default function SectionsPage() {
   const router = useRouter();
   const [sections, setSections] = useState<SectionRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<SectionRow | null>(null);
+
+  // Preview
+  const [previewSection, setPreviewSection] = useState<SectionRow | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<{
+    contentBlocks: { id: string; content_type: "passage" | "audio"; passage_title?: string; passage_content?: string; passage_footnotes?: string; audio_url?: string; audio_transcript?: string }[];
+    questionGroups: { id: string; title: string; instructions: string | null; contentBlockId: string | null; startNum: number; endNum: number; questionIds: string[] }[];
+    questions: PreviewQuestion[];
+  }>({ contentBlocks: [], questionGroups: [], questions: [] });
 
   // Filters
   const [selectedType, setSelectedType] = useState("all");
-  const [selectedStatus, setSelectedStatus] = useState("all");
   const [search, setSearch] = useState("");
 
   // Pagination
@@ -110,9 +99,6 @@ export default function SectionsPage() {
 
       if (selectedType !== "all") {
         params.set("section_type", selectedType);
-      }
-      if (selectedStatus !== "all") {
-        params.set("is_active", selectedStatus === "active" ? "true" : "false");
       }
       if (search) {
         params.set("search", search);
@@ -132,7 +118,7 @@ export default function SectionsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, selectedType, selectedStatus, search]);
+  }, [currentPage, selectedType, search]);
 
   useEffect(() => {
     loadSections();
@@ -146,31 +132,114 @@ export default function SectionsPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Delete handler
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
+  // Delete handler (toast-based confirmation)
+  const confirmDelete = (section: SectionRow) => {
+    toast.warning(`"${section.title}" 섹션을 삭제하시겠습니까?`, {
+      description: "이 섹션에 연결된 문제나 그룹은 삭제되지 않습니다.",
+      actionButtonStyle: { backgroundColor: "hsl(0 84% 60%)", color: "white" },
+      action: {
+        label: "삭제",
+        onClick: async () => {
+          try {
+            const response = await fetch(`/api/sections/${section.id}`, {
+              method: "DELETE",
+            });
+            if (!response.ok) {
+              const error = await response.json();
+              throw new Error(error.error || "Failed to delete");
+            }
+            toast.success("섹션이 삭제되었습니다.");
+            loadSections();
+          } catch (error) {
+            console.error("Error deleting section:", error);
+            toast.error(
+              error instanceof Error ? error.message : "섹션 삭제에 실패했습니다."
+            );
+          }
+        },
+      },
+      cancel: {
+        label: "취소",
+        onClick: () => {},
+      },
+    });
+  };
 
-    setIsDeleting(true);
+  // Preview handler
+  const openPreview = async (section: SectionRow) => {
+    setPreviewSection(section);
+    setIsLoadingPreview(true);
+    setShowPreview(true);
     try {
-      const response = await fetch(`/api/sections/${deleteTarget.id}`, {
-        method: "DELETE",
-      });
+      const structRes = await fetch(`/api/sections/${section.id}/structure`);
+      if (!structRes.ok) throw new Error("Failed to load structure");
+      const structData = await structRes.json();
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to delete");
+      const blocks = (structData.content_blocks || []).map((b: Record<string, unknown>) => ({
+        id: b.id as string,
+        content_type: b.content_type as "passage" | "audio",
+        passage_title: (b.passage_title as string) || undefined,
+        passage_content: (b.passage_content as string) || undefined,
+        passage_footnotes: (b.passage_footnotes as string) || undefined,
+        audio_url: (b.audio_url as string) || undefined,
+        audio_transcript: (b.audio_transcript as string) || undefined,
+      }));
+
+      const groups = structData.question_groups || [];
+      const allQuestionIds: string[] = groups.flatMap(
+        (g: { items?: { question_id: string }[] }) =>
+          (g.items || []).map((i) => i.question_id)
+      );
+
+      let questions: PreviewQuestion[] = [];
+      if (allQuestionIds.length > 0) {
+        const uniqueIds = [...new Set(allQuestionIds)];
+        const details = await Promise.all(
+          uniqueIds.map(async (qId) => {
+            const res = await fetch(`/api/questions/${qId}`);
+            if (!res.ok) return null;
+            const data = await res.json();
+            return data.question as PreviewQuestion;
+          })
+        );
+        const detailMap = new Map(
+          details.filter((d): d is PreviewQuestion => d !== null).map((d) => [d.id, d])
+        );
+        questions = allQuestionIds
+          .map((qId) => detailMap.get(qId))
+          .filter((q): q is PreviewQuestion => q !== undefined);
       }
 
-      toast.success("섹션이 삭제되었습니다.");
-      loadSections();
-    } catch (error) {
-      console.error("Error deleting section:", error);
-      toast.error(
-        error instanceof Error ? error.message : "섹션 삭제에 실패했습니다."
+      // Build numbered groups
+      let num = 1;
+      const questionMap = new Map(questions.map((q) => [q.id, q]));
+      const numberedGroups = groups.map(
+        (g: { id: string; title?: string; instructions?: string; content_block_id?: string; items?: { question_id: string }[] }) => {
+          const qIds = (g.items || []).map((i) => i.question_id);
+          const startNum = num;
+          for (const qId of qIds) {
+            const q = questionMap.get(qId);
+            num += q ? q.item_count || 1 : 1;
+          }
+          return {
+            id: g.id,
+            title: g.title || "",
+            instructions: g.instructions || null,
+            contentBlockId: g.content_block_id || null,
+            startNum,
+            endNum: num - 1,
+            questionIds: qIds,
+          };
+        }
       );
+
+      setPreviewData({ contentBlocks: blocks, questionGroups: numberedGroups, questions });
+    } catch (error) {
+      console.error("Error loading preview:", error);
+      toast.error("미리보기 데이터를 불러오는데 실패했습니다.");
+      setShowPreview(false);
     } finally {
-      setIsDeleting(false);
-      setDeleteTarget(null);
+      setIsLoadingPreview(false);
     }
   };
 
@@ -196,8 +265,14 @@ export default function SectionsPage() {
             </div>
           )}
           <div>
-            <div className="font-medium">{section.title}</div>
-            <div className="text-sm text-muted-foreground line-clamp-1">
+            <button
+              type="button"
+              className="font-medium text-left hover:text-blue-600 hover:underline transition-colors"
+              onClick={() => openPreview(section)}
+            >
+              {section.title}
+            </button>
+            <div className="text-sm text-muted-foreground">
               {section.description || "-"}
             </div>
           </div>
@@ -231,15 +306,6 @@ export default function SectionsPage() {
         ) : null,
     },
     {
-      key: "status",
-      header: "상태",
-      cell: (section) => (
-        <Badge variant={section.is_active ? "default" : "secondary"}>
-          {section.is_active ? "활성" : "비활성"}
-        </Badge>
-      ),
-    },
-    {
       key: "actions",
       header: "",
       cell: (section) => (
@@ -253,21 +319,13 @@ export default function SectionsPage() {
             <DropdownMenuLabel>작업</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => router.push(`/sections/${section.id}`)}>
-              <Eye className="mr-2 h-4 w-4" />
-              상세보기
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push(`/sections/${section.id}/edit`)}>
               <Pencil className="mr-2 h-4 w-4" />
-              수정
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Copy className="mr-2 h-4 w-4" />
-              복제
+              편집
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive"
-              onClick={() => setDeleteTarget(section)}
+              onClick={() => confirmDelete(section)}
             >
               <Trash2 className="mr-2 h-4 w-4" />
               삭제
@@ -326,24 +384,6 @@ export default function SectionsPage() {
           })}
         </div>
 
-        <div className="h-6 w-px bg-slate-200" />
-
-        <Select
-          value={selectedStatus}
-          onValueChange={(v) => {
-            setSelectedStatus(v);
-            setCurrentPage(1);
-          }}
-        >
-          <SelectTrigger className="w-[120px] h-9 text-sm">
-            <SelectValue placeholder="상태" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">전체 상태</SelectItem>
-            <SelectItem value="active">활성</SelectItem>
-            <SelectItem value="inactive">비활성</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {isLoading ? (
@@ -360,41 +400,21 @@ export default function SectionsPage() {
         />
       )}
 
-      {/* 삭제 확인 다이얼로그 */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>섹션 삭제</AlertDialogTitle>
-            <AlertDialogDescription>
-              정말로 이 섹션을 삭제하시겠습니까?
-              <br />
-              <strong className="text-foreground">{deleteTarget?.title}</strong>
-              <br />
-              <br />
-              <span className="text-amber-600">
-                이 섹션에 연결된 문제나 그룹은 삭제되지 않습니다.
-              </span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>취소</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  삭제 중...
-                </>
-              ) : (
-                "삭제"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* 섹션 미리보기 */}
+      <SectionPreview
+        open={showPreview}
+        onOpenChange={(open) => {
+          setShowPreview(open);
+          if (!open) setPreviewSection(null);
+        }}
+        sectionType={previewSection?.section_type || "reading"}
+        title={previewSection?.title || ""}
+        timeLimit={previewSection?.time_limit_minutes?.toString() || ""}
+        isPractice={previewSection?.is_practice || false}
+        contentBlocks={isLoadingPreview ? [] : previewData.contentBlocks}
+        questionGroups={isLoadingPreview ? [] : previewData.questionGroups}
+        questions={isLoadingPreview ? [] : previewData.questions}
+      />
     </div>
   );
 }

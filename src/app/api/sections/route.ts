@@ -128,6 +128,7 @@ export async function POST(request: NextRequest) {
       "instruction_html",
       "passage_title",
       "passage_content",
+      "passage_footnotes",
       "audio_transcript",
     ];
     for (const field of textFields) {
@@ -157,6 +158,9 @@ export async function POST(request: NextRequest) {
         : null,
       passage_content: body.passage_content
         ? sanitizeHtml(body.passage_content)
+        : null,
+      passage_footnotes: body.passage_footnotes
+        ? sanitizeHtml(body.passage_footnotes)
         : null,
       audio_url: body.audio_url || null,
       audio_duration_seconds: body.audio_duration_seconds || null,

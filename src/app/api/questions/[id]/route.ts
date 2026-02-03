@@ -196,8 +196,12 @@ export async function PUT(
       p_audio_url: sanitizedAudioUrl,
       p_audio_duration_seconds: body.audio_duration_seconds || null,
       p_audio_transcript: sanitizedAudioTranscript,
+      p_speaking_category: body.speaking_category !== undefined ? body.speaking_category : null,
+      p_related_part2_id: body.related_part2_id !== undefined ? body.related_part2_id : null,
+      p_depth_level: body.depth_level !== undefined ? body.depth_level : null,
+      p_target_band_min: body.target_band_min !== undefined ? body.target_band_min : null,
+      p_target_band_max: body.target_band_max !== undefined ? body.target_band_max : null,
       p_points: body.points || null,
-      p_difficulty: body.difficulty ? sanitizeText(body.difficulty) : null,
       p_is_practice: body.is_practice !== undefined ? body.is_practice : null,
       p_generate_followup:
         body.generate_followup !== undefined ? body.generate_followup : null,

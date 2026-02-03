@@ -15,6 +15,7 @@ const READING_FORMATS = [
   "matching",
   "true_false_ng",
   "flowchart",
+  "table_completion",
 ] as const;
 
 // Listening 문제 형식
@@ -24,6 +25,7 @@ const LISTENING_FORMATS = [
   "mcq_single",
   "mcq_multiple",
   "matching",
+  "table_completion",
 ] as const;
 
 // Writing 문제 형식
@@ -180,6 +182,11 @@ export async function POST(request: NextRequest) {
       p_audio_url: sanitizedBody.audio_url,
       p_audio_duration_seconds: body.audio_duration_seconds || null,
       p_audio_transcript: sanitizedBody.audio_transcript,
+      p_speaking_category: body.speaking_category || null,
+      p_related_part2_id: body.related_part2_id || null,
+      p_depth_level: body.depth_level || null,
+      p_target_band_min: body.target_band_min || null,
+      p_target_band_max: body.target_band_max || null,
       p_points: body.points || 1,
       p_is_practice: body.is_practice || false,
       p_generate_followup: body.generate_followup || false,

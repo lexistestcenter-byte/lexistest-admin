@@ -16,7 +16,8 @@ export type ReadingFormat =
   | "mcq_multiple"         // 객관식 복수선택 (DB 저장용)
   | "true_false_ng"        // True/False/Not Given
   | "matching"             // 매칭 (드래그앤드랍)
-  | "flowchart";           // 플로우차트 빈칸채우기
+  | "flowchart"            // 플로우차트 빈칸채우기
+  | "table_completion";    // 테이블 완성하기
 
 // Listening 문제 형태
 export type ListeningFormat =
@@ -25,7 +26,9 @@ export type ListeningFormat =
   | "mcq"                  // 객관식 (UI 통합)
   | "mcq_single"           // 객관식 단일선택 (DB 저장용)
   | "mcq_multiple"         // 객관식 복수선택 (DB 저장용)
-  | "matching";            // 매칭 (드래그앤드랍)
+  | "matching"             // 매칭 (드래그앤드랍)
+  | "table_completion"     // 테이블 완성하기
+  | "map_labeling";        // 지도 라벨링
 
 // Writing 문제 형태
 export type WritingFormat = "essay";
@@ -53,6 +56,8 @@ export const formatLabels: Record<string, string> = {
   true_false_ng: "True/False/Not Given",
   matching: "제목 매칭 (드래그앤드랍)",
   flowchart: "플로우차트",
+  table_completion: "테이블 완성하기",
+  map_labeling: "지도 라벨링",
   // Writing
   essay: "에세이",
   // Speaking
@@ -71,12 +76,14 @@ export const questionFormats = {
     { value: "fill_blank_typing", label: "빈칸채우기 (직접입력)" },
     { value: "fill_blank_drag", label: "빈칸채우기 (드래그앤드랍)" },
     { value: "flowchart", label: "플로우차트" },
+    { value: "table_completion", label: "테이블 완성하기" },
   ],
   listening: [
     { value: "mcq", label: "객관식" },
     { value: "matching", label: "제목 매칭 (드래그앤드랍)" },
     { value: "fill_blank_typing", label: "빈칸채우기 (직접입력)" },
     { value: "fill_blank_drag", label: "빈칸채우기 (드래그앤드랍)" },
+    { value: "map_labeling", label: "지도 라벨링" },
   ],
   writing: [
     { value: "essay", label: "에세이" },
@@ -161,6 +168,7 @@ export interface FillBlankDragOptionsData {
   title?: string;
   content: string;
   wordBank: string[];           // 단어 목록
+  allowDuplicate: boolean;      // 같은 단어 중복 사용 가능 여부
   blanks: {
     number: number;
     answer: string;
@@ -222,4 +230,64 @@ export interface FlowchartOptionsData {
     answer: string;
     alternatives: string[];
   }[];
+}
+
+// 지도 라벨링
+export interface MapLabelingOptionsData {
+  image_url: string;          // 지도/이미지 URL
+  labels: string[];           // 라벨 목록 (A, B, C, ...)
+  items: {                    // 문제 항목
+    number: number;
+    statement: string;
+    correctLabel: string;
+  }[];
+}
+
+// =============================================================================
+// Speaking 관련 타입
+// =============================================================================
+
+// Speaking 카테고리
+export interface SpeakingCategory {
+  id: string;
+  code: string;
+  name_en: string;
+  name_ko?: string;
+  display_order: number;
+}
+
+// Part 2 질문 (Part 3 연결용)
+export interface Part2Question {
+  id: string;
+  question_code: string;
+  topic: string;
+  target_band_min?: number;
+  target_band_max?: number;
+}
+
+// Speaking 밴드 스코어 범위
+export interface BandRange {
+  min: number;  // 4.0 ~ 9.0
+  max: number;  // 4.0 ~ 9.0
+}
+
+// Speaking Part 2 Content (JSON)
+export interface SpeakingPart2Content {
+  topic: string;
+  points: string[];
+}
+
+// Speaking 테스트 세트
+export interface SpeakingTestSet {
+  id: string;
+  set_code: string;
+  title: string;
+  description?: string;
+  part1_category_ids: string[];
+  part2_question_id: string;
+  target_band_min?: number;
+  target_band_max?: number;
+  estimated_duration_minutes: number;
+  is_active: boolean;
+  is_published: boolean;
 }

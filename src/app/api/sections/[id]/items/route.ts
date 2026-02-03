@@ -89,49 +89,24 @@ export async function POST(
         );
       }
 
-      const { data, error } = await supabase.rpc("add_question_to_section", {
-        p_section_id: sectionId,
-        p_question_id: question_id,
-        p_question_number_start: question_number_start,
-        p_display_order: display_order || 0,
-      });
-
-      if (error) {
-        console.error("Error adding question to section:", error);
-        if (error.message.includes("already")) {
-          return NextResponse.json({ error: error.message }, { status: 409 });
-        }
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
-
-      return NextResponse.json(data, { status: 201 });
-    }
-
-    // 그룹 추가
-    if (item_type === "group") {
-      if (!group_id) {
-        return NextResponse.json(
-          { error: "group_id is required for item_type 'group'" },
-          { status: 400 }
-        );
-      }
-
-      if (!UUID_REGEX.test(group_id)) {
+      // Validate optional group_id
+      if (group_id && !UUID_REGEX.test(group_id)) {
         return NextResponse.json(
           { error: "Invalid group_id format" },
           { status: 400 }
         );
       }
 
-      const { data, error } = await supabase.rpc("add_group_to_section", {
+      const { data, error } = await supabase.rpc("add_question_to_section", {
         p_section_id: sectionId,
-        p_group_id: group_id,
+        p_question_id: question_id,
         p_question_number_start: question_number_start,
         p_display_order: display_order || 0,
+        p_group_id: group_id || null,
       });
 
       if (error) {
-        console.error("Error adding group to section:", error);
+        console.error("Error adding question to section:", error);
         if (error.message.includes("already")) {
           return NextResponse.json({ error: error.message }, { status: 409 });
         }
