@@ -17,15 +17,30 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const pathname = usePathname();
 
   useEffect(() => {
+    // 로딩 완료 후 로그인 안 된 상태면 로그인 페이지로 리다이렉트
+    if (!isLoading && !user) {
+      router.push("/login");
+      return;
+    }
+
     if (!isLoading && admin) {
       // 권한 체크
       if (!canAccessPath(admin.role, pathname)) {
-        router.push("/dashboard?error=unauthorized");
+        router.push("/questions?error=unauthorized");
       }
     }
-  }, [admin, isLoading, pathname, router]);
+  }, [user, admin, isLoading, pathname, router]);
 
   if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // 로그인 안 된 상태 - 리다이렉트 중
+  if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -76,8 +91,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       <div className="flex flex-col items-center justify-center min-h-screen gap-4">
         <AlertCircle className="h-12 w-12 text-muted-foreground" />
         <p className="text-lg font-medium">접근 권한이 없습니다</p>
-        <Button variant="outline" onClick={() => router.push("/dashboard")}>
-          대시보드로 이동
+        <Button variant="outline" onClick={() => router.push("/questions")}>
+          문제 관리로 이동
         </Button>
       </div>
     );

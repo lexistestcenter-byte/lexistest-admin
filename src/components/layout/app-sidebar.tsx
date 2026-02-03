@@ -58,17 +58,17 @@ interface NavGroup {
 }
 
 const navigationGroups: NavGroup[] = [
-  {
-    title: "Overview",
-    items: [
-      {
-        title: "대시보드",
-        href: "/dashboard",
-        icon: LayoutDashboard,
-        permission: "dashboard",
-      },
-    ],
-  },
+  // {
+  //   title: "Overview",
+  //   items: [
+  //     {
+  //       title: "대시보드",
+  //       href: "/dashboard",
+  //       icon: LayoutDashboard,
+  //       permission: "dashboard",
+  //     },
+  //   ],
+  // },
   {
     title: "Content Management",
     items: [

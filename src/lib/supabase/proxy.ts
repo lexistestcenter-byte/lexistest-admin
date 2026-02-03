@@ -11,8 +11,8 @@ function isValidUrl(url: string): boolean {
 }
 
 export async function updateSession(request: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
   // 환경 변수가 없거나 유효하지 않으면 통과 (개발 환경 설정 전)
   if (!supabaseUrl || !supabaseAnonKey || !isValidUrl(supabaseUrl)) {

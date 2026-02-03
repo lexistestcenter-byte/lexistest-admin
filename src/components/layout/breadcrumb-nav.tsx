@@ -55,7 +55,7 @@ export function BreadcrumbNav() {
     <Breadcrumb className="mb-4">
       <BreadcrumbList>
         <BreadcrumbItem>
-          <BreadcrumbLink href="/dashboard">홈</BreadcrumbLink>
+          <BreadcrumbLink href="/questions">홈</BreadcrumbLink>
         </BreadcrumbItem>
         {segments.map((segment, index) => {
           const href = "/" + segments.slice(0, index + 1).join("/");
