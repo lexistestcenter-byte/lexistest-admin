@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { MoreHorizontal, Pencil, Trash2, Copy, Eye, Layers, FileCheck, LayoutGrid, BookMarked } from "lucide-react";
 import Image from "next/image";
+import { getCdnUrl } from "@/lib/cdn";
 
 const typeFilters = [
   { id: "all", label: "전체", icon: null },
@@ -124,7 +125,7 @@ const columns: Column<PackageRow>[] = [
         {pkg.image_url ? (
           <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden">
             <Image
-              src={pkg.image_url}
+              src={getCdnUrl(pkg.image_url)}
               alt={pkg.title}
               width={48}
               height={48}

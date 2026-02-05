@@ -1066,6 +1066,7 @@ export default function EditQuestionPage({
                       value={audioUrl}
                       onChange={setAudioUrl}
                       accept="audio"
+                      context={questionCode ? `questions/${questionCode}` : undefined}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -1288,6 +1289,7 @@ export default function EditQuestionPage({
                 setImageUrl={setWritingImageUrl}
                 minWords={writingMinWords}
                 setMinWords={setWritingMinWords}
+                questionCode={questionCode}
               />
             )}
 
@@ -1320,6 +1322,7 @@ export default function EditQuestionPage({
                 setTargetBandMin={setTargetBandMin}
                 targetBandMax={targetBandMax}
                 setTargetBandMax={setTargetBandMax}
+                questionCode={questionCode}
               />
             )}
 
@@ -1350,6 +1353,7 @@ export default function EditQuestionPage({
                 setLabels={setMapLabelingLabels}
                 items={mapLabelingItems}
                 setItems={setMapLabelingItems}
+                questionCode={questionCode}
               />
             )}
           </div>
@@ -2988,6 +2992,7 @@ function WritingEditor({
   prompt, setPrompt,
   imageUrl, setImageUrl,
   minWords, setMinWords,
+  questionCode,
 }: {
   title: string;
   setTitle: (v: string) => void;
@@ -2999,6 +3004,7 @@ function WritingEditor({
   setImageUrl: (v: string) => void;
   minWords: string;
   setMinWords: (v: string) => void;
+  questionCode?: string;
 }) {
   return (
     <div className="space-y-6">
@@ -3072,6 +3078,7 @@ function WritingEditor({
           onChange={setImageUrl}
           accept="image"
           placeholder="Task 1 그래프/차트 이미지 업로드"
+          context={questionCode ? `questions/${questionCode}` : undefined}
         />
       </div>
     </div>
@@ -3189,6 +3196,7 @@ function SpeakingPart2EditorEdit({
   setTargetBandMin,
   targetBandMax,
   setTargetBandMax,
+  questionCode,
 }: {
   topic: string;
   setTopic: (v: string) => void;
@@ -3200,6 +3208,7 @@ function SpeakingPart2EditorEdit({
   setTargetBandMin: (v: string) => void;
   targetBandMax: string;
   setTargetBandMax: (v: string) => void;
+  questionCode?: string;
 }) {
   const bandOptions = ["4.0", "4.5", "5.0", "5.5", "6.0", "6.5", "7.0", "7.5", "8.0", "8.5", "9.0"];
 
@@ -3256,6 +3265,7 @@ function SpeakingPart2EditorEdit({
           onChange={setImageUrl}
           accept="image"
           placeholder="큐카드 이미지 업로드"
+          context={questionCode ? `questions/${questionCode}` : undefined}
         />
       </div>
 
@@ -3435,6 +3445,7 @@ function MapLabelingEditor({
   setLabels,
   items,
   setItems,
+  questionCode,
 }: {
   imageUrl: string;
   setImageUrl: (v: string) => void;
@@ -3442,6 +3453,7 @@ function MapLabelingEditor({
   setLabels: (v: string[]) => void;
   items: MapLabelingItem[];
   setItems: (v: MapLabelingItem[]) => void;
+  questionCode?: string;
 }) {
   // 라벨 개수 변경 시 A~N 자동 생성
   const handleLabelCountChange = (count: number) => {
@@ -3486,6 +3498,7 @@ function MapLabelingEditor({
           onChange={setImageUrl}
           accept="image"
           placeholder="지도/이미지 업로드"
+          context={questionCode ? `questions/${questionCode}` : undefined}
         />
       </div>
 

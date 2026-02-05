@@ -17,6 +17,7 @@ import {
   Mic,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getCdnUrl } from "@/lib/cdn";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -816,7 +817,7 @@ export function SectionPreview({
 
   const renderMapLabeling = (item: QuestionItem) => {
     const od = item.question.options_data || {};
-    const imageUrl = String(od.image_url || "");
+    const imageUrl = getCdnUrl(String(od.image_url || ""));
     const labels = Array.isArray(od.labels) ? od.labels as string[] : [];
     const mapItems = Array.isArray(od.items)
       ? (od.items as { number: number; statement: string }[])
@@ -927,7 +928,7 @@ export function SectionPreview({
         ) : null}
         {od.image_url ? (
           <div className="my-3 p-3 bg-white rounded border">
-            <img src={String(od.image_url)} alt="Task" className="max-w-full h-auto rounded" />
+            <img src={getCdnUrl(String(od.image_url))} alt="Task" className="max-w-full h-auto rounded" />
           </div>
         ) : null}
         <textarea
@@ -1041,7 +1042,7 @@ export function SectionPreview({
     // Part 2: Cue Card style
     if (fmt === "speaking_part2") {
       const { topic, bullets, closing } = parsePart2Content(q.content || "");
-      const imageUrl = String(od.image_url || q.image_url || "");
+      const imageUrl = getCdnUrl(String(od.image_url || q.image_url || ""));
 
       return (
         <div className="space-y-4">
@@ -1337,7 +1338,7 @@ export function SectionPreview({
           <div className="px-5 py-3 bg-sky-50 border-b border-sky-100 shrink-0">
             <div className="flex items-center gap-3">
               <Volume2 className="h-5 w-5 text-sky-600 flex-shrink-0" />
-              <audio controls className="w-full h-8" src={groupAudioUrl}>
+              <audio controls className="w-full h-8" src={getCdnUrl(groupAudioUrl || "")}>
                 오디오를 지원하지 않습니다.
               </audio>
             </div>
@@ -1419,7 +1420,7 @@ export function SectionPreview({
           <div className="px-4 pt-3 pb-1 shrink-0">
             <div className="bg-white rounded-lg border px-4 py-2 flex items-center gap-3">
               <Volume2 className="h-5 w-5 text-sky-500 flex-shrink-0" />
-              <audio controls className="w-full h-8" src={activeBlock.audio_url}>
+              <audio controls className="w-full h-8" src={getCdnUrl(activeBlock.audio_url || "")}>
                 Audio not supported.
               </audio>
             </div>

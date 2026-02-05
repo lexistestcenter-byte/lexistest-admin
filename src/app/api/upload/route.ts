@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { r2Client, R2_BUCKET_NAME } from "@/lib/r2";
 
 // 허용된 파일 타입
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
@@ -26,6 +28,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const type = formData.get("type") as string | null; // "image" or "audio"
+    const context = formData.get("context") as string | null; // optional: "questions/Q-L-0001" or "sections/SEC-001"
 
     if (!file) {
       return NextResponse.json({ error: "파일이 없습니다." }, { status: 400 });
@@ -54,44 +57,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 파일 이름 생성 (타임스탬프 + 원본 확장자)
+    // 파일 경로 생성
     const ext = file.name.split(".").pop() || (type === "image" ? "jpg" : "mp3");
-    const fileName = `${type}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
 
-    // Supabase Storage에 업로드
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from("uploads")
-      .upload(fileName, file, {
-        contentType: file.type,
-        upsert: false,
-      });
-
-    if (uploadError) {
-      console.error("Storage upload error:", uploadError);
-
-      // 버킷이 없는 경우 안내 메시지
-      if (uploadError.message.includes("Bucket not found")) {
-        return NextResponse.json(
-          { error: "스토리지 버킷이 설정되지 않았습니다. Supabase에서 'uploads' 버킷을 생성해주세요." },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json(
-        { error: uploadError.message || "파일 업로드에 실패했습니다." },
-        { status: 500 }
-      );
+    let filePath: string;
+    if (context) {
+      // context가 있으면: audio/questions/Q-L-0001/1706123456-abc123.mp3
+      filePath = `${type}/${context}/${timestamp}-${random}.${ext}`;
+    } else {
+      // context 없으면: audio/1706123456-abc123.mp3
+      filePath = `${type}/${timestamp}-${random}.${ext}`;
     }
 
-    // 공개 URL 가져오기
-    const { data: urlData } = supabase.storage
-      .from("uploads")
-      .getPublicUrl(uploadData.path);
+    // 파일을 ArrayBuffer로 변환
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
+    // R2에 업로드
+    await r2Client.send(
+      new PutObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: filePath,
+        Body: buffer,
+        ContentType: file.type,
+      })
+    );
+
+    // 서브패스만 반환 (도메인은 클라이언트에서 환경변수로 조합)
     return NextResponse.json({
       success: true,
-      url: urlData.publicUrl,
-      path: uploadData.path,
+      path: filePath,
     });
   } catch (error) {
     console.error("Upload error:", error);
@@ -102,7 +99,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// 파일 삭제 (선택적)
+// 파일 삭제
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -124,17 +121,13 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "파일 경로가 없습니다." }, { status: 400 });
     }
 
-    const { error: deleteError } = await supabase.storage
-      .from("uploads")
-      .remove([path]);
-
-    if (deleteError) {
-      console.error("Storage delete error:", deleteError);
-      return NextResponse.json(
-        { error: deleteError.message || "파일 삭제에 실패했습니다." },
-        { status: 500 }
-      );
-    }
+    // R2에서 삭제
+    await r2Client.send(
+      new DeleteObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: path,
+      })
+    );
 
     return NextResponse.json({ success: true });
   } catch (error) {

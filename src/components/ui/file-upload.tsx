@@ -5,20 +5,63 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Upload, X, Image as ImageIcon, Music, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { getCdnUrl } from "@/lib/cdn";
 
 interface FileUploadProps {
   value: string;
   onChange: (url: string) => void;
   accept: "image" | "audio";
+  /** 업로드 경로 컨텍스트 (예: "questions/Q-L-0001", "sections/SEC-001") */
+  context?: string;
+  /**
+   * true면 파일 선택 시 즉시 업로드하지 않고 로컬 미리보기만 표시.
+   * onFileReady 콜백으로 File 객체를 부모에게 전달.
+   * 부모가 저장 후 uploadFile() 헬퍼로 직접 업로드.
+   */
+  deferred?: boolean;
+  /** deferred 모드에서 파일 선택/제거 시 File 객체 전달 */
+  onFileReady?: (file: File | null) => void;
   className?: string;
   placeholder?: string;
   disabled?: boolean;
+}
+
+/**
+ * 파일을 R2에 업로드하는 헬퍼 함수.
+ * deferred 모드에서 부모 컴포넌트가 저장 후 호출.
+ */
+export async function uploadFile(
+  file: File,
+  type: "image" | "audio",
+  context?: string
+): Promise<{ path: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("type", type);
+  if (context) {
+    formData.append("context", context);
+  }
+
+  const response = await fetch("/api/upload", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "업로드 실패");
+  }
+
+  return response.json();
 }
 
 export function FileUpload({
   value,
   onChange,
   accept,
+  context,
+  deferred = false,
+  onFileReady,
   className,
   placeholder,
   disabled,
@@ -50,24 +93,19 @@ export function FileUpload({
       return;
     }
 
+    // deferred 모드: 업로드 안 하고 로컬 미리보기만
+    if (deferred) {
+      const blobUrl = URL.createObjectURL(file);
+      onChange(blobUrl);
+      onFileReady?.(file);
+      return;
+    }
+
+    // 즉시 업로드 모드
     setIsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("type", accept);
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "업로드 실패");
-      }
-
-      const data = await response.json();
-      onChange(data.url);
+      const data = await uploadFile(file, accept, context);
+      onChange(data.path);
       toast.success("파일이 업로드되었습니다.");
     } catch (error) {
       console.error("Upload error:", error);
@@ -75,7 +113,7 @@ export function FileUpload({
     } finally {
       setIsUploading(false);
     }
-  }, [accept, onChange]);
+  }, [accept, context, deferred, onChange, onFileReady]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -106,7 +144,13 @@ export function FileUpload({
 
   const handleRemove = useCallback(() => {
     onChange("");
-  }, [onChange]);
+    if (deferred) {
+      onFileReady?.(null);
+    }
+  }, [deferred, onChange, onFileReady]);
+
+  // 표시용 URL (서브패스 → CDN 풀 URL, blob/http → 그대로)
+  const displayUrl = getCdnUrl(value);
 
   // 파일이 있는 경우 미리보기 표시
   if (value) {
@@ -115,7 +159,7 @@ export function FileUpload({
         {accept === "image" ? (
           <div className="relative border rounded-lg overflow-hidden bg-slate-50">
             <img
-              src={value}
+              src={displayUrl}
               alt="Preview"
               className="w-full h-48 object-contain"
               onError={(e) => {
@@ -150,7 +194,7 @@ export function FileUpload({
           <div className="border rounded-lg p-4 bg-slate-50">
             <div className="flex items-center gap-3">
               <div className="flex-1">
-                <audio controls className="w-full" src={value}>
+                <audio controls className="w-full" src={displayUrl}>
                   브라우저가 오디오를 지원하지 않습니다.
                 </audio>
               </div>

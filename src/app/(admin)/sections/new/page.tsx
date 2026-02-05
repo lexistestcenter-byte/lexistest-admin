@@ -63,7 +63,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { SectionPreview, type PreviewQuestion } from "./section-preview";
-import { FileUpload } from "@/components/ui/file-upload";
+import { FileUpload, uploadFile } from "@/components/ui/file-upload";
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -91,6 +91,7 @@ interface ContentBlock {
   passage_footnotes: string;
   audio_url: string;
   audio_transcript: string;
+  audioFile?: File | null;
 }
 
 interface QuestionGroup {
@@ -719,8 +720,12 @@ export default function NewSectionPage() {
 
       // Content blocks
       const blockIdMap: Record<string, string> = {};
+      const pendingAudioBlocks: { blockId: string; file: File }[] = [];
+
       for (let i = 0; i < contentBlocks.length; i++) {
         const block = contentBlocks[i];
+        const hasPendingFile = !!block.audioFile;
+
         const res = await fetch(`/api/sections/${sectionId}/content-blocks`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -730,14 +735,34 @@ export default function NewSectionPage() {
             passage_title: block.passage_title || null,
             passage_content: block.passage_content || null,
             passage_footnotes: block.passage_footnotes || null,
-            audio_url: block.audio_url || null,
+            // deferred 파일이 있으면 URL 제외 (blob URL이므로)
+            audio_url: hasPendingFile ? null : (block.audio_url || null),
             audio_transcript: block.audio_transcript || null,
           }),
         });
         if (res.ok) {
           const result = await res.json();
           blockIdMap[block.id] = result.block_id;
+          // pending 파일 기록
+          if (hasPendingFile && block.audioFile) {
+            pendingAudioBlocks.push({ blockId: result.block_id, file: block.audioFile });
+          }
         }
+      }
+
+      // pending 오디오 파일 업로드 후 콘텐츠 블록 업데이트
+      for (const pending of pendingAudioBlocks) {
+        const context = `sections/${sectionId}`;
+        const uploaded = await uploadFile(pending.file, "audio", context);
+        // 블록 업데이트 (upsert with block_id)
+        await fetch(`/api/sections/${sectionId}/content-blocks`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            block_id: pending.blockId,
+            audio_url: uploaded.path,
+          }),
+        });
       }
 
       // Question groups + items
@@ -1194,6 +1219,12 @@ export default function NewSectionPage() {
                           }
                           accept="audio"
                           placeholder="오디오 파일 업로드"
+                          deferred
+                          onFileReady={(file) =>
+                            updateContentBlock(activeContentBlock.id, {
+                              audioFile: file,
+                            })
+                          }
                         />
                       </div>
                       <div className="space-y-1.5">

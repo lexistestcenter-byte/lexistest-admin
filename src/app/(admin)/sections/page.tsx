@@ -26,6 +26,7 @@ import {
   Loader2,
 } from "lucide-react";
 import Image from "next/image";
+import { getCdnUrl } from "@/lib/cdn";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SectionPreview, type PreviewQuestion } from "./new/section-preview";
@@ -252,7 +253,7 @@ export default function SectionsPage() {
           {section.image_url ? (
             <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden">
               <Image
-                src={section.image_url}
+                src={getCdnUrl(section.image_url)}
                 alt={section.title}
                 width={48}
                 height={48}

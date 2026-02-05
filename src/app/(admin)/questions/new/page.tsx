@@ -65,7 +65,7 @@ import {
   Part2Question,
 } from "@/components/questions/types";
 import { FlowchartEditor } from "@/components/questions/flowchart-editor";
-import { FileUpload } from "@/components/ui/file-upload";
+import { FileUpload, uploadFile } from "@/components/ui/file-upload";
 
 // =============================================================================
 // question_type 별 정보
@@ -201,9 +201,15 @@ interface QuestionTab {
   // Audio (Listening 공통)
   audioUrl: string;
   audioTranscript: string;
+  audioFile: File | null;
 
   // Map Labeling
   mapLabelingImageUrl: string;
+  mapLabelingImageFile: File | null;
+
+  // Pending files (deferred upload)
+  writingImageFile: File | null;
+  cueCardImageFile: File | null;
   mapLabelingLabels: string[];
   mapLabelingItems: { id: string; number: number; statement: string; correctLabel: string }[];
 
@@ -279,8 +285,12 @@ const createDefaultTab = (): QuestionTab => ({
 
   audioUrl: "",
   audioTranscript: "",
+  audioFile: null,
 
   mapLabelingImageUrl: "",
+  mapLabelingImageFile: null,
+  writingImageFile: null,
+  cueCardImageFile: null,
   mapLabelingLabels: ["A", "B", "C", "D", "E", "F", "G", "H"],
   mapLabelingItems: [{ id: "ml1", number: 1, statement: "", correctLabel: "" }],
 
@@ -810,6 +820,7 @@ export default function NewQuestionPage() {
           };
         }
 
+        // 1단계: 파일 URL 제외하고 문제 저장 (deferred 파일은 blob URL이므로)
         const payload = {
           question_type: selectedQuestionType,
           question_format: actualFormat,
@@ -825,8 +836,8 @@ export default function NewQuestionPage() {
           tags: (tab.format !== "mcq" && tab.format !== "true_false_ng" && tab.tags) ? tab.tags.split(",").map(t => t.trim()).filter(Boolean) : undefined,
           is_practice: tab.isPractice,
           generate_followup: tab.format === "speaking_part2" ? tab.generateFollowup : undefined,
-          // Audio fields (Listening only)
-          audio_url: selectedQuestionType === "listening" && tab.audioUrl ? tab.audioUrl : undefined,
+          // Audio: deferred 파일이 있으면 URL 제외, 없으면 기존 URL 사용
+          audio_url: selectedQuestionType === "listening" && tab.audioUrl && !tab.audioFile ? tab.audioUrl : undefined,
           audio_transcript: selectedQuestionType === "listening" && tab.audioTranscript ? tab.audioTranscript : undefined,
           // Speaking fields
           speaking_category: tab.format === "speaking_part1" ? tab.speakingCategory || undefined : undefined,
@@ -840,6 +851,14 @@ export default function NewQuestionPage() {
             : undefined,
         };
 
+        // options_data에서 blob URL 제거 (이미지는 나중에 업로드 후 업데이트)
+        if (payload.options_data) {
+          const od = payload.options_data as Record<string, unknown>;
+          if (od.image_url && typeof od.image_url === "string" && (od.image_url as string).startsWith("blob:")) {
+            delete od.image_url;
+          }
+        }
+
         const response = await fetch("/api/questions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -851,7 +870,41 @@ export default function NewQuestionPage() {
           throw new Error(error.error || "저장 실패");
         }
 
-        return await response.json();
+        const result = await response.json();
+        const questionId = result.data?.id;
+        const questionCode = result.data?.question_code;
+
+        // 2단계: pending 파일이 있으면 코드 기반 경로로 R2 업로드
+        if (questionId && questionCode) {
+          const context = `questions/${questionCode}`;
+          const updatePayload: Record<string, unknown> = {};
+
+          // 오디오 파일 업로드
+          if (tab.audioFile) {
+            const uploaded = await uploadFile(tab.audioFile, "audio", context);
+            updatePayload.audio_url = uploaded.path;
+          }
+
+          // 이미지 파일 업로드 (writing, speaking part2, map_labeling)
+          const imageFile = tab.writingImageFile || tab.cueCardImageFile || tab.mapLabelingImageFile;
+          if (imageFile) {
+            const uploaded = await uploadFile(imageFile, "image", context);
+            // options_data에 image_url 추가
+            const existingOptions = payload.options_data || {};
+            updatePayload.options_data = { ...existingOptions as Record<string, unknown>, image_url: uploaded.path };
+          }
+
+          // 업데이트할 내용이 있으면 PUT 요청
+          if (Object.keys(updatePayload).length > 0) {
+            await fetch(`/api/questions/${questionId}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(updatePayload),
+            });
+          }
+        }
+
+        return result;
       }));
 
       toast.success(`${results.length}개의 문제가 저장되었습니다.`);
@@ -1133,6 +1186,8 @@ export default function NewQuestionPage() {
                       value={currentTab.audioUrl}
                       onChange={(url) => updateCurrentTab("audioUrl", url)}
                       accept="audio"
+                      deferred
+                      onFileReady={(file) => updateCurrentTab("audioFile", file)}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -1355,6 +1410,7 @@ export default function NewQuestionPage() {
                 setPrompt={(v) => updateCurrentTab("writingPrompt", v)}
                 imageUrl={currentTab.writingImageUrl}
                 setImageUrl={(v) => updateCurrentTab("writingImageUrl", v)}
+                onImageFileReady={(file) => updateCurrentTab("writingImageFile", file)}
                 minWords={currentTab.writingMinWords}
                 setMinWords={(v) => updateCurrentTab("writingMinWords", v)}
               />
@@ -1385,6 +1441,7 @@ export default function NewQuestionPage() {
                 setPoints={(v) => updateCurrentTab("cueCardPoints", v)}
                 imageUrl={currentTab.cueCardImageUrl}
                 setImageUrl={(v) => updateCurrentTab("cueCardImageUrl", v)}
+                onImageFileReady={(file) => updateCurrentTab("cueCardImageFile", file)}
                 targetBandMin={currentTab.targetBandMin}
                 setTargetBandMin={(v) => updateCurrentTab("targetBandMin", v)}
                 targetBandMax={currentTab.targetBandMax}
@@ -1415,6 +1472,7 @@ export default function NewQuestionPage() {
               <MapLabelingEditor
                 imageUrl={currentTab.mapLabelingImageUrl}
                 setImageUrl={(v) => updateCurrentTab("mapLabelingImageUrl", v)}
+                onImageFileReady={(file) => updateCurrentTab("mapLabelingImageFile", file)}
                 labels={currentTab.mapLabelingLabels}
                 setLabels={(v) => updateCurrentTab("mapLabelingLabels", v)}
                 items={currentTab.mapLabelingItems}
@@ -3074,6 +3132,7 @@ function WritingEditor({
   setPrompt,
   imageUrl,
   setImageUrl,
+  onImageFileReady,
   minWords,
   setMinWords,
 }: {
@@ -3085,6 +3144,7 @@ function WritingEditor({
   setPrompt: (v: string) => void;
   imageUrl: string;
   setImageUrl: (v: string) => void;
+  onImageFileReady?: (file: File | null) => void;
   minWords: string;
   setMinWords: (v: string) => void;
 }) {
@@ -3152,6 +3212,8 @@ function WritingEditor({
           onChange={setImageUrl}
           accept="image"
           placeholder="Task 1 그래프/차트 이미지 업로드"
+          deferred
+          onFileReady={onImageFileReady}
         />
       </div>
     </div>
@@ -3264,6 +3326,7 @@ function SpeakingPart2Editor({
   setPoints,
   imageUrl,
   setImageUrl,
+  onImageFileReady,
   targetBandMin,
   setTargetBandMin,
   targetBandMax,
@@ -3275,6 +3338,7 @@ function SpeakingPart2Editor({
   setPoints: (v: string[]) => void;
   imageUrl: string;
   setImageUrl: (v: string) => void;
+  onImageFileReady?: (file: File | null) => void;
   targetBandMin: string;
   setTargetBandMin: (v: string) => void;
   targetBandMax: string;
@@ -3323,6 +3387,8 @@ function SpeakingPart2Editor({
           onChange={setImageUrl}
           accept="image"
           placeholder="큐카드 이미지 업로드"
+          deferred
+          onFileReady={onImageFileReady}
         />
       </div>
 
@@ -3497,6 +3563,7 @@ interface MapLabelingItem {
 function MapLabelingEditor({
   imageUrl,
   setImageUrl,
+  onImageFileReady,
   labels,
   setLabels,
   items,
@@ -3504,6 +3571,7 @@ function MapLabelingEditor({
 }: {
   imageUrl: string;
   setImageUrl: (v: string) => void;
+  onImageFileReady?: (file: File | null) => void;
   labels: string[];
   setLabels: (v: string[]) => void;
   items: MapLabelingItem[];
@@ -3552,6 +3620,8 @@ function MapLabelingEditor({
           onChange={setImageUrl}
           accept="image"
           placeholder="지도/이미지 파일 업로드"
+          deferred
+          onFileReady={onImageFileReady}
         />
       </div>
 

@@ -4,12 +4,14 @@ import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Mic, Volume2, X } from "lucide-react";
+import { Loader2, Mic, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getCdnUrl } from "@/lib/cdn";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -28,10 +30,8 @@ interface QuestionData {
   is_practice: boolean;
   is_active: boolean;
   difficulty: string | null;
-  // Audio fields (Listening 문제)
   audio_url?: string | null;
   audio_transcript?: string | null;
-  // Speaking fields
   speaking_category?: string | null;
   related_part2_id?: string | null;
   related_part2_code?: string | null;
@@ -65,6 +65,13 @@ const FORMAT_LABELS: Record<string, string> = {
   speaking_part3: "Part 3",
 };
 
+const TYPE_COLORS: Record<string, string> = {
+  reading: "bg-emerald-100 text-emerald-700",
+  listening: "bg-sky-100 text-sky-700",
+  writing: "bg-amber-100 text-amber-700",
+  speaking: "bg-violet-100 text-violet-700",
+};
+
 export function QuestionPreviewDialog({
   questionId,
   open,
@@ -72,15 +79,10 @@ export function QuestionPreviewDialog({
 }: QuestionPreviewDialogProps) {
   const [question, setQuestion] = useState<QuestionData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [answers, setAnswers] = useState<Record<number, string>>({});
-  const [activeMatchSlot, setActiveMatchSlot] = useState<number | null>(null);
 
-  // Fetch question data
   useEffect(() => {
     if (!open || !questionId) {
       setQuestion(null);
-      setAnswers({});
-      setActiveMatchSlot(null);
       return;
     }
 
@@ -102,336 +104,95 @@ export function QuestionPreviewDialog({
     fetchQuestion();
   }, [open, questionId]);
 
-  const setAnswer = (num: number, value: string) => {
-    setAnswers((prev) => ({ ...prev, [num]: value }));
-  };
-
-  const toggleMultiAnswer = (num: number, value: string) => {
-    setAnswers((prev) => {
-      const current = prev[num] || "";
-      const selected = current.split(",").filter(Boolean);
-      if (selected.includes(value)) {
-        return { ...prev, [num]: selected.filter((v) => v !== value).join(",") };
+  // [숫자] 형식을 빈칸 UI로 변환
+  const renderContent = (text: string) => {
+    if (!text) return null;
+    const parts = text.split(/\[(\d+)\]/g);
+    return parts.map((part, index) => {
+      if (index % 2 === 1) {
+        const num = parseInt(part);
+        return (
+          <span key={index} className="inline-flex items-center mx-1">
+            <span className="w-6 h-6 bg-primary text-white text-xs rounded-full flex items-center justify-center">
+              {num}
+            </span>
+            <span className="w-24 h-7 border-b-2 border-primary mx-1" />
+          </span>
+        );
       }
-      return { ...prev, [num]: [...selected, value].join(",") };
+      return part.split("\n").map((line, i, arr) => (
+        <span key={`${index}-${i}`}>
+          {line}
+          {i < arr.length - 1 && <br />}
+        </span>
+      ));
     });
   };
 
-  // ─── Text Formatting ─────────────────────────────────────────
-
-  const renderFormattedText = (text: string) => {
-    const parts = text.split(/(\*\*[^*]+\*\*)/g);
-    return parts.map((part, i) => {
-      if (part.startsWith("**") && part.endsWith("**")) {
-        return <strong key={i} className="font-bold">{part.slice(2, -2)}</strong>;
-      }
-      return <span key={i}>{part}</span>;
-    });
-  };
-
-  // ─── Renderers ────────────────────────────────────────────────
-
-  const renderMCQ = (q: QuestionData, startNum: number) => {
+  // ─── Fill Blank Typing ─────────────────────────────────────────
+  const renderFillBlankTyping = (q: QuestionData) => {
     const od = q.options_data || {};
-    const questionText = String(od.question || q.content || "");
-    const isMultiple = q.question_format === "mcq_multiple" || Boolean(od.isMultiple);
-    const options = Array.isArray(od.options)
-      ? (od.options as { label: string; text: string }[])
-      : [];
-
-    const itemCount = q.item_count || 1;
-    const useSeparateNumbers = isMultiple && itemCount > 1;
-    const maxSelectable = useSeparateNumbers
-      ? itemCount
-      : isMultiple
-        ? (Number(od.maxSelections) || (itemCount > 1 ? itemCount : options.length))
-        : 1;
-    const endNum = startNum + itemCount - 1;
-
-    const getSelectedLabels = (): string[] => {
-      if (useSeparateNumbers) {
-        const labels: string[] = [];
-        for (let i = 0; i < itemCount; i++) {
-          const val = answers[startNum + i];
-          if (val) labels.push(val);
-        }
-        return labels;
-      }
-      if (isMultiple) {
-        return (answers[startNum] || "").split(",").filter(Boolean);
-      }
-      const v = answers[startNum];
-      return v ? [v] : [];
-    };
-
-    const handleOptionClick = (label: string) => {
-      if (!isMultiple) {
-        setAnswer(startNum, label);
-        return;
-      }
-      if (useSeparateNumbers) {
-        const selected = getSelectedLabels();
-        if (selected.includes(label)) {
-          for (let i = 0; i < itemCount; i++) {
-            if (answers[startNum + i] === label) {
-              setAnswer(startNum + i, "");
-              break;
-            }
-          }
-        } else if (selected.length < itemCount) {
-          for (let i = 0; i < itemCount; i++) {
-            if (!answers[startNum + i]) {
-              setAnswer(startNum + i, label);
-              break;
-            }
-          }
-        }
-      } else {
-        const selected = getSelectedLabels();
-        if (!selected.includes(label) && selected.length >= maxSelectable) return;
-        toggleMultiAnswer(startNum, label);
-      }
-    };
-
-    const selectedLabels = getSelectedLabels();
-    const selectionCount = selectedLabels.length;
-    const numPrefix = startNum === endNum ? `${startNum}` : `${startNum}–${endNum}`;
-    const titleText = q.title || "";
+    const contentTitle = String(od.title || q.title || "");
+    const inputStyle = String(od.input_style || "editor");
+    const items = Array.isArray(od.items) ? od.items.map(String) : [];
 
     return (
-      <div className="space-y-3">
-        {titleText ? (
-          <div className="bg-slate-100 border-l-4 border-slate-300 px-4 py-2.5 rounded-r">
-            <p className="text-[15px]">
-              <span className="font-bold mr-2">{numPrefix}</span>
-              {renderFormattedText(titleText)}
-            </p>
-          </div>
-        ) : null}
-        {questionText ? (
-          <p className={cn("text-[15px] leading-relaxed", titleText && "pl-8")}>
-            {!titleText && <span className="font-bold mr-1.5">{numPrefix}</span>}
-            {renderFormattedText(questionText)}
-          </p>
-        ) : !titleText ? (
-          <p className="text-[15px]">
-            <span className="font-bold mr-1.5">{numPrefix}</span>
-          </p>
-        ) : null}
-        <div className="space-y-1.5">
-          {options.map((opt) => {
-            const isSelected = selectedLabels.includes(opt.label);
-            const isDisabled = isMultiple && !isSelected && selectionCount >= maxSelectable;
-            return (
-              <button
-                key={opt.label}
-                type="button"
-                disabled={isDisabled}
-                className={cn(
-                  "w-full flex items-start gap-3 p-2.5 rounded-lg border text-left transition-colors text-sm",
-                  isSelected
-                    ? "border-blue-500 bg-blue-50"
-                    : isDisabled
-                      ? "border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed"
-                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                )}
-                onClick={() => handleOptionClick(opt.label)}
-              >
-                {isMultiple ? (
-                  <span className={cn(
-                    "flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5",
-                    isSelected ? "border-blue-500 bg-blue-500" : "border-gray-300"
-                  )}>
-                    {isSelected && (
-                      <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
-                        <path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </span>
-                ) : (
-                  <span className={cn(
-                    "flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5",
-                    isSelected ? "border-blue-500" : "border-gray-300"
-                  )}>
-                    {isSelected && <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />}
-                  </span>
-                )}
-                <span>{String(opt.text)}</span>
-              </button>
-            );
-          })}
-        </div>
-        {useSeparateNumbers && (
-          <div className="text-xs text-gray-500 space-y-0.5 pt-1 border-t">
-            {Array.from({ length: itemCount }, (_, i) => {
-              const selectedLabel = answers[startNum + i];
-              const selectedOpt = selectedLabel ? options.find(o => o.label === selectedLabel) : null;
-              return (
-                <div key={i} className="flex gap-2">
-                  <span className="font-mono font-bold min-w-[32px]">{startNum + i}:</span>
-                  <span className={selectedOpt ? "text-blue-600 font-medium" : ""}>
-                    {selectedOpt ? String(selectedOpt.text) : "—"}
-                  </span>
-                </div>
-              );
-            })}
+      <div className="bg-white rounded-lg border p-6 space-y-4">
+        {contentTitle && (
+          <h2 className="text-lg font-bold border-b pb-3">{contentTitle}</h2>
+        )}
+        {inputStyle === "items" && items.length > 0 ? (
+          <ul className="space-y-2 list-disc pl-5">
+            {items.filter((i) => i.trim()).map((item, idx) => (
+              <li key={idx} className="leading-relaxed">
+                {renderContent(item)}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="leading-relaxed prose prose-sm max-w-none [&_p]:my-1 [&_strong]:font-bold">
+            {renderContent(q.content || "")}
           </div>
         )}
       </div>
     );
   };
 
-  const renderTFNG = (q: QuestionData, startNum: number) => {
+  // ─── Fill Blank Drag ───────────────────────────────────────────
+  const renderFillBlankDrag = (q: QuestionData) => {
     const od = q.options_data || {};
-    let itemsList: { number: number; statement: string }[] = [];
-
-    if (Array.isArray(od.items) && od.items.length > 0) {
-      itemsList = od.items as { number: number; statement: string }[];
-    } else if (Array.isArray(od.statements) && (od.statements as unknown[]).length > 0) {
-      itemsList = od.statements as { number: number; statement: string }[];
-    } else {
-      const statement = q.content || String(od.statement || od.question || "");
-      if (statement) {
-        const count = q.item_count || 1;
-        itemsList = Array.from({ length: count }, (_, idx) => ({
-          number: idx + 1,
-          statement: idx === 0 ? statement : `Statement ${idx + 1}`,
-        }));
-      }
-    }
-
-    if (itemsList.length === 0) {
-      return (
-        <div className="space-y-2">
-          <p className="text-sm text-gray-500">T/F/NG 문제 데이터를 불러올 수 없습니다.</p>
-          {q.content && <p className="text-sm">{q.content}</p>}
-        </div>
-      );
-    }
-
-    const endNum = startNum + (q.item_count || 1) - 1;
-    const titleText = q.title || "";
-    const numPrefix = startNum === endNum ? `${startNum}` : `${startNum}–${endNum}`;
+    const ad = q.answer_data || {};
+    const contentTitle = String(od.title || q.title || "");
+    const wordBank = Array.isArray(od.word_bank) ? od.word_bank.map(String) : [];
+    const inputStyle = String(od.input_style || "editor");
+    const items = Array.isArray(od.items) ? od.items.map(String) : [];
 
     return (
-      <div className="space-y-4">
-        {titleText ? (
-          <div className="bg-slate-100 border-l-4 border-slate-300 px-4 py-2.5 rounded-r">
-            <p className="text-[15px]">
-              <span className="font-bold mr-2">{numPrefix}</span>
-              {renderFormattedText(titleText)}
-            </p>
+      <div className="bg-white rounded-lg border p-6 space-y-4">
+        {contentTitle && (
+          <h2 className="text-lg font-bold border-b pb-3">{contentTitle}</h2>
+        )}
+        {inputStyle === "items" && items.length > 0 ? (
+          <ul className="space-y-2 list-disc pl-5">
+            {items.filter((i) => i.trim()).map((item, idx) => (
+              <li key={idx} className="leading-relaxed">
+                {renderContent(item)}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="leading-relaxed prose prose-sm max-w-none">
+            {renderContent(q.content || "")}
           </div>
-        ) : null}
-        {itemsList.map((entry, idx) => {
-          const num = startNum + idx;
-          return (
-            <div key={num} className="space-y-2">
-              <p className="text-[15px]">
-                <span className="font-bold mr-2">{num}</span>
-                {String(entry.statement)}
-              </p>
-              <div className="flex gap-2">
-                {[
-                  { value: "true", label: "TRUE" },
-                  { value: "false", label: "FALSE" },
-                  { value: "not_given", label: "NOT GIVEN" },
-                ].map((opt) => {
-                  const isSelected = answers[num] === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      className={cn(
-                        "flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors text-sm",
-                        isSelected
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                      )}
-                      onClick={() => setAnswer(num, opt.value)}
-                    >
-                      <span className={cn(
-                        "flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center",
-                        isSelected ? "border-blue-500" : "border-gray-300"
-                      )}>
-                        {isSelected && <span className="w-2 h-2 rounded-full bg-blue-500" />}
-                      </span>
-                      <span className="font-medium text-xs">{opt.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const renderFillBlankTyping = (q: QuestionData, startNum: number) => {
-    const od = q.options_data || {};
-    const content = String(od.content || q.content || "");
-    if (!content) return <p className="text-sm text-gray-500">콘텐츠가 없습니다.</p>;
-
-    const parts = content.split(/\[(\d+)\]/);
-    return (
-      <div className="text-sm leading-relaxed">
-        <div className="whitespace-pre-wrap">
-          {parts.map((part, i) => {
-            if (i % 2 === 0) return <span key={i}>{part}</span>;
-            const blankNum = parseInt(part, 10);
-            const num = startNum + blankNum - 1;
-            return (
-              <span key={i} className="inline-flex items-center mx-0.5 align-baseline">
-                <span className="text-xs font-bold text-blue-600 mr-0.5">{num}</span>
-                <input
-                  type="text"
-                  className={cn(
-                    "border-b-2 bg-transparent px-1 py-0 w-28 text-center text-sm focus:outline-none",
-                    answers[num] ? "border-blue-500" : "border-gray-400 focus:border-blue-500"
-                  )}
-                  value={answers[num] || ""}
-                  onChange={(e) => setAnswer(num, e.target.value)}
-                  placeholder="________"
-                />
-              </span>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  const renderFillBlankDrag = (q: QuestionData, startNum: number) => {
-    const od = q.options_data || {};
-    const content = String(od.content || q.content || "");
-    const wordBank = Array.isArray(od.word_bank)
-      ? (od.word_bank as string[])
-      : Array.isArray(od.wordBank)
-        ? (od.wordBank as string[])
-        : [];
-    if (!content) return <p className="text-sm text-gray-500">콘텐츠가 없습니다.</p>;
-
-    const parts = content.split(/\[(\d+)\]/);
-    return (
-      <div className="space-y-4">
+        )}
         {wordBank.length > 0 && (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <p className="text-xs font-semibold text-amber-700 mb-2">Word Bank</p>
-            <div className="flex flex-wrap gap-1.5">
+          <div className="pt-4 border-t">
+            <p className="text-sm font-medium mb-2">Word Bank</p>
+            <div className="flex flex-wrap gap-2">
               {wordBank.map((word, i) => (
                 <span
-                  key={i}
-                  className="px-2.5 py-1 text-xs bg-white border border-amber-300 rounded cursor-pointer hover:bg-amber-100 transition-colors select-none"
-                  onClick={() => {
-                    for (let bi = 0; bi < (q.item_count || 1); bi++) {
-                      const num = startNum + bi;
-                      if (!answers[num]) {
-                        setAnswer(num, word);
-                        return;
-                      }
-                    }
-                  }}
+                  key={`${word}-${i}`}
+                  className="px-4 py-1.5 bg-white rounded border border-slate-300 text-sm cursor-grab hover:bg-slate-50"
                 >
                   {word}
                 </span>
@@ -439,170 +200,267 @@ export function QuestionPreviewDialog({
             </div>
           </div>
         )}
-        <div className="text-sm leading-relaxed whitespace-pre-wrap">
-          {parts.map((part, i) => {
-            if (i % 2 === 0) return <span key={i}>{part}</span>;
-            const blankNum = parseInt(part, 10);
-            const num = startNum + blankNum - 1;
-            return (
-              <span key={i} className="inline-flex items-center mx-0.5 align-baseline">
-                <span className="text-xs font-bold text-blue-600 mr-0.5">{num}</span>
+      </div>
+    );
+  };
+
+  // ─── Table Completion ──────────────────────────────────────────
+  const renderTableCompletion = (q: QuestionData) => {
+    const od = q.options_data || {};
+    const contentTitle = String(od.title || q.title || "");
+    const inputMode = String(od.input_mode || "typing");
+    const wordBank = Array.isArray(od.word_bank) ? od.word_bank.map(String) : [];
+
+    return (
+      <div className="bg-white rounded-lg border p-6 space-y-4">
+        {contentTitle && (
+          <h2 className="text-lg font-bold border-b pb-3">{contentTitle}</h2>
+        )}
+        <div
+          className="leading-relaxed [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-slate-300 [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-slate-300 [&_th]:px-3 [&_th]:py-2 [&_th]:bg-slate-100 [&_th]:font-semibold"
+          dangerouslySetInnerHTML={{
+            __html: (q.content || "").replace(
+              /\[(\d+)\]/g,
+              '<span style="display:inline-flex;align-items:center;gap:4px;"><span style="width:22px;height:22px;background:#6366f1;color:white;font-size:11px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;">$1</span><span style="display:inline-block;width:80px;height:28px;border-bottom:2px solid #6366f1;"></span></span>'
+            ),
+          }}
+        />
+        {inputMode === "drag" && wordBank.length > 0 && (
+          <div className="pt-4 border-t">
+            <p className="text-sm font-medium mb-2">Word Bank</p>
+            <div className="flex flex-wrap gap-2">
+              {wordBank.map((word, i) => (
                 <span
-                  className={cn(
-                    "inline-block min-w-[80px] border-b-2 px-2 py-0.5 text-center text-sm cursor-pointer select-none",
-                    answers[num] ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-400"
-                  )}
-                  onClick={() => answers[num] && setAnswer(num, "")}
+                  key={`${word}-${i}`}
+                  className="px-4 py-1.5 bg-white rounded border border-slate-300 text-sm"
                 >
-                  {answers[num] || "________"}
+                  {word}
                 </span>
-              </span>
-            );
-          })}
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ─── MCQ ───────────────────────────────────────────────────────
+  const renderMCQ = (q: QuestionData) => {
+    const od = q.options_data || {};
+    const isMultiple = q.question_format === "mcq_multiple";
+    const maxSelections = Number(od.maxSelections || 1);
+    const options = Array.isArray(od.options)
+      ? od.options
+      : [];
+
+    return (
+      <div className="bg-white rounded-lg border p-6 space-y-4">
+        <p className="text-lg">{q.content || "(문제 입력)"}</p>
+        {isMultiple && (
+          <p className="text-sm text-blue-600">Choose {maxSelections} answers.</p>
+        )}
+        <div className="space-y-3 mt-4">
+          {options.map((option: { id?: string; label?: string; text?: string }, idx: number) => (
+            <label
+              key={option.id || idx}
+              className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-slate-50"
+            >
+              <div
+                className={`w-8 h-8 border-2 flex items-center justify-center ${
+                  isMultiple ? "rounded" : "rounded-full"
+                }`}
+              >
+                {option.label || String.fromCharCode(65 + idx)}
+              </div>
+              <span>{option.text || `(선택지 ${option.label || idx + 1})`}</span>
+            </label>
+          ))}
         </div>
       </div>
     );
   };
 
-  const renderMatching = (q: QuestionData, startNum: number) => {
+  // ─── True/False/NG ─────────────────────────────────────────────
+  const renderTFNG = (q: QuestionData) => {
     const od = q.options_data || {};
-    const allowDuplicate = Boolean(od.allowDuplicate);
-    const options = Array.isArray(od.options)
-      ? (od.options as { label: string; text: string }[])
-      : [];
-    const matchItems = Array.isArray(od.items)
-      ? (od.items as { number: number; statement: string }[])
-      : [];
+    const items = Array.isArray(od.items) ? od.items : [];
 
-    if (options.length === 0 && matchItems.length === 0) {
+    if (items.length === 0) {
       return (
-        <div className="space-y-2">
-          <p className="text-sm text-gray-500">매칭 데이터가 없습니다.</p>
-          {q.content && <p className="text-sm whitespace-pre-wrap">{q.content}</p>}
+        <div className="bg-white rounded-lg border p-6 space-y-4">
+          <div className="p-4 border rounded-lg">
+            <p className="mb-4">{q.content || "(진술문 입력)"}</p>
+            <div className="flex gap-2">
+              {["TRUE", "FALSE", "NOT GIVEN"].map((label) => (
+                <span
+                  key={label}
+                  className="px-4 py-2 border rounded text-sm cursor-pointer hover:bg-slate-50"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       );
     }
 
-    const endNum = startNum + (q.item_count || 1) - 1;
-    const titleText = q.title || "";
-    const numPrefix = startNum === endNum ? `${startNum}` : `${startNum}–${endNum}`;
-
-    // Collect assigned option labels for duplicate prevention
-    const assignedLabels = new Set<string>();
-    if (!allowDuplicate) {
-      matchItems.forEach((_, idx) => {
-        const num = startNum + idx;
-        const val = answers[num];
-        if (val) assignedLabels.add(val);
-      });
-    }
-
-    const handlePillClick = (label: string) => {
-      if (activeMatchSlot !== null) {
-        setAnswer(activeMatchSlot, label);
-        setActiveMatchSlot(null);
-      } else {
-        for (let idx = 0; idx < matchItems.length; idx++) {
-          const num = startNum + idx;
-          if (!answers[num]) {
-            setAnswer(num, label);
-            return;
-          }
-        }
-      }
-    };
-
-    const handleSlotClick = (num: number) => {
-      if (answers[num]) return;
-      setActiveMatchSlot(activeMatchSlot === num ? null : num);
-    };
-
-    const handleClear = (num: number) => {
-      setAnswer(num, "");
-      if (activeMatchSlot === num) setActiveMatchSlot(null);
-    };
-
     return (
-      <div className="space-y-4">
-        {titleText ? (
-          <div className="bg-slate-100 border-l-4 border-slate-300 px-4 py-2.5 rounded-r">
-            <p className="text-[15px]">
-              <span className="font-bold mr-2">{numPrefix}</span>
-              {renderFormattedText(titleText)}
-            </p>
-          </div>
-        ) : null}
-
-        {/* Options Pool — clickable pills */}
-        {options.length > 0 && (
-          <div className="p-3 bg-slate-50 border rounded-lg">
-            <p className="text-xs font-semibold text-slate-500 mb-2">보기 (Options)</p>
-            <div className="flex flex-wrap gap-1.5">
-              {options.map((opt) => {
-                const isUsed = !allowDuplicate && assignedLabels.has(opt.label);
-                return (
-                  <button
-                    key={opt.label}
-                    type="button"
-                    disabled={isUsed}
-                    className={cn(
-                      "px-3 py-1.5 rounded-full border text-sm font-medium transition-colors select-none",
-                      isUsed
-                        ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed line-through"
-                        : "bg-white border-blue-300 text-blue-700 hover:bg-blue-50 cursor-pointer"
-                    )}
-                    onClick={() => handlePillClick(opt.label)}
-                  >
-                    <span className="font-bold mr-1">{opt.label}</span>
-                    <span className="font-normal">{String(opt.text)}</span>
-                  </button>
-                );
-              })}
+      <div className="bg-white rounded-lg border p-6 space-y-3">
+        {items.map((item: { id?: string; statement?: string }, idx: number) => (
+          <div key={item.id || idx} className="p-4 border rounded-lg">
+            <div className="flex items-start gap-3">
+              <span className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
+                {idx + 1}
+              </span>
+              <p className="flex-1">{item.statement || "(진술문)"}</p>
+            </div>
+            <div className="flex gap-2 mt-3 ml-9">
+              {["TRUE", "FALSE", "NOT GIVEN"].map((label) => (
+                <span
+                  key={label}
+                  className="px-3 py-1.5 border rounded text-sm cursor-pointer hover:bg-slate-50"
+                >
+                  {label}
+                </span>
+              ))}
             </div>
           </div>
-        )}
+        ))}
+      </div>
+    );
+  };
 
-        {/* Match Items — click slot then click pill to assign */}
-        <div className="space-y-2">
-          {matchItems.map((entry, idx) => {
-            const num = startNum + idx;
-            const assignedLabel = answers[num] || "";
-            const assignedOpt = assignedLabel
-              ? options.find((o) => o.label === assignedLabel)
-              : null;
-            const isActive = activeMatchSlot === num;
+  // ─── Matching ──────────────────────────────────────────────────
+  const renderMatching = (q: QuestionData) => {
+    const od = q.options_data || {};
+    const contentTitle = String(od.title || q.title || "");
+    const options = Array.isArray(od.options) ? od.options : [];
+    const items = Array.isArray(od.items) ? od.items : [];
+    const allowDuplicate = Boolean(od.allowDuplicate);
+
+    return (
+      <div className="grid grid-cols-[1fr_340px] gap-6">
+        {/* 왼쪽: 지문 */}
+        <div className="bg-white rounded-lg border p-6">
+          {contentTitle && <h2 className="text-lg font-bold mb-4">{contentTitle}</h2>}
+          <div
+            className="prose prose-sm max-w-none [&_p]:my-1 [&_strong]:font-bold"
+            dangerouslySetInnerHTML={{
+              __html: (q.content || "").replace(
+                /\[(\d+)\]/g,
+                '<div style="display:inline-block;border:2px solid #94a3b8;border-radius:4px;padding:2px 24px;margin:8px 0;font-weight:bold;text-align:center;min-width:80px;">$1</div>'
+              ),
+            }}
+          />
+        </div>
+        {/* 오른쪽: 옵션 목록 */}
+        <div className="bg-white rounded-lg border p-4 h-fit">
+          <h3 className="font-semibold mb-1">List of Headings</h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            Choose the correct heading for each section.
+          </p>
+          {allowDuplicate && (
+            <p className="text-xs text-blue-600 mb-3">
+              * 같은 제목을 여러 번 사용할 수 있습니다
+            </p>
+          )}
+          <div className="space-y-2">
+            {options.map((option: { id?: string; label?: string; text?: string }, idx: number) => (
+              <div
+                key={option.id || idx}
+                className="px-4 py-2.5 bg-slate-50 rounded-lg border cursor-grab hover:bg-slate-100"
+              >
+                <span className="font-semibold mr-2">{option.label || String.fromCharCode(65 + idx)}.</span>
+                <span>{option.text || `(제목 입력)`}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ─── Flowchart ─────────────────────────────────────────────────
+  const renderFlowchart = (q: QuestionData) => {
+    const od = q.options_data || {};
+    const contentTitle = String(od.title || q.title || "");
+    const nodes = Array.isArray(od.nodes) ? od.nodes : [];
+
+    // Group nodes by row
+    const rowMap = new Map<number, typeof nodes>();
+    for (const n of nodes) {
+      const row = n.row ?? 0;
+      if (!rowMap.has(row)) rowMap.set(row, []);
+      rowMap.get(row)!.push(n);
+    }
+    for (const [, group] of rowMap) {
+      group.sort((a: { col?: number }, b: { col?: number }) => (a.col ?? 0) - (b.col ?? 0));
+    }
+    const sortedRows = [...rowMap.keys()].sort((a, b) => a - b);
+
+    return (
+      <div className="bg-white rounded-lg border p-6">
+        {contentTitle && (
+          <h2 className="text-lg font-bold text-center mb-6">{contentTitle}</h2>
+        )}
+        <div className="flex flex-col items-center">
+          {sortedRows.map((row, rowIndex) => {
+            const group = rowMap.get(row)!;
+            const isBranch = group.length > 1 || group[0]?.type === "branch";
 
             return (
-              <div key={num} className="flex items-start gap-3">
-                <span className="font-bold text-sm min-w-[24px] pt-2">{num}</span>
-                <div className="flex-1 flex items-start gap-2">
-                  <p className="text-sm flex-1 pt-2">{String(entry.statement)}</p>
-                  {assignedOpt ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-300 text-sm text-blue-700 shrink-0">
-                      <span className="font-bold">{assignedOpt.label}</span>
-                      <button
-                        type="button"
-                        className="ml-0.5 p-0.5 rounded-full hover:bg-blue-200 transition-colors"
-                        onClick={() => handleClear(num)}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      className={cn(
-                        "px-3 py-1.5 rounded-full border text-sm transition-colors shrink-0",
-                        isActive
-                          ? "border-blue-500 bg-blue-50 text-blue-600 ring-2 ring-blue-200"
-                          : "border-gray-300 text-gray-400 hover:border-gray-400 hover:bg-gray-50"
-                      )}
-                      onClick={() => handleSlotClick(num)}
+              <div key={row}>
+                {/* Connector from previous row */}
+                {rowIndex > 0 && (
+                  <div className="flex justify-center py-1">
+                    <div className="flex flex-col items-center">
+                      <div className="w-px h-3 bg-slate-400" />
+                      <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-transparent border-t-slate-400" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Branch split connector */}
+                {isBranch && group.length > 1 && (
+                  <div className="flex justify-center mb-1">
+                    <div
+                      className="flex items-end"
+                      style={{ width: `${Math.min(group.length * 200, 600)}px` }}
                     >
-                      — 선택 —
-                    </button>
-                  )}
-                </div>
+                      {group.map((_: unknown, i: number) => (
+                        <div key={i} className="flex-1 border-t-2 border-slate-400 h-0" />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Node row */}
+                {isBranch ? (
+                  <div className="flex justify-center gap-3">
+                    {group.map((node: { id?: string; label?: string; content?: string }) => (
+                      <div
+                        key={node.id}
+                        className="p-4 rounded-lg border-2 border-blue-300 bg-blue-50 min-w-[160px] text-center"
+                      >
+                        {node.label && (
+                          <div className="font-semibold text-blue-700 mb-1 text-xs">
+                            {node.label}
+                          </div>
+                        )}
+                        <div className="text-sm">{renderContent(node.content || "")}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex justify-center">
+                    <div className="p-4 rounded-lg border-2 border-slate-300 bg-slate-50 min-w-[200px] text-center">
+                      <div className="text-sm">
+                        {renderContent(group[0]?.content || "")}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -611,169 +469,128 @@ export function QuestionPreviewDialog({
     );
   };
 
-  const renderFlowchart = (q: QuestionData, startNum: number) => {
+  // ─── Map Labeling ──────────────────────────────────────────────
+  const renderMapLabeling = (q: QuestionData) => {
     const od = q.options_data || {};
-    let parsedOd = od;
-    if ((!od.nodes || !Array.isArray(od.nodes)) && q.content) {
-      try {
-        const parsed = JSON.parse(q.content);
-        if (parsed && Array.isArray(parsed.nodes)) {
-          parsedOd = parsed;
-        }
-      } catch {
-        // not JSON
-      }
-    }
-    const flowTitle = String(parsedOd.title || od.title || "");
-    const nodes = Array.isArray(parsedOd.nodes)
-      ? (parsedOd.nodes as { id: string; type: string; content: string; row: number; col: number; label?: string }[])
-      : [];
-
-    if (nodes.length === 0) {
-      return <p className="text-sm text-gray-500">플로우차트 데이터가 없습니다.</p>;
-    }
-
-    const rows = new Map<number, typeof nodes>();
-    for (const node of nodes) {
-      const list = rows.get(node.row) || [];
-      list.push(node);
-      rows.set(node.row, list);
-    }
-
-    const renderContent = (text: string) => {
-      const parts = text.split(/\[(\d+)\]/);
-      return parts.map((part, i) => {
-        if (i % 2 === 0) return <span key={i}>{part}</span>;
-        const num = startNum + parseInt(part, 10) - 1;
-        return (
-          <input
-            key={i}
-            type="text"
-            className="border-b-2 border-gray-400 focus:border-blue-500 bg-transparent px-1 w-24 text-center text-sm mx-0.5 focus:outline-none"
-            value={answers[num] || ""}
-            onChange={(e) => setAnswer(num, e.target.value)}
-            placeholder={`(${num})`}
-          />
-        );
-      });
-    };
+    const imageUrl = getCdnUrl(String(od.image_url || q.image_url || ""));
+    const items = Array.isArray(od.items) ? od.items : [];
+    const labels = Array.isArray(od.labels)
+      ? od.labels.map(String)
+      : ["A", "B", "C", "D", "E", "F"];
 
     return (
-      <div className="space-y-3">
-        {flowTitle ? <p className="text-sm font-semibold">{flowTitle}</p> : null}
-        <div className="space-y-1">
-          {Array.from(rows.entries())
-            .sort((a, b) => a[0] - b[0])
-            .map(([rowNum, rowNodes]) => (
-              <div key={rowNum} className="flex items-stretch justify-center gap-3">
-                {rowNodes
-                  .sort((a, b) => a.col - b.col)
-                  .map((node) => (
-                    <div
-                      key={node.id}
-                      className={cn(
-                        "p-3 border rounded text-sm text-center min-w-[140px] flex-1 max-w-[300px]",
-                        node.type === "branch"
-                          ? "bg-amber-50 border-amber-300"
-                          : "bg-white border-gray-300"
-                      )}
-                    >
-                      {node.label ? (
-                        <p className="text-xs font-semibold text-gray-500 mb-1">{node.label}</p>
-                      ) : null}
-                      <div className="leading-relaxed">{renderContent(node.content)}</div>
-                    </div>
-                  ))}
-              </div>
-            ))}
-        </div>
-      </div>
-    );
-  };
-
-  const renderEssay = (q: QuestionData, startNum: number) => {
-    const od = q.options_data || {};
-    const minWords = od.min_words ? Number(od.min_words) : null;
-    const wordCount = (answers[startNum] || "").split(/\s+/).filter(Boolean).length;
-    return (
-      <div className="space-y-3">
-        {od.condition ? (
-          <p className="text-sm text-gray-500 italic">{String(od.condition)}</p>
-        ) : null}
-        {q.content ? (
-          <div
-            className="text-sm leading-relaxed prose prose-sm max-w-none [&_p]:my-2 [&_strong]:font-bold"
-            dangerouslySetInnerHTML={{ __html: q.content }}
-          />
-        ) : null}
-        {od.image_url ? (
-          <div className="my-3 p-3 bg-white rounded border">
-            <img src={String(od.image_url)} alt="Task" className="max-w-full h-auto rounded" />
-          </div>
-        ) : null}
-        <textarea
-          rows={8}
-          placeholder="Write your answer here..."
-          className="w-full text-sm border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-          value={answers[startNum] || ""}
-          onChange={(e) => setAnswer(startNum, e.target.value)}
-        />
-        <div className="flex items-center justify-between text-xs text-gray-400">
-          <span>Words: {wordCount}</span>
-          {minWords && (
-            <span className={wordCount < minWords ? "text-red-500" : "text-green-600"}>
-              최소 {minWords}단어
-            </span>
+      <div className="grid grid-cols-2 gap-6">
+        {/* 왼쪽: 이미지 */}
+        <div className="bg-white rounded-lg border p-4 flex items-center justify-center min-h-[300px]">
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt="Map"
+              className="max-w-full h-auto max-h-[400px] rounded"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          ) : (
+            <p className="text-sm text-gray-400">이미지 없음</p>
           )}
         </div>
+
+        {/* 오른쪽: 문항 테이블 */}
+        <div className="bg-white rounded-lg border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-100">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium">#</th>
+                <th className="px-3 py-2 text-left font-medium">항목</th>
+                {labels.map((label) => (
+                  <th key={label} className="px-2 py-2 text-center font-medium w-10">
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item: { id?: string; statement?: string }, idx: number) => (
+                <tr key={item.id || idx} className="border-t">
+                  <td className="px-3 py-2 font-bold">{idx + 1}</td>
+                  <td className="px-3 py-2">{item.statement || ""}</td>
+                  {labels.map((label) => (
+                    <td key={label} className="px-1 py-2 text-center">
+                      <div className="w-6 h-6 rounded border-2 border-gray-300 mx-auto cursor-pointer hover:border-gray-400" />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   };
 
+  // ─── Essay (Writing) ───────────────────────────────────────────
+  const renderEssay = (q: QuestionData) => {
+    const od = q.options_data || {};
+    const contentTitle = String(od.title || q.title || "");
+    const condition = String(od.condition || "");
+    const imageUrl = getCdnUrl(String(od.image_url || q.image_url || ""));
+    const minWords = Number(od.min_words || 150);
+
+    return (
+      <div className="space-y-4">
+        <div className="bg-white rounded-lg border p-6 space-y-4">
+          {contentTitle && (
+            <h2 className="text-lg font-bold border-b pb-3">{contentTitle}</h2>
+          )}
+          {imageUrl && (
+            <div className="flex justify-center p-4 bg-slate-50 rounded-lg">
+              <img
+                src={imageUrl}
+                alt="Task image"
+                className="max-w-full h-auto max-h-[300px] rounded"
+              />
+            </div>
+          )}
+          <div className="prose prose-sm max-w-none">
+            <p className="whitespace-pre-wrap">{q.content}</p>
+          </div>
+          {condition && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
+              <span className="font-medium text-amber-800">조건: </span>
+              {condition}
+            </div>
+          )}
+        </div>
+
+        {/* 작성 영역 */}
+        <div className="bg-white rounded-lg border p-6">
+          <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 min-h-[200px]">
+            <p className="text-gray-400 text-sm">작성 영역 (미리보기)</p>
+          </div>
+          <div className="flex justify-between items-center mt-3 text-sm text-gray-500">
+            <span>최소 {minWords}단어</span>
+            <span>0 / {minWords} words</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ─── Speaking ──────────────────────────────────────────────────
   const renderSpeaking = (q: QuestionData) => {
     const fmt = q.question_format;
     const od = q.options_data || {};
 
-    // Parse Part 2 cue card content
-    const parsePart2Content = (content: string) => {
-      const lines = content.split("\n").map((l) => l.trim()).filter(Boolean);
-      let topic = "";
-      const bullets: string[] = [];
-      let closing = "";
-      let inBullets = false;
-
-      for (const line of lines) {
-        if (line.toLowerCase().startsWith("you should say")) {
-          inBullets = true;
-          continue;
-        }
-        if (line.startsWith("-") || line.startsWith("•") || line.startsWith("*")) {
-          bullets.push(line.replace(/^[-•*]\s*/, ""));
-          continue;
-        }
-        if (inBullets && (line.toLowerCase().startsWith("and explain") || line.toLowerCase().startsWith("and say"))) {
-          closing = line;
-          continue;
-        }
-        if (!inBullets && !topic) {
-          topic = line;
-        }
-      }
-
-      return { topic, bullets, closing };
-    };
-
-    // Band range display
     const bandRange =
       q.target_band_min || q.target_band_max
         ? `Band ${q.target_band_min || "?"}${q.target_band_max ? `-${q.target_band_max}` : ""}`
         : null;
 
-    // Part 1: Simple question with category
+    // Part 1
     if (fmt === "speaking_part1") {
       return (
         <div className="space-y-4">
-          {/* Header with category and band */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-xs font-medium bg-emerald-50 text-emerald-700 border-emerald-200">
@@ -785,19 +602,11 @@ export function QuestionPreviewDialog({
                 </Badge>
               )}
             </div>
-            {bandRange && (
-              <span className="text-xs text-gray-500">{bandRange}</span>
-            )}
+            {bandRange && <span className="text-xs text-gray-500">{bandRange}</span>}
           </div>
-
-          {/* Question */}
-          {q.content && (
-            <div className="text-[15px] leading-relaxed">
-              {q.content}
-            </div>
-          )}
-
-          {/* Recording placeholder */}
+          <div className="bg-white rounded-lg border p-6">
+            <p className="text-lg">{q.content}</p>
+          </div>
           <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
             <Mic className="h-8 w-8 text-gray-300 mb-2" />
             <p className="text-sm text-gray-400 mb-2">녹음 영역 (미리보기)</p>
@@ -810,75 +619,49 @@ export function QuestionPreviewDialog({
       );
     }
 
-    // Part 2: Cue Card style
+    // Part 2 - Cue Card
     if (fmt === "speaking_part2") {
-      const { topic, bullets, closing } = parsePart2Content(q.content || "");
-      const imageUrl = String(od.image_url || q.image_url || "");
+      const cueCardTopic = String(od.topic || "");
+      const cueCardPoints = Array.isArray(od.points) ? od.points.map(String) : [];
+      const imageUrl = getCdnUrl(String(od.image_url || q.image_url || ""));
 
       return (
         <div className="space-y-4">
-          {/* Cue Card */}
           <div className="border-2 border-amber-300 rounded-lg overflow-hidden bg-amber-50/30">
-            {/* Card header */}
             <div className="flex items-center justify-between px-4 py-2.5 bg-amber-100 border-b border-amber-200">
-              <div className="flex items-center gap-2">
-                <Badge className="text-xs font-semibold bg-amber-500 hover:bg-amber-500 text-white">
-                  Part 2 - Cue Card
-                </Badge>
-              </div>
-              {bandRange && (
-                <span className="text-xs font-medium text-amber-700">{bandRange}</span>
-              )}
+              <Badge className="text-xs font-semibold bg-amber-500 hover:bg-amber-500 text-white">
+                Part 2 - Cue Card
+              </Badge>
+              {bandRange && <span className="text-xs font-medium text-amber-700">{bandRange}</span>}
             </div>
-
-            {/* Card body */}
             <div className="p-5 space-y-4">
-              {/* Topic */}
-              <p className="text-base font-semibold text-gray-900 leading-relaxed">
-                {topic || q.content}
+              <p className="text-base font-semibold text-gray-900">
+                {cueCardTopic || q.content}
               </p>
-
-              {/* Bullets */}
-              {bullets.length > 0 && (
+              {cueCardPoints.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-700">You should say:</p>
                   <ul className="list-disc list-inside space-y-1.5 text-sm text-gray-700 pl-2">
-                    {bullets.map((b, i) => (
-                      <li key={i} className="leading-relaxed">{b}</li>
+                    {cueCardPoints.map((point, i) => (
+                      <li key={i} className="leading-relaxed">{point}</li>
                     ))}
                   </ul>
                 </div>
               )}
-
-              {/* Closing */}
-              {closing && (
-                <p className="text-sm text-gray-700 font-medium italic">
-                  {closing}
-                </p>
-              )}
-
-              {/* Image */}
               {imageUrl && (
                 <div className="mt-3 p-2 bg-white rounded border">
                   <img
                     src={imageUrl}
                     alt="Cue card visual"
                     className="max-w-full h-auto max-h-[200px] rounded mx-auto"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
-                    }}
                   />
                 </div>
               )}
             </div>
-
-            {/* Card footer - timing info */}
             <div className="px-4 py-2 bg-amber-50 border-t border-amber-200 text-xs text-amber-700">
               준비 시간: 1분 | 발표 시간: 1-2분
             </div>
           </div>
-
-          {/* Recording placeholder */}
           <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
             <Mic className="h-8 w-8 text-gray-300 mb-2" />
             <p className="text-sm text-gray-400 mb-2">녹음 영역 (미리보기)</p>
@@ -891,46 +674,29 @@ export function QuestionPreviewDialog({
       );
     }
 
-    // Part 3: Discussion with depth level
+    // Part 3
     if (fmt === "speaking_part3") {
-      const depthLabel = q.depth_level
-        ? `Level ${q.depth_level}`
-        : null;
+      const depthLabel = q.depth_level ? `Level ${q.depth_level}` : null;
 
       return (
         <div className="space-y-4">
-          {/* Header with depth level and band */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-xs font-medium bg-violet-50 text-violet-700 border-violet-200">
                 Part 3 - Discussion
               </Badge>
-              {depthLabel && (
-                <Badge variant="secondary" className="text-xs">
-                  {depthLabel}
-                </Badge>
-              )}
+              {depthLabel && <Badge variant="secondary" className="text-xs">{depthLabel}</Badge>}
             </div>
-            {bandRange && (
-              <span className="text-xs text-gray-500">{bandRange}</span>
-            )}
+            {bandRange && <span className="text-xs text-gray-500">{bandRange}</span>}
           </div>
-
-          {/* Related Part 2 reference */}
           {(q.related_part2_id || q.related_part2_code) && (
             <div className="text-xs text-gray-500 bg-gray-50 rounded px-3 py-2">
               연결된 Part 2: <span className="font-mono">{q.related_part2_code || q.related_part2_id}</span>
             </div>
           )}
-
-          {/* Question */}
-          {q.content && (
-            <div className="text-[15px] leading-relaxed p-4 bg-violet-50/50 border border-violet-100 rounded-lg">
-              {q.content}
-            </div>
-          )}
-
-          {/* Recording placeholder */}
+          <div className="bg-white rounded-lg border p-6">
+            <p className="text-lg">{q.content}</p>
+          </div>
           <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
             <Mic className="h-8 w-8 text-gray-300 mb-2" />
             <p className="text-sm text-gray-400 mb-2">녹음 영역 (미리보기)</p>
@@ -943,206 +709,84 @@ export function QuestionPreviewDialog({
       );
     }
 
-    // Fallback for unknown speaking format
+    // Fallback
     return (
-      <div className="space-y-4">
-        {q.content && (
-          <div className="text-sm leading-relaxed whitespace-pre-wrap">
-            {q.content}
-          </div>
-        )}
-        <div className="flex flex-col items-center justify-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
-          <Mic className="h-10 w-10 text-gray-300 mb-3" />
-          <p className="text-sm text-gray-400 mb-3">녹음 영역 (미리보기)</p>
-          <Button variant="outline" size="sm" disabled>
-            <Mic className="mr-2 h-4 w-4" />
-            Start Recording
-          </Button>
-        </div>
+      <div className="bg-white rounded-lg border p-6">
+        <p>{q.content}</p>
       </div>
     );
   };
 
-  const renderMapLabeling = (q: QuestionData, startNum: number) => {
-    const od = q.options_data || {};
-    const imageUrl = String(od.image_url || "");
-    const labels = Array.isArray(od.labels) ? od.labels as string[] : [];
-    const mapItems = Array.isArray(od.items)
-      ? (od.items as { number: number; statement: string }[])
-      : [];
-
-    if (!imageUrl && mapItems.length === 0) {
-      return (
-        <div className="space-y-2">
-          <p className="text-sm text-gray-500">지도 라벨링 데이터가 없습니다.</p>
-        </div>
-      );
-    }
-
-    const endNum = startNum + mapItems.length - 1;
-    const numPrefix = startNum === endNum ? `${startNum}` : `${startNum}–${endNum}`;
-
-    return (
-      <div className="space-y-4">
-        {/* Title */}
-        <div className="bg-slate-100 border-l-4 border-slate-300 px-4 py-2.5 rounded-r">
-          <p className="text-[15px]">
-            <span className="font-bold mr-2">{numPrefix}</span>
-            The map has {labels.length} labels ({labels.join(", ")}). Choose the correct label.
-          </p>
-        </div>
-
-        {/* Image + Table Layout */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* Left: Map Image */}
-          <div className="border rounded-lg p-2 bg-slate-50 flex items-center justify-center min-h-[200px]">
-            {imageUrl ? (
-              <img
-                src={imageUrl}
-                alt="Map"
-                className="max-w-full h-auto max-h-[300px] rounded"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                }}
-              />
-            ) : (
-              <p className="text-sm text-gray-400">이미지 없음</p>
-            )}
-          </div>
-
-          {/* Right: Answer Table */}
-          <div className="border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-100">
-                <tr>
-                  <th className="px-2 py-1.5 text-left font-medium">#</th>
-                  <th className="px-2 py-1.5 text-left font-medium">항목</th>
-                  {labels.map((label) => (
-                    <th key={label} className="px-2 py-1.5 text-center font-medium w-8">{label}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {mapItems.map((entry, idx) => {
-                  const num = startNum + idx;
-                  const selectedLabel = answers[num] || "";
-                  return (
-                    <tr key={num} className="border-t">
-                      <td className="px-2 py-1.5 font-bold">{num}</td>
-                      <td className="px-2 py-1.5">{String(entry.statement)}</td>
-                      {labels.map((label) => (
-                        <td key={label} className="px-1 py-1.5 text-center">
-                          <button
-                            type="button"
-                            className={cn(
-                              "w-6 h-6 rounded border-2 flex items-center justify-center transition-colors",
-                              selectedLabel === label
-                                ? "border-blue-500 bg-blue-500 text-white"
-                                : "border-gray-300 hover:border-gray-400"
-                            )}
-                            onClick={() => setAnswer(num, selectedLabel === label ? "" : label)}
-                          >
-                            {selectedLabel === label && "✓"}
-                          </button>
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // ─── Main renderer ────────────────────────────────────────────
-
+  // ─── Main Render ───────────────────────────────────────────────
   const renderQuestion = (q: QuestionData) => {
-    const startNum = 1;
     const fmt = q.question_format;
 
-    if (fmt === "mcq_single" || fmt === "mcq_multiple") return renderMCQ(q, startNum);
-    if (fmt === "true_false_ng") return renderTFNG(q, startNum);
-    if (fmt === "fill_blank_typing") return renderFillBlankTyping(q, startNum);
-    if (fmt === "fill_blank_drag") return renderFillBlankDrag(q, startNum);
-    if (fmt === "table_completion") {
-      const od = q.options_data || {};
-      const inputMode = String(od.input_mode || "typing");
-      if (inputMode === "drag") return renderFillBlankDrag(q, startNum);
-      return renderFillBlankTyping(q, startNum);
-    }
-    if (fmt === "heading_matching" || fmt === "matching") return renderMatching(q, startNum);
-    if (fmt === "flowchart") return renderFlowchart(q, startNum);
-    if (fmt === "map_labeling") return renderMapLabeling(q, startNum);
-    if (fmt === "essay_task1" || fmt === "essay_task2" || fmt === "essay")
-      return renderEssay(q, startNum);
+    if (fmt === "fill_blank_typing") return renderFillBlankTyping(q);
+    if (fmt === "fill_blank_drag") return renderFillBlankDrag(q);
+    if (fmt === "table_completion") return renderTableCompletion(q);
+    if (fmt === "mcq_single" || fmt === "mcq_multiple" || fmt === "mcq") return renderMCQ(q);
+    if (fmt === "true_false_ng") return renderTFNG(q);
+    if (fmt === "matching" || fmt === "heading_matching") return renderMatching(q);
+    if (fmt === "flowchart") return renderFlowchart(q);
+    if (fmt === "map_labeling") return renderMapLabeling(q);
+    if (fmt === "essay" || fmt === "essay_task1" || fmt === "essay_task2") return renderEssay(q);
     if (fmt.startsWith("speaking_")) return renderSpeaking(q);
 
-    return <p className="text-sm text-gray-500">지원하지 않는 문제 형태: {fmt}</p>;
+    return (
+      <div className="bg-white rounded-lg border p-6">
+        <p className="text-sm text-gray-500">지원하지 않는 문제 형태: {fmt}</p>
+      </div>
+    );
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b bg-slate-50">
-          <div className="flex items-center gap-3">
-            <DialogTitle className="text-base font-semibold">
-              문제 미리보기
-            </DialogTitle>
+      <DialogContent className="sm:max-w-[95vw] max-w-[95vw] w-[95vw] max-h-[85vh] p-0 gap-0 flex flex-col">
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
+          <DialogTitle className="flex items-center gap-2">
+            미리보기 - 실제 시험 화면
             {question && (
               <>
+                <span className={cn("px-2 py-0.5 rounded text-xs font-medium", TYPE_COLORS[question.question_type] || "bg-gray-100")}>
+                  {question.question_type}
+                </span>
                 <Badge variant="outline" className="font-mono text-xs">
                   {question.question_code}
                 </Badge>
                 <Badge variant="secondary" className="text-xs">
                   {FORMAT_LABELS[question.question_format] || question.question_format}
                 </Badge>
-                {question.item_count > 1 && (
-                  <span className="text-xs text-muted-foreground">
-                    {question.item_count}문항
-                  </span>
-                )}
               </>
             )}
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => onOpenChange(false)}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="flex-1 overflow-y-auto">
           {isLoading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : question ? (
-            <div className="space-y-4">
-              {/* Audio (Listening 문제의 경우) */}
+            <div className="p-8 bg-slate-100 min-h-full">
+              {/* Audio */}
               {question.audio_url && (
-                <div className="bg-sky-50 border border-sky-100 rounded-lg px-4 py-3">
+                <div className="mb-6 bg-sky-50 border border-sky-100 rounded-lg px-4 py-3">
                   <div className="flex items-center gap-3">
                     <Volume2 className="h-5 w-5 text-sky-600 flex-shrink-0" />
-                    <audio controls className="w-full h-8" src={question.audio_url}>
+                    <audio controls className="w-full h-8" src={getCdnUrl(question.audio_url)}>
                       오디오를 지원하지 않습니다.
                     </audio>
                   </div>
                 </div>
               )}
+
               {/* Instructions */}
               {question.instructions && (
-                <div className="text-sm text-gray-600 bg-blue-50/50 border border-blue-100 rounded-lg px-4 py-3 leading-relaxed">
-                  {renderFormattedText(question.instructions)}
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="font-medium text-blue-900">{question.instructions}</p>
                 </div>
               )}
+
               {/* Question content */}
               {renderQuestion(question)}
             </div>

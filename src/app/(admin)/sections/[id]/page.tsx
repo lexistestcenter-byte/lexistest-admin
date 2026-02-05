@@ -1255,6 +1255,7 @@ export default function SectionEditPage({
                         index={idx}
                         onUpdate={handleUpdateContentBlock}
                         onRemove={handleRemoveContentBlock}
+                        sectionId={id}
                       />
                     ))}
                   </div>
@@ -1495,11 +1496,13 @@ function ContentBlockEditor({
   index,
   onUpdate,
   onRemove,
+  sectionId,
 }: {
   block: ContentBlock;
   index: number;
   onUpdate: (id: string, data: Partial<ContentBlock>) => void;
   onRemove: (id: string) => void;
+  sectionId: string;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [localTitle, setLocalTitle] = useState(block.passage_title || "");
@@ -1599,6 +1602,7 @@ function ContentBlockEditor({
                   onChange={(url) => setLocalAudioUrl(url)}
                   accept="audio"
                   placeholder="오디오 파일 업로드"
+                  context={`sections/${sectionId}`}
                 />
               </div>
               <div className="space-y-1.5">
