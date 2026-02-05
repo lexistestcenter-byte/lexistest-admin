@@ -13,11 +13,11 @@ import {
   ArrowRight,
   X,
   Clock,
-  Volume2,
   Mic,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCdnUrl } from "@/lib/cdn";
+import { AudioPlayer } from "@/components/ui/audio-player";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -1336,12 +1336,7 @@ export function SectionPreview({
         {/* 문제 그룹 레벨 오디오 (문제에 연결된 오디오가 있는 경우) */}
         {groupAudioUrl && (
           <div className="px-5 py-3 bg-sky-50 border-b border-sky-100 shrink-0">
-            <div className="flex items-center gap-3">
-              <Volume2 className="h-5 w-5 text-sky-600 flex-shrink-0" />
-              <audio controls className="w-full h-8" src={getCdnUrl(groupAudioUrl || "")}>
-                오디오를 지원하지 않습니다.
-              </audio>
-            </div>
+            <AudioPlayer src={getCdnUrl(groupAudioUrl || "")} variant="compact" className="w-full" />
           </div>
         )}
 
@@ -1418,11 +1413,8 @@ export function SectionPreview({
       if (activeBlock.content_type === "audio" && activeBlock.audio_url) {
         return (
           <div className="px-4 pt-3 pb-1 shrink-0">
-            <div className="bg-white rounded-lg border px-4 py-2 flex items-center gap-3">
-              <Volume2 className="h-5 w-5 text-sky-500 flex-shrink-0" />
-              <audio controls className="w-full h-8" src={getCdnUrl(activeBlock.audio_url || "")}>
-                Audio not supported.
-              </audio>
+            <div className="bg-white rounded-lg border px-4 py-2">
+              <AudioPlayer src={getCdnUrl(activeBlock.audio_url || "")} variant="compact" className="w-full" />
             </div>
           </div>
         );

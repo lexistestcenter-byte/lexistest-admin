@@ -76,6 +76,7 @@ import {
 } from "@/components/questions/types";
 import { FlowchartEditor } from "@/components/questions/flowchart-editor";
 import { FileUpload } from "@/components/ui/file-upload";
+import { getCdnUrl } from "@/lib/cdn";
 
 // =============================================================================
 // question_type 별 정보
@@ -3755,7 +3756,7 @@ function WritingPreview({
 
           {imageUrl && (
             <div className="mt-4 p-3 bg-white rounded border">
-              <img src={imageUrl} alt="Task" className="max-w-full h-auto" />
+              <img src={getCdnUrl(imageUrl)} alt="Task" className="max-w-full h-auto" />
             </div>
           )}
         </div>

@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Upload, X, Image as ImageIcon, Music, Loader2 } from "lucide-react";
+import { AudioPlayer } from "@/components/ui/audio-player";
 import { toast } from "sonner";
 import { getCdnUrl } from "@/lib/cdn";
 
@@ -194,9 +195,7 @@ export function FileUpload({
           <div className="border rounded-lg p-4 bg-slate-50">
             <div className="flex items-center gap-3">
               <div className="flex-1">
-                <audio controls className="w-full" src={displayUrl}>
-                  브라우저가 오디오를 지원하지 않습니다.
-                </audio>
+                <AudioPlayer src={displayUrl} />
               </div>
               <div className="flex gap-1">
                 <Button
