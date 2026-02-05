@@ -192,35 +192,33 @@ export function FileUpload({
             </div>
           </div>
         ) : (
-          <div className="border rounded-lg p-4 bg-slate-50">
-            <div className="flex items-center gap-3">
-              <div className="flex-1">
-                <AudioPlayer src={displayUrl} />
-              </div>
-              <div className="flex gap-1">
+          <div className="border rounded-lg p-4 bg-slate-50 space-y-2">
+            <AudioPlayer src={displayUrl} />
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground truncate flex-1">{value}</p>
+              <div className="flex gap-1 flex-shrink-0">
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="h-8 w-8"
+                  className="h-7 w-7"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={disabled || isUploading}
                 >
-                  <Upload className="h-4 w-4" />
+                  <Upload className="h-3.5 w-3.5" />
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="h-8 w-8"
+                  className="h-7 w-7"
                   onClick={handleRemove}
                   disabled={disabled}
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-2 truncate">{value}</p>
           </div>
         )}
         <input

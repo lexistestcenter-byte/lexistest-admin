@@ -8,6 +8,7 @@ import { Play, Pause, Square, Volume2 } from "lucide-react";
 interface AudioPlayerProps {
   src: string;
   variant?: "compact" | "default";
+  autoPlay?: boolean;
   className?: string;
 }
 
@@ -21,6 +22,7 @@ function formatTime(seconds: number): string {
 export function AudioPlayer({
   src,
   variant = "default",
+  autoPlay = false,
   className,
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -64,6 +66,11 @@ export function AudioPlayer({
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
 
+    // 메타데이터가 이미 로드된 경우 (캐시 등) 즉시 처리
+    if (audio.readyState >= 1) {
+      onLoadedMetadata();
+    }
+
     return () => {
       audio.removeEventListener("loadedmetadata", onLoadedMetadata);
       audio.removeEventListener("timeupdate", onTimeUpdate);
@@ -73,6 +80,13 @@ export function AudioPlayer({
       audio.removeEventListener("pause", onPause);
     };
   }, [src]);
+
+  // autoPlay 처리: isLoaded 되면 자동 재생
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !autoPlay || !isLoaded) return;
+    audio.play().catch(() => {/* 브라우저 autoplay 정책에 의해 차단될 수 있음 */});
+  }, [autoPlay, isLoaded]);
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;

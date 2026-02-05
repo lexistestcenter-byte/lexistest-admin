@@ -84,13 +84,16 @@ export function isValidUUID(str: string): boolean {
 }
 
 // URL 형식 검증 (이미지, 오디오 URL용)
+// 풀 URL (http/https) 또는 CDN 상대 경로 (예: audio/questions/Q-L-0001/abc.mp3) 허용
 export function isValidUrl(url: string): boolean {
   if (!url) return true; // optional 필드
+  // 풀 URL
   try {
     const parsed = new URL(url);
     return ["http:", "https:"].includes(parsed.protocol);
   } catch {
-    return false;
+    // 상대 CDN 경로: 영문, 숫자, -, _, /, ., % 만 허용
+    return /^[\w][\w\-\/\.%]+$/.test(url);
   }
 }
 

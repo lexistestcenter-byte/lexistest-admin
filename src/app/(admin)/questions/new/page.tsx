@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
 import {
   Plus,
   Trash2,
@@ -837,8 +838,8 @@ export default function NewQuestionPage() {
           is_practice: tab.isPractice,
           generate_followup: tab.format === "speaking_part2" ? tab.generateFollowup : undefined,
           // Audio: deferred 파일이 있으면 URL 제외, 없으면 기존 URL 사용
-          audio_url: selectedQuestionType === "listening" && tab.audioUrl && !tab.audioFile ? tab.audioUrl : undefined,
-          audio_transcript: selectedQuestionType === "listening" && tab.audioTranscript ? tab.audioTranscript : undefined,
+          audio_url: (selectedQuestionType === "listening" || selectedQuestionType === "speaking") && tab.audioUrl && !tab.audioFile ? tab.audioUrl : undefined,
+          audio_transcript: (selectedQuestionType === "listening" || selectedQuestionType === "speaking") && tab.audioTranscript ? tab.audioTranscript : undefined,
           // Speaking fields
           speaking_category: tab.format === "speaking_part1" ? tab.speakingCategory || undefined : undefined,
           related_part2_id: tab.format === "speaking_part3" ? tab.relatedPart2Id || undefined : undefined,
@@ -896,11 +897,16 @@ export default function NewQuestionPage() {
 
           // 업데이트할 내용이 있으면 PUT 요청
           if (Object.keys(updatePayload).length > 0) {
-            await fetch(`/api/questions/${questionId}`, {
+            const updateRes = await fetch(`/api/questions/${questionId}`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(updatePayload),
             });
+            if (!updateRes.ok) {
+              const updateErr = await updateRes.json().catch(() => ({}));
+              console.error("파일 URL 업데이트 실패:", updateErr);
+              toast.error("파일 URL 업데이트에 실패했습니다. 상세 페이지에서 다시 저장해주세요.");
+            }
           }
         }
 
@@ -1175,8 +1181,8 @@ export default function NewQuestionPage() {
 
             </div>
 
-            {/* Audio Settings (Listening only) */}
-            {selectedQuestionType === "listening" && (
+            {/* Audio Settings (Listening & Speaking) */}
+            {(selectedQuestionType === "listening" || selectedQuestionType === "speaking") && (
               <div className="space-y-4">
                 <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">오디오 설정</h3>
                 <div className="space-y-3">
@@ -3875,6 +3881,11 @@ function PreviewDialog({
 
         <div className="flex-1 overflow-y-auto">
           <div className="p-8 bg-slate-100 min-h-full">
+            {/* Audio — 자동재생 */}
+            {tab.audioUrl && (
+              <audio src={tab.audioUrl} autoPlay />
+            )}
+
             {/* 지시문 */}
             {tab.instructions && (
               <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">

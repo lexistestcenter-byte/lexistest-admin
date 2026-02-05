@@ -25,6 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -893,9 +894,9 @@ export default function EditQuestionPage({
         generate_followup: generateFollowup,
         is_practice: isPractice,
         tags: (selectedFormat !== "mcq" && selectedFormat !== "true_false_ng") && tags ? tags.split(",").map(t => t.trim()) : null,
-        // Audio fields (Listening only)
-        audio_url: selectedQuestionType === "listening" && audioUrl ? audioUrl : null,
-        audio_transcript: selectedQuestionType === "listening" && audioTranscript ? audioTranscript : null,
+        // Audio fields (Listening & Speaking)
+        audio_url: (selectedQuestionType === "listening" || selectedQuestionType === "speaking") && audioUrl ? audioUrl : null,
+        audio_transcript: (selectedQuestionType === "listening" || selectedQuestionType === "speaking") && audioTranscript ? audioTranscript : null,
         // Speaking fields
         speaking_category: selectedFormat === "speaking_part1" ? (speakingCategory || null) : null,
         related_part2_id: selectedFormat === "speaking_part3" ? (relatedPart2Id || null) : null,
@@ -1056,8 +1057,8 @@ export default function EditQuestionPage({
 
             </div>
 
-            {/* Audio Settings (Listening only) */}
-            {selectedQuestionType === "listening" && (
+            {/* Audio Settings (Listening & Speaking) */}
+            {(selectedQuestionType === "listening" || selectedQuestionType === "speaking") && (
               <div className="space-y-4">
                 <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">오디오 설정</h3>
                 <div className="space-y-3">
@@ -1428,6 +1429,7 @@ export default function EditQuestionPage({
         speakingQuestion={speakingQuestion}
         cueCardTopic={cueCardTopic}
         cueCardPoints={cueCardPoints}
+        audioUrl={audioUrl}
         tableInputMode={tableInputMode}
         fillBlankDragAllowDuplicate={fillBlankDragAllowDuplicate}
         fillBlankItems={fillBlankItems}
@@ -3795,7 +3797,7 @@ function PreviewDialog({
   matchingTitle, matchingOptions, matchingItems, matchingAllowDuplicate,
   flowchartTitle, flowchartNodes, flowchartBlanks,
   writingTitle, writingCondition, writingPrompt, writingImageUrl, writingMinWords,
-  speakingQuestion, cueCardTopic, cueCardPoints,
+  speakingQuestion, cueCardTopic, cueCardPoints, audioUrl,
   tableInputMode, fillBlankDragAllowDuplicate, fillBlankItems, fillBlankInputStyle,
 }: {
   open: boolean;
@@ -3828,6 +3830,7 @@ function PreviewDialog({
   speakingQuestion: string;
   cueCardTopic: string;
   cueCardPoints: string[];
+  audioUrl: string;
   tableInputMode: "typing" | "drag";
   fillBlankDragAllowDuplicate: boolean;
   fillBlankItems: string[];
@@ -3877,6 +3880,11 @@ function PreviewDialog({
 
         <div className="flex-1 overflow-y-auto">
           <div className="p-8 bg-slate-100 min-h-full">
+            {/* Audio — 자동재생 */}
+            {audioUrl && (
+              <audio src={getCdnUrl(audioUrl)} autoPlay />
+            )}
+
             {/* 지시문 */}
             {instructions && (
               <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">

@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCdnUrl } from "@/lib/cdn";
-import { AudioPlayer } from "@/components/ui/audio-player";
+
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -1333,11 +1333,9 @@ export function SectionPreview({
           )}
         </div>
 
-        {/* 문제 그룹 레벨 오디오 (문제에 연결된 오디오가 있는 경우) */}
+        {/* 문제 그룹 레벨 오디오 — 자동재생 */}
         {groupAudioUrl && (
-          <div className="px-5 py-3 bg-sky-50 border-b border-sky-100 shrink-0">
-            <AudioPlayer src={getCdnUrl(groupAudioUrl || "")} variant="compact" className="w-full" />
-          </div>
+          <audio src={getCdnUrl(groupAudioUrl || "")} autoPlay />
         )}
 
         {/* Questions in this group */}
@@ -1412,11 +1410,7 @@ export function SectionPreview({
 
       if (activeBlock.content_type === "audio" && activeBlock.audio_url) {
         return (
-          <div className="px-4 pt-3 pb-1 shrink-0">
-            <div className="bg-white rounded-lg border px-4 py-2">
-              <AudioPlayer src={getCdnUrl(activeBlock.audio_url || "")} variant="compact" className="w-full" />
-            </div>
-          </div>
+          <audio src={getCdnUrl(activeBlock.audio_url || "")} autoPlay />
         );
       }
     }

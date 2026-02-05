@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Mic } from "lucide-react";
-import { AudioPlayer } from "@/components/ui/audio-player";
+
 import { cn } from "@/lib/utils";
 import { getCdnUrl } from "@/lib/cdn";
 
@@ -769,11 +769,9 @@ export function QuestionPreviewDialog({
             </div>
           ) : question ? (
             <div className="p-8 bg-slate-100 min-h-full">
-              {/* Audio */}
+              {/* Audio — 자동재생 */}
               {question.audio_url && (
-                <div className="mb-6 bg-sky-50 border border-sky-100 rounded-lg px-4 py-3">
-                  <AudioPlayer src={getCdnUrl(question.audio_url)} variant="compact" className="w-full" />
-                </div>
+                <audio src={getCdnUrl(question.audio_url)} autoPlay />
               )}
 
               {/* Instructions */}
