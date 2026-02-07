@@ -14,6 +14,6 @@ export const config = {
      * - favicon.ico, sitemap.xml, robots.txt
      * - 정적 자산 (svg, png, jpg 등)
      */
-    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|sitemap\\.xml|robots\\.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$|api/).*)",
   ],
 };

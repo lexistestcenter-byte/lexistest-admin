@@ -59,6 +59,12 @@ export async function PATCH(request: NextRequest) {
     return apiError("Cannot modify your own account");
   }
 
+  // role 유효성 검증
+  const VALID_ROLES = ["super_admin", "admin", "editor", "viewer"];
+  if (role !== undefined && !VALID_ROLES.includes(role)) {
+    return apiError(`Invalid role. Must be one of: ${VALID_ROLES.join(", ")}`, 400);
+  }
+
   const updateData: Record<string, unknown> = {};
   if (role !== undefined) updateData.role = role;
   if (is_active !== undefined) updateData.is_active = is_active;

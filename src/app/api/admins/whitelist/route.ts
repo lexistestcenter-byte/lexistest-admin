@@ -5,6 +5,9 @@ import {
   apiSuccess,
   getSupabase,
 } from "@/lib/api/server";
+import { rateLimit } from "@/lib/utils/rate-limit";
+
+const addWhitelistLimiter = rateLimit({ interval: 60000, uniqueTokenPerInterval: 500, limit: 10 });
 
 // 화이트리스트 조회
 export async function GET(request: NextRequest) {
@@ -40,6 +43,13 @@ export async function GET(request: NextRequest) {
 
 // 화이트리스트 추가
 export async function POST(request: NextRequest) {
+  // Rate limiting
+  const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "anonymous";
+  const { success: rateLimitOk } = await addWhitelistLimiter.check(ip);
+  if (!rateLimitOk) {
+    return apiError("Too many requests. Please try again later.", 429);
+  }
+
   const validation = await validateApiRequest(request);
   if (!validation.valid) {
     return apiError(validation.error!, 401);

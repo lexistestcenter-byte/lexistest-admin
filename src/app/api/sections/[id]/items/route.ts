@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { UUID_REGEX } from "@/lib/utils/sanitize";
 
 // GET: 섹션 내 아이템(문제/그룹) 목록 조회
 export async function GET(
@@ -12,6 +10,16 @@ export async function GET(
   try {
     const { id: sectionId } = await params;
     const supabase = await createClient();
+
+    // 인증 체크
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     if (!UUID_REGEX.test(sectionId)) {
       return NextResponse.json(
@@ -47,6 +55,17 @@ export async function POST(
   try {
     const { id: sectionId } = await params;
     const supabase = await createClient();
+
+    // 인증 체크
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
 
     if (!UUID_REGEX.test(sectionId)) {
@@ -134,6 +153,17 @@ export async function DELETE(
   try {
     const { id: sectionId } = await params;
     const supabase = await createClient();
+
+    // 인증 체크
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const itemId = searchParams.get("item_id");
 
@@ -185,6 +215,17 @@ export async function PUT(
   try {
     const { id: sectionId } = await params;
     const supabase = await createClient();
+
+    // 인증 체크
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
 
     if (!UUID_REGEX.test(sectionId)) {

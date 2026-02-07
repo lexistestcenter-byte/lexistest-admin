@@ -3,6 +3,8 @@
  * XSS, SQL Injection 방어
  */
 
+import DOMPurify from "isomorphic-dompurify";
+
 // HTML 태그 제거 (일반 텍스트 필드용)
 export function stripHtml(str: string): string {
   if (!str) return "";
@@ -23,46 +25,37 @@ export function escapeHtml(str: string): string {
 }
 
 // 허용된 HTML 태그만 남기고 나머지 제거 (리치 텍스트 필드용)
-const ALLOWED_TAGS = [
-  "p", "br", "b", "i", "u", "strong", "em", "ul", "ol", "li",
-  "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "code", "pre",
-  "table", "thead", "tbody", "tr", "th", "td", "span", "div", "a"
-];
-
-const ALLOWED_ATTRIBUTES = ["href", "target", "class", "style", "id"];
-
+// DOMPurify를 사용하여 안전하게 sanitize
 export function sanitizeHtml(html: string): string {
   if (!html) return "";
 
-  // 위험한 태그 완전 제거
-  let sanitized = html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
-    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, "")
-    .replace(/<embed\b[^>]*>/gi, "")
-    .replace(/<link\b[^>]*>/gi, "")
-    .replace(/<meta\b[^>]*>/gi, "");
-
-  // 이벤트 핸들러 제거 (onclick, onerror 등)
-  sanitized = sanitized.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, "");
-  sanitized = sanitized.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, "");
-
-  // javascript: 프로토콜 제거
-  sanitized = sanitized.replace(/javascript:/gi, "");
-  sanitized = sanitized.replace(/data:/gi, "");
-  sanitized = sanitized.replace(/vbscript:/gi, "");
-
-  return sanitized;
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      "p", "br", "b", "i", "u", "strong", "em", "ul", "ol", "li",
+      "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "code", "pre",
+      "table", "thead", "tbody", "tr", "th", "td", "span", "div", "a",
+      "img", "sub", "sup",
+    ],
+    ALLOWED_ATTR: ["href", "target", "class", "style", "id", "src", "alt"],
+    FORBID_TAGS: ["script", "iframe", "object", "embed", "form", "link", "meta"],
+    FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover"],
+    ALLOW_DATA_ATTR: false,
+  });
 }
 
 // SQL Injection 위험 패턴 검사
+// 일반 영어 문장("and...from" 등)을 차단하지 않도록, 실제 injection 구문만 탐지
 const SQL_INJECTION_PATTERNS = [
-  /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|EXEC|EXECUTE|UNION|OR|AND)\b.*\b(FROM|INTO|TABLE|DATABASE|WHERE|SET)\b)/i,
-  /('|")\s*(OR|AND)\s*('|"|\d)/i,
-  /;\s*(DROP|DELETE|UPDATE|INSERT)/i,
-  /--\s*$/m,
-  /\/\*.*\*\//,
+  // 세미콜론 뒤 SQL 명령: "; DROP TABLE"
+  /;\s*(DROP|DELETE|UPDATE|INSERT|ALTER|TRUNCATE|CREATE|EXEC)/i,
+  // 따옴표 기반 boolean injection: ' OR '1'='1, " OR 1=1
+  /['"]\s*(OR|AND)\s*['"\d]/i,
+  // UNION SELECT injection
+  /\bUNION\s+(ALL\s+)?SELECT\b/i,
+  // 따옴표 뒤 SQL 주석: '--
+  /['"]\s*--/,
+  // 블록 주석 내 SQL: /* ... */
+  /\/\*[\s\S]*?\*\//,
 ];
 
 export function containsSqlInjection(str: string): boolean {
@@ -76,11 +69,13 @@ export function sanitizeText(text: string): string {
   return text.trim();
 }
 
+// UUID 정규식 (직접 사용 가능)
+export const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // UUID 형식 검증
 export function isValidUUID(str: string): boolean {
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(str);
+  return UUID_REGEX.test(str);
 }
 
 // URL 형식 검증 (이미지, 오디오 URL용)

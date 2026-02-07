@@ -6,25 +6,44 @@ import {
   sanitizeJsonb,
   sanitizeStringArray,
   isValidUrl,
+  isValidUUID,
   containsSqlInjection,
 } from "@/lib/utils/sanitize";
 
+// Reading 문제 형식
 const READING_FORMATS = [
   "fill_blank_typing",
   "fill_blank_drag",
-  "heading_matching",
-  "mcq",
+  "mcq_single",
+  "mcq_multiple",
+  "matching",
+  "true_false_ng",
   "flowchart",
+  "table_completion",
+] as const;
+
+// Listening 문제 형식
+const LISTENING_FORMATS = [
+  "fill_blank_typing",
+  "fill_blank_drag",
+  "mcq_single",
+  "mcq_multiple",
+  "matching",
+  "table_completion",
+  "map_labeling",
+] as const;
+
+// Writing 문제 형식
+const WRITING_FORMATS = ["essay"] as const;
+
+// Speaking 문제 형식
+const SPEAKING_FORMATS = [
+  "speaking_part1",
+  "speaking_part2",
+  "speaking_part3",
 ] as const;
 
 const DIFFICULTIES = ["easy", "medium", "hard"] as const;
-
-// UUID 형식 체크
-function isValidUUID(str: string): boolean {
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(str);
-}
 
 // ============================================================
 // GET: 문제 상세 조회
@@ -119,14 +138,16 @@ export async function PUT(
     const errors: string[] = [];
 
     // question_format 체크 (제공된 경우)
-    if (
-      body.question_format &&
-      body.question_type === "reading" &&
-      !READING_FORMATS.includes(body.question_format)
-    ) {
-      errors.push(
-        `유효하지 않은 Reading 형식입니다. 가능한 값: ${READING_FORMATS.join(", ")}`
-      );
+    if (body.question_format) {
+      if (body.question_type === "reading" && !READING_FORMATS.includes(body.question_format)) {
+        errors.push(`유효하지 않은 Reading 형식입니다. 가능한 값: ${READING_FORMATS.join(", ")}`);
+      } else if (body.question_type === "listening" && !LISTENING_FORMATS.includes(body.question_format)) {
+        errors.push(`유효하지 않은 Listening 형식입니다. 가능한 값: ${LISTENING_FORMATS.join(", ")}`);
+      } else if (body.question_type === "writing" && !WRITING_FORMATS.includes(body.question_format)) {
+        errors.push(`유효하지 않은 Writing 형식입니다. 가능한 값: ${WRITING_FORMATS.join(", ")}`);
+      } else if (body.question_type === "speaking" && !SPEAKING_FORMATS.includes(body.question_format)) {
+        errors.push(`유효하지 않은 Speaking 형식입니다. 가능한 값: ${SPEAKING_FORMATS.join(", ")}`);
+      }
     }
 
     // difficulty 체크 (제공된 경우)
@@ -141,8 +162,13 @@ export async function PUT(
       errors.push("배점(points)은 1~10 사이여야 합니다");
     }
 
-    // content가 빈 문자열이면 안됨
-    if (body.content !== undefined && body.content.trim() === "") {
+    // content가 빈 문자열이면 안됨 (map_labeling 등 content가 빈 문자열일 수 있는 유형은 제외)
+    const CONTENT_EMPTY_ALLOWED_FORMATS = ["map_labeling"];
+    if (
+      body.content !== undefined &&
+      body.content.trim() === "" &&
+      !CONTENT_EMPTY_ALLOWED_FORMATS.includes(body.question_format)
+    ) {
       errors.push("문제 내용(content)은 빈 값일 수 없습니다");
     }
 

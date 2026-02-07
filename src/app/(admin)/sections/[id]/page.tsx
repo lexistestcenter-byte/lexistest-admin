@@ -64,6 +64,8 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { SectionPreview, type PreviewQuestion } from "../new/section-preview";
 import { FileUpload } from "@/components/ui/file-upload";
+import { formatLabels } from "@/components/sections/constants";
+import { QuestionDetailPreview } from "@/components/sections/question-detail-preview";
 
 const TOTAL_STEPS = 2;
 const STEP_LABELS = ["기본 정보", "섹션 구성"];
@@ -148,160 +150,6 @@ interface AvailableQuestion {
   item_count: number;
   options_data: Record<string, unknown> | null;
   answer_data: Record<string, unknown> | null;
-}
-
-const typeColors: Record<string, string> = {
-  listening: "bg-white text-sky-500 border border-sky-300",
-  reading: "bg-white text-emerald-500 border border-emerald-300",
-  writing: "bg-white text-amber-500 border border-amber-300",
-  speaking: "bg-white text-violet-500 border border-violet-300",
-};
-
-const formatLabels: Record<string, string> = {
-  mcq: "4지선다",
-  mcq_single: "단일선택",
-  mcq_multiple: "복수선택",
-  fill_blank_typing: "빈칸(입력)",
-  fill_blank_drag: "빈칸(드래그)",
-  true_false_ng: "T/F/NG",
-  matching: "매칭",
-  heading_matching: "제목매칭",
-  flowchart: "플로우차트",
-  table_completion: "테이블",
-  essay: "에세이",
-  essay_task1: "Task 1",
-  essay_task2: "Task 2",
-  speaking_part1: "Part 1",
-  speaking_part2: "Part 2",
-  speaking_part3: "Part 3",
-};
-
-// ─── Question Detail Preview ───────────────────────────────────
-
-function QuestionDetailPreview({
-  question,
-}: {
-  question: { question_format: string; content: string; instructions: string | null; options_data: Record<string, unknown> | null; answer_data: Record<string, unknown> | null };
-}) {
-  const od = question.options_data || {};
-  const fmt = question.question_format;
-
-  return (
-    <div className="mt-2 p-3 bg-white border rounded-lg text-sm space-y-2">
-      {question.instructions && (
-        <div className="text-xs text-gray-500 italic bg-gray-50 p-2 rounded">
-          {question.instructions}
-        </div>
-      )}
-      {question.content && (
-        <div className="whitespace-pre-wrap text-gray-700 leading-relaxed text-xs">
-          {question.content}
-        </div>
-      )}
-      {(fmt === "mcq_single" || fmt === "mcq_multiple") && (
-        <div className="space-y-1">
-          {Array.isArray(od.options) &&
-            (od.options as { label: string; text: string; isCorrect?: boolean }[]).map(
-              (opt) => (
-                <div
-                  key={opt.label}
-                  className={cn(
-                    "flex gap-2 text-xs p-1.5 rounded",
-                    opt.isCorrect ? "bg-green-50 text-green-700" : "text-gray-600"
-                  )}
-                >
-                  <span className="font-bold min-w-[20px]">{opt.label}</span>
-                  <span>{opt.text}</span>
-                  {opt.isCorrect && (
-                    <Badge className="ml-auto text-[9px] bg-green-100 text-green-700 border-green-300">
-                      정답
-                    </Badge>
-                  )}
-                </div>
-              )
-            )}
-        </div>
-      )}
-      {fmt === "true_false_ng" && (
-        <div className="space-y-1">
-          {Array.isArray(od.items) ? (
-            (od.items as { number: number; statement: string }[]).map((item) => (
-              <div key={item.number} className="text-xs text-gray-600 p-1">
-                <span className="font-bold mr-1">{item.number}.</span>
-                {item.statement}
-              </div>
-            ))
-          ) : (
-            <div className="text-xs text-gray-500">
-              답: {String((question.answer_data as Record<string, unknown>)?.answer || "—")}
-            </div>
-          )}
-        </div>
-      )}
-      {(fmt === "matching" || fmt === "heading_matching") && (
-        <div className="space-y-2">
-          {Array.isArray(od.options) && (
-            <div className="text-xs space-y-0.5">
-              <span className="font-semibold text-gray-500">보기:</span>
-              {(od.options as { label: string; text: string }[]).map((opt) => (
-                <div key={opt.label} className="flex gap-1 pl-2">
-                  <span className="font-bold text-blue-600">{opt.label}</span>
-                  <span className="text-gray-600">{opt.text}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {Array.isArray(od.items) && (
-            <div className="text-xs space-y-0.5">
-              <span className="font-semibold text-gray-500">항목:</span>
-              {(od.items as { number: number; statement: string }[]).map((item) => (
-                <div key={item.number} className="pl-2 text-gray-600">
-                  <span className="font-bold mr-1">{item.number}.</span>
-                  {item.statement}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-      {(fmt === "fill_blank_drag" || fmt === "table_completion") &&
-        (Array.isArray(od.word_bank) || Array.isArray(od.wordBank)) && (
-          <div className="flex flex-wrap gap-1">
-            <span className="text-xs text-gray-500 mr-1">Word Bank:</span>
-            {((Array.isArray(od.word_bank) ? od.word_bank : od.wordBank) as string[]).map(
-              (w, i) => (
-                <span
-                  key={i}
-                  className="text-xs px-1.5 py-0.5 bg-amber-50 border border-amber-200 rounded"
-                >
-                  {w as string}
-                </span>
-              )
-            )}
-          </div>
-        )}
-      {(fmt === "fill_blank_typing" ||
-        fmt === "fill_blank_drag" ||
-        fmt === "flowchart" ||
-        fmt === "table_completion") &&
-        question.answer_data &&
-        Array.isArray((question.answer_data as Record<string, unknown>).blanks) && (
-          <div className="text-xs space-y-0.5">
-            <span className="font-semibold text-gray-500">정답:</span>
-            {(
-              (question.answer_data as Record<string, unknown>).blanks as {
-                number: number;
-                answer: string;
-              }[]
-            ).map((b) => (
-              <div key={b.number} className="pl-2 text-green-700">
-                [{b.number}] {b.answer}
-              </div>
-            ))}
-          </div>
-        )}
-    </div>
-  );
 }
 
 // ─── Sortable Group Item ───────────────────────────────────────
@@ -605,6 +453,7 @@ export default function SectionEditPage({
       });
     } catch (error) {
       console.error("Error updating content block:", error);
+      toast.error("콘텐츠 블록 저장에 실패했습니다.");
     }
   };
 
@@ -657,6 +506,7 @@ export default function SectionEditPage({
       });
     } catch (error) {
       console.error("Error updating group:", error);
+      toast.error("그룹 정보 저장에 실패했습니다.");
     }
   };
 

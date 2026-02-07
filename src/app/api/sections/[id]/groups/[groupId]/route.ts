@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { sanitizeHtml, containsSqlInjection } from "@/lib/utils/sanitize";
-
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { sanitizeHtml, containsSqlInjection, UUID_REGEX } from "@/lib/utils/sanitize";
 
 // PUT: 문제 그룹 수정
 export async function PUT(
@@ -13,6 +10,17 @@ export async function PUT(
   try {
     const { id: sectionId, groupId } = await params;
     const supabase = await createClient();
+
+    // 인증 체크
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
 
     if (!UUID_REGEX.test(sectionId) || !UUID_REGEX.test(groupId)) {
@@ -66,6 +74,16 @@ export async function DELETE(
   try {
     const { id: sectionId, groupId } = await params;
     const supabase = await createClient();
+
+    // 인증 체크
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     if (!UUID_REGEX.test(sectionId) || !UUID_REGEX.test(groupId)) {
       return NextResponse.json(

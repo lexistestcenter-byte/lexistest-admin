@@ -78,17 +78,48 @@ const typeLabels = {
 const formatLabels: Record<string, string> = {
   fill_blank_typing: "빈칸채우기 (직접입력)",
   fill_blank_drag: "빈칸채우기 (드래그)",
-  heading_matching: "제목 매칭",
   mcq_single: "단일선택",
   mcq_multiple: "복수선택",
   true_false_ng: "T/F/NG",
+  matching: "제목 매칭",
   flowchart: "플로우차트",
-  map_labeling: "지도라벨링",
-  essay_task1: "Task 1",
-  essay_task2: "Task 2",
+  table_completion: "테이블 완성",
+  map_labeling: "지도 라벨링",
+  essay: "에세이",
   speaking_part1: "Part 1",
   speaking_part2: "Part 2",
   speaking_part3: "Part 3",
+};
+
+// question_type별 format 필터 옵션
+const formatFilters: Record<string, { value: string; label: string }[]> = {
+  reading: [
+    { value: "mcq_single", label: "단일선택" },
+    { value: "mcq_multiple", label: "복수선택" },
+    { value: "true_false_ng", label: "T/F/NG" },
+    { value: "matching", label: "제목 매칭" },
+    { value: "fill_blank_typing", label: "빈칸채우기 (직접입력)" },
+    { value: "fill_blank_drag", label: "빈칸채우기 (드래그)" },
+    { value: "flowchart", label: "플로우차트" },
+    { value: "table_completion", label: "테이블 완성" },
+  ],
+  listening: [
+    { value: "mcq_single", label: "단일선택" },
+    { value: "mcq_multiple", label: "복수선택" },
+    { value: "matching", label: "제목 매칭" },
+    { value: "fill_blank_typing", label: "빈칸채우기 (직접입력)" },
+    { value: "fill_blank_drag", label: "빈칸채우기 (드래그)" },
+    { value: "table_completion", label: "테이블 완성" },
+    { value: "map_labeling", label: "지도 라벨링" },
+  ],
+  writing: [
+    { value: "essay", label: "에세이" },
+  ],
+  speaking: [
+    { value: "speaking_part1", label: "Part 1" },
+    { value: "speaking_part2", label: "Part 2" },
+    { value: "speaking_part3", label: "Part 3" },
+  ],
 };
 
 const typeFilters = [
@@ -109,13 +140,14 @@ export default function QuestionsPage() {
 
   // Filters
   const [selectedType, setSelectedType] = useState("all");
+  const [selectedFormat, setSelectedFormat] = useState("all");
   const [practiceOnly, setPracticeOnly] = useState(false);
   const [search, setSearch] = useState("");
 
   // Pagination
   const [totalItems, setTotalItems] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const limit = 20;
+  const limit = 10;
 
   // Load questions
   const loadQuestions = useCallback(async () => {
@@ -127,6 +159,9 @@ export default function QuestionsPage() {
 
       if (selectedType !== "all") {
         params.set("question_type", selectedType);
+      }
+      if (selectedFormat !== "all") {
+        params.set("question_format", selectedFormat);
       }
       if (practiceOnly) {
         params.set("is_practice", "true");
@@ -149,7 +184,7 @@ export default function QuestionsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, selectedType, practiceOnly, search]);
+  }, [currentPage, selectedType, selectedFormat, practiceOnly, search]);
 
   useEffect(() => {
     loadQuestions();
@@ -303,6 +338,7 @@ export default function QuestionsPage() {
                 key={filter.id}
                 onClick={() => {
                   setSelectedType(filter.id);
+                  setSelectedFormat("all");
                   setCurrentPage(1);
                 }}
                 className={`
@@ -319,6 +355,31 @@ export default function QuestionsPage() {
             );
           })}
         </div>
+
+        {selectedType !== "all" && formatFilters[selectedType] && (
+          <>
+            <div className="h-6 w-px bg-slate-200" />
+            <Select
+              value={selectedFormat}
+              onValueChange={(val) => {
+                setSelectedFormat(val);
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="w-[180px] h-9 text-sm">
+                <SelectValue placeholder="형태" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체 형태</SelectItem>
+                {formatFilters[selectedType].map((f) => (
+                  <SelectItem key={f.value} value={f.value}>
+                    {f.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
 
         <div className="h-6 w-px bg-slate-200" />
 
@@ -348,7 +409,10 @@ export default function QuestionsPage() {
           data={questions}
           searchPlaceholder="문제 내용으로 검색..."
           totalItems={totalItems}
+          pageSize={limit}
+          currentPage={currentPage}
           onSearch={setSearch}
+          onPageChange={setCurrentPage}
         />
       )}
 

@@ -695,6 +695,79 @@ export default function EditQuestionPage({
       }
     }
 
+    // 빈칸채우기 유효성 검사
+    if (selectedFormat === "fill_blank_typing" || selectedFormat === "fill_blank_drag") {
+      if (!contentHtml.trim()) {
+        toast.error("지문을 입력해주세요.");
+        return;
+      }
+      if (blanks.length === 0) {
+        toast.error("빈칸을 추가해주세요.");
+        return;
+      }
+      const emptyBlanks = blanks.filter(b => !b.answer.trim());
+      if (emptyBlanks.length > 0) {
+        toast.error("모든 빈칸의 정답을 입력해주세요.");
+        return;
+      }
+    }
+
+    // 플로우차트 유효성 검사
+    if (selectedFormat === "flowchart") {
+      if (!flowchartTitle.trim()) {
+        toast.error("플로우차트 제목을 입력해주세요.");
+        return;
+      }
+    }
+
+    // Writing(에세이) 유효성 검사
+    if (selectedFormat === "essay") {
+      if (!writingPrompt.trim()) {
+        toast.error("작문 프롬프트를 입력해주세요.");
+        return;
+      }
+    }
+
+    // Speaking 유효성 검사
+    if (selectedFormat === "speaking_part1") {
+      if (!speakingQuestion.trim()) {
+        toast.error("질문을 입력해주세요.");
+        return;
+      }
+      if (!speakingCategory) {
+        toast.error("카테고리를 선택해주세요.");
+        return;
+      }
+    }
+
+    if (selectedFormat === "speaking_part2") {
+      if (!cueCardTopic.trim()) {
+        toast.error("큐카드 주제를 입력해주세요.");
+        return;
+      }
+    }
+
+    if (selectedFormat === "speaking_part3") {
+      if (!speakingQuestion.trim()) {
+        toast.error("질문을 입력해주세요.");
+        return;
+      }
+      if (!relatedPart2Id) {
+        toast.error("연결된 Part 2 질문을 선택해주세요.");
+        return;
+      }
+    }
+
+    // Speaking Band 범위 검증
+    if (selectedFormat === "speaking_part1" || selectedFormat === "speaking_part2" || selectedFormat === "speaking_part3") {
+      if (targetBandMin && targetBandMax) {
+        if (parseFloat(targetBandMin) > parseFloat(targetBandMax)) {
+          toast.error("목표 Band 최소값이 최대값보다 클 수 없습니다.");
+          return;
+        }
+      }
+    }
+
     // 테이블 완성하기 유효성 검사
     if (selectedFormat === "table_completion") {
       if (!contentHtml.trim()) {

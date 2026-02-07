@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { containsSqlInjection } from "@/lib/utils/sanitize";
-
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { containsSqlInjection, UUID_REGEX } from "@/lib/utils/sanitize";
 
 // GET: 섹션에 추가 가능한 문제 목록
 export async function GET(
@@ -13,6 +10,17 @@ export async function GET(
   try {
     const { id: sectionId } = await params;
     const supabase = await createClient();
+
+    // 인증 체크
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const searchParams = request.nextUrl.searchParams;
 
     if (!UUID_REGEX.test(sectionId)) {

@@ -52,6 +52,15 @@ export const MENU_PERMISSIONS: Record<string, string> = {
   "/notifications": "notifications",
   "/logs": "logs",
   "/settings": "settings",
+  "/access": "settings",
+  "/users": "settings",
+  "/contents": "questions",
+  "/passages": "questions",
+  "/audio": "questions",
+  "/ai-prompts": "questions",
+  "/assignments": "sessions",
+  "/exams": "sessions",
+  "/scoring-rules": "scores",
 };
 
 // 역할별 접근 가능 여부 확인
@@ -70,7 +79,7 @@ export function canAccessPath(role: AdminRole, path: string): boolean {
   const basePath = "/" + path.split("/")[1];
   const permission = MENU_PERMISSIONS[basePath];
 
-  if (!permission) return true; // 매핑 없으면 허용
+  if (!permission) return false; // 매핑 없는 경로는 기본 거부
   return hasPermission(role, permission);
 }
 

@@ -3,15 +3,17 @@ import { createClient } from "@/lib/supabase/server";
 import { sanitizeHtml, containsSqlInjection } from "@/lib/utils/sanitize";
 import { rateLimit } from "@/lib/utils/rate-limit";
 
-const createSectionLimiter = rateLimit({ interval: 60000, uniqueTokenPerInterval: 500, limit: 30 });
+const createPackageLimiter = rateLimit({ interval: 60000, uniqueTokenPerInterval: 500, limit: 20 });
 
-const SECTION_TYPES = ["listening", "reading", "writing", "speaking"] as const;
+const EXAM_TYPES = ["full", "section_only"] as const;
 const DIFFICULTIES = ["easy", "medium", "hard"] as const;
+const ACCESS_TYPES = ["public", "groups", "individuals", "groups_and_individuals"] as const;
 
-// GET: 섹션 목록 조회
+// GET: 패키지 목록 조회
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
+    const searchParams = request.nextUrl.searchParams;
 
     // 인증 체크
     const {
@@ -23,11 +25,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const searchParams = request.nextUrl.searchParams;
-
-    const sectionType = searchParams.get("section_type");
-    const difficulty = searchParams.get("difficulty");
-    const isActive = searchParams.get("is_active");
+    const examType = searchParams.get("exam_type");
+    const isPublished = searchParams.get("is_published");
     const isPractice = searchParams.get("is_practice");
     const search = searchParams.get("search");
     const limit = parseInt(searchParams.get("limit") || "20");
@@ -42,44 +41,42 @@ export async function GET(request: NextRequest) {
     }
 
     let query = supabase
-      .from("sections")
-      .select("*", { count: "exact" })
+      .from("packages")
+      .select("*, package_sections(id)", { count: "exact" })
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (sectionType) {
-      query = query.eq("section_type", sectionType);
+    if (examType) {
+      query = query.eq("exam_type", examType);
     }
-    if (difficulty) {
-      query = query.eq("difficulty", difficulty);
+    if (isPublished !== null && isPublished !== undefined) {
+      query = query.eq("is_published", isPublished === "true");
     }
-    if (isActive !== null) {
-      query = query.eq("is_active", isActive === "true");
-    }
-    if (isPractice !== null) {
+    if (isPractice !== null && isPractice !== undefined) {
       query = query.eq("is_practice", isPractice === "true");
     }
     if (search) {
-      // PostgREST 특수문자 이스케이프 (필터 인젝션 방어)
-      const sanitizedSearch = search
-        .replace(/\\/g, "\\\\")
-        .replace(/%/g, "\\%")
-        .replace(/,/g, "\\,")
-        .replace(/\./g, "\\.")
-        .replace(/\(/g, "\\(")
-        .replace(/\)/g, "\\)");
-      query = query.or(`title.ilike.%${sanitizedSearch}%,description.ilike.%${sanitizedSearch}%`);
+      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
     }
 
     const { data, error, count } = await query;
 
     if (error) {
-      console.error("Error fetching sections:", error);
+      console.error("Error fetching packages:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // section_count를 추가하고 package_sections raw 데이터 제거
+    const packages = (data || []).map((pkg) => {
+      const { package_sections, ...rest } = pkg;
+      return {
+        ...rest,
+        section_count: Array.isArray(package_sections) ? package_sections.length : 0,
+      };
+    });
+
     return NextResponse.json({
-      sections: data,
+      packages,
       pagination: {
         total: count || 0,
         limit,
@@ -96,12 +93,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: 섹션 생성
+// POST: 패키지 생성
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting
     const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "anonymous";
-    const { success: rateLimitOk } = await createSectionLimiter.check(ip);
+    const { success: rateLimitOk } = await createPackageLimiter.check(ip);
     if (!rateLimitOk) {
       return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
     }
@@ -120,12 +117,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 필수 필드 검증
-    if (!body.section_type) {
-      return NextResponse.json(
-        { error: "section_type is required" },
-        { status: 400 }
-      );
-    }
     if (!body.title) {
       return NextResponse.json(
         { error: "title is required" },
@@ -133,10 +124,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // section_type 검증
-    if (!SECTION_TYPES.includes(body.section_type)) {
+    // exam_type 검증
+    if (body.exam_type && !EXAM_TYPES.includes(body.exam_type)) {
       return NextResponse.json(
-        { error: `Invalid section_type. Must be one of: ${SECTION_TYPES.join(", ")}` },
+        { error: `Invalid exam_type. Must be one of: ${EXAM_TYPES.join(", ")}` },
         { status: 400 }
       );
     }
@@ -149,17 +140,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // access_type 검증
+    if (body.access_type && !ACCESS_TYPES.includes(body.access_type)) {
+      return NextResponse.json(
+        { error: `Invalid access_type. Must be one of: ${ACCESS_TYPES.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
     // SQL Injection 체크
-    const textFields = [
-      "title",
-      "description",
-      "instruction_title",
-      "instruction_html",
-      "passage_title",
-      "passage_content",
-      "passage_footnotes",
-      "audio_transcript",
-    ];
+    const textFields = ["title", "description"];
     for (const field of textFields) {
       if (body[field] && containsSqlInjection(body[field])) {
         return NextResponse.json(
@@ -169,50 +159,54 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Sanitize
-    const sectionData = {
-      section_type: body.section_type,
+    // Sanitize & build insert data
+    const packageData = {
       title: sanitizeHtml(body.title),
       description: body.description ? sanitizeHtml(body.description) : null,
       image_url: body.image_url || null,
-      instruction_title: body.instruction_title
-        ? sanitizeHtml(body.instruction_title)
-        : null,
-      instruction_html: body.instruction_html
-        ? sanitizeHtml(body.instruction_html)
-        : null,
-      instruction_image_url: body.instruction_image_url || null,
-      passage_title: body.passage_title
-        ? sanitizeHtml(body.passage_title)
-        : null,
-      passage_content: body.passage_content
-        ? sanitizeHtml(body.passage_content)
-        : null,
-      passage_footnotes: body.passage_footnotes
-        ? sanitizeHtml(body.passage_footnotes)
-        : null,
-      audio_url: body.audio_url || null,
-      audio_duration_seconds: body.audio_duration_seconds || null,
-      audio_transcript: body.audio_transcript
-        ? sanitizeHtml(body.audio_transcript)
-        : null,
-      time_limit_minutes: body.time_limit_minutes || null,
+      exam_type: body.exam_type || "full",
       difficulty: body.difficulty || null,
+      time_limit_minutes: body.time_limit_minutes || null,
       is_practice: body.is_practice || false,
+      access_type: body.access_type || "public",
+      is_published: body.is_published || false,
+      is_free: body.is_free || false,
+      display_order: body.display_order || 0,
       tags: body.tags || null,
-      is_active: body.is_active ?? true,
       created_by: user.id,
     };
 
     const { data, error } = await supabase
-      .from("sections")
-      .insert(sectionData)
+      .from("packages")
+      .insert(packageData)
       .select()
       .single();
 
     if (error) {
-      console.error("Error creating section:", error);
+      console.error("Error creating package:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // 섹션 연결이 있으면 package_sections에도 추가
+    if (body.section_ids && Array.isArray(body.section_ids) && body.section_ids.length > 0) {
+      const packageSections = body.section_ids.map((sectionId: string, index: number) => ({
+        package_id: data.id,
+        section_id: sectionId,
+        display_order: index,
+      }));
+
+      const { error: sectionsError } = await supabase
+        .from("package_sections")
+        .insert(packageSections);
+
+      if (sectionsError) {
+        console.error("Error linking sections:", sectionsError);
+        // 패키지는 이미 생성됨 - 섹션 연결 실패를 경고로 반환
+        return NextResponse.json(
+          { ...data, warning: "Package created but section linking failed: " + sectionsError.message },
+          { status: 201 }
+        );
+      }
     }
 
     return NextResponse.json(data, { status: 201 });

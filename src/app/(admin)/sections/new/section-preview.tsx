@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCdnUrl } from "@/lib/cdn";
+import { formatLabels } from "@/components/sections/constants";
+import { sanitizeHtml } from "@/lib/utils/sanitize";
 
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -82,25 +84,6 @@ interface SectionPreviewProps {
   questionGroups: QuestionGroupPreview[];
   questions: PreviewQuestion[];
 }
-
-const FORMAT_LABELS: Record<string, string> = {
-  mcq_multiple: "복수선택",
-  mcq_single: "단일선택",
-  fill_blank_typing: "빈칸(입력)",
-  fill_blank_drag: "빈칸(드래그)",
-  true_false_ng: "T/F/NG",
-  heading_matching: "제목매칭",
-  matching: "매칭",
-  flowchart: "플로우차트",
-  table_completion: "테이블",
-  map_labeling: "지도라벨링",
-  essay_task1: "Task 1",
-  essay_task2: "Task 2",
-  essay: "에세이",
-  speaking_part1: "Part 1",
-  speaking_part2: "Part 2",
-  speaking_part3: "Part 3",
-};
 
 // ─── Main Component ──────────────────────────────────────────────
 
@@ -923,7 +906,7 @@ export function SectionPreview({
         {item.question.content ? (
           <div
             className="text-sm leading-relaxed prose prose-sm max-w-none [&_p]:my-2 [&_strong]:font-bold"
-            dangerouslySetInnerHTML={{ __html: item.question.content }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.question.content) }}
           />
         ) : null}
         {od.image_url ? (

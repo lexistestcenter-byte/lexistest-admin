@@ -5,6 +5,9 @@ import {
   sanitizeQuestionInput,
   sanitizeText,
 } from "@/lib/utils/sanitize";
+import { rateLimit } from "@/lib/utils/rate-limit";
+
+const createQuestionLimiter = rateLimit({ interval: 60000, uniqueTokenPerInterval: 500, limit: 30 });
 
 // Reading 문제 형식
 const READING_FORMATS = [
@@ -26,6 +29,7 @@ const LISTENING_FORMATS = [
   "mcq_multiple",
   "matching",
   "table_completion",
+  "map_labeling",
 ] as const;
 
 // Writing 문제 형식
@@ -119,6 +123,13 @@ export async function GET(request: NextRequest) {
 // ============================================================
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting
+    const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "anonymous";
+    const { success: rateLimitOk } = await createQuestionLimiter.check(ip);
+    if (!rateLimitOk) {
+      return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+    }
+
     const supabase = await createClient();
 
     // 인증 체크

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,17 +33,29 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Trash2,
-  Upload,
-  GripVertical,
   Save,
   ArrowLeft,
   Search,
   Globe,
   Lock,
   Loader2,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 interface SectionItem {
   id: string;
@@ -54,57 +66,118 @@ interface SectionItem {
   time_limit_minutes: number | null;
 }
 
-const typeColors = {
+interface PackageSectionItem {
+  id: string;
+  section_id: string;
+  display_order: number;
+  custom_time_limit_minutes: number | null;
+  sections: SectionItem;
+}
+
+interface PackageData {
+  id: string;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+  exam_type: string;
+  difficulty: string | null;
+  time_limit_minutes: number | null;
+  is_practice: boolean;
+  access_type: string;
+  is_published: boolean;
+  is_free: boolean;
+  display_order: number | null;
+  tags: string[] | null;
+  package_sections: PackageSectionItem[];
+}
+
+const typeColors: Record<string, string> = {
   listening: "bg-white text-sky-500 border border-sky-300",
   reading: "bg-white text-emerald-500 border border-emerald-300",
   writing: "bg-white text-amber-500 border border-amber-300",
   speaking: "bg-white text-violet-500 border border-violet-300",
 };
 
-const typeLabels = {
+const typeLabels: Record<string, string> = {
   listening: "L",
   reading: "R",
   writing: "W",
   speaking: "S",
 };
 
-export default function NewPackagePage() {
+export default function EditPackagePage() {
   const router = useRouter();
+  const { id } = useParams<{ id: string }>();
 
-  const [title, setTitle] = useState<string>("");
-  const [description, setDescription] = useState<string>("");
-  const [examType, setExamType] = useState<string>("full");
-  const [selectedSections, setSelectedSections] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [filterType, setFilterType] = useState<string>("all");
+  // Loading states
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Package fields
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [examType, setExamType] = useState("full");
+  const [difficulty, setDifficulty] = useState<string>("");
+  const [timeLimitMinutes, setTimeLimitMinutes] = useState<string>("");
+  const [displayOrder, setDisplayOrder] = useState<string>("");
   const [isPublished, setIsPublished] = useState(false);
   const [isFree, setIsFree] = useState(false);
   const [isPractice, setIsPractice] = useState(false);
+  const [accessType, setAccessType] = useState("public");
 
-  // Access control
-  const [accessType, setAccessType] = useState<string>("public");
-
-  // Data from API
-  const [sections, setSections] = useState<SectionItem[]>([]);
+  // Sections
+  const [selectedSectionIds, setSelectedSectionIds] = useState<string[]>([]);
+  const [allSections, setAllSections] = useState<SectionItem[]>([]);
   const [sectionsLoading, setSectionsLoading] = useState(true);
-  const [sectionsError, setSectionsError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState("all");
 
-  // Save state
+  // Save/Delete states
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  // Fetch sections from API
-  const fetchSections = useCallback(async () => {
-    setSectionsLoading(true);
-    setSectionsError(null);
+  // Load package data
+  const loadPackage = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
-      const res = await fetch("/api/sections?limit=200");
+      const res = await fetch(`/api/packages/${id}`);
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "섹션 목록을 불러오는데 실패했습니다.");
+        throw new Error(data.error || "패키지를 불러오는데 실패했습니다.");
       }
+      const pkg: PackageData = await res.json();
+
+      setTitle(pkg.title || "");
+      setDescription(pkg.description || "");
+      setExamType(pkg.exam_type || "full");
+      setDifficulty(pkg.difficulty || "");
+      setTimeLimitMinutes(pkg.time_limit_minutes ? String(pkg.time_limit_minutes) : "");
+      setDisplayOrder(pkg.display_order ? String(pkg.display_order) : "");
+      setIsPublished(pkg.is_published);
+      setIsFree(pkg.is_free);
+      setIsPractice(pkg.is_practice);
+      setAccessType(pkg.access_type || "public");
+
+      // Sort package_sections by display_order and extract section IDs
+      const sorted = (pkg.package_sections || [])
+        .sort((a, b) => a.display_order - b.display_order);
+      setSelectedSectionIds(sorted.map((ps) => ps.section_id));
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "패키지 로드 실패");
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  // Load all available sections
+  const loadSections = useCallback(async () => {
+    setSectionsLoading(true);
+    try {
+      const res = await fetch("/api/sections?limit=200");
+      if (!res.ok) throw new Error("섹션 목록 조회 실패");
       const data = await res.json();
-      setSections(
+      setAllSections(
         (data.sections || []).map((s: Record<string, unknown>) => ({
           id: s.id,
           title: s.title,
@@ -114,93 +187,192 @@ export default function NewPackagePage() {
           time_limit_minutes: s.time_limit_minutes,
         }))
       );
-    } catch (err) {
-      setSectionsError(err instanceof Error ? err.message : "섹션 목록 조회 실패");
+    } catch {
+      // Sections loading error is non-critical
     } finally {
       setSectionsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchSections();
-  }, [fetchSections]);
+    loadPackage();
+    loadSections();
+  }, [loadPackage, loadSections]);
 
   // Filter sections
-  const filteredSections = sections.filter(
+  const filteredSections = allSections.filter(
     (s) =>
       (filterType === "all" || s.section_type === filterType) &&
       (searchQuery === "" || s.title.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const toggleSection = (id: string) => {
-    setSelectedSections((prev) =>
-      prev.includes(id) ? prev.filter((sId) => sId !== id) : [...prev, id]
+  // Toggle section selection
+  const toggleSection = (sectionId: string) => {
+    setSelectedSectionIds((prev) =>
+      prev.includes(sectionId)
+        ? prev.filter((id) => id !== sectionId)
+        : [...prev, sectionId]
     );
   };
 
-  const removeSection = (id: string) => {
-    setSelectedSections((prev) => prev.filter((sId) => sId !== id));
+  const removeSection = (sectionId: string) => {
+    setSelectedSectionIds((prev) => prev.filter((id) => id !== sectionId));
   };
 
-  const selectedSectionDetails = sections.filter((s) =>
-    selectedSections.includes(s.id)
-  );
+  // Move section up/down
+  const moveSectionUp = (index: number) => {
+    if (index <= 0) return;
+    setSelectedSectionIds((prev) => {
+      const next = [...prev];
+      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+      return next;
+    });
+  };
+
+  const moveSectionDown = (index: number) => {
+    setSelectedSectionIds((prev) => {
+      if (index >= prev.length - 1) return prev;
+      const next = [...prev];
+      [next[index], next[index + 1]] = [next[index + 1], next[index]];
+      return next;
+    });
+  };
+
+  // Get selected section details in order
+  const selectedSectionDetails = selectedSectionIds
+    .map((sId) => allSections.find((s) => s.id === sId))
+    .filter((s): s is SectionItem => s !== undefined);
 
   // Calculate totals
-  const totalTime = selectedSectionDetails.reduce((sum, s) => sum + (s.time_limit_minutes || 0), 0);
+  const totalTime = selectedSectionDetails.reduce(
+    (sum, s) => sum + (s.time_limit_minutes || 0),
+    0
+  );
 
-  // Section type summary
-  const sectionSummary = selectedSectionDetails.reduce((acc, s) => {
-    acc[s.section_type] = (acc[s.section_type] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const sectionSummary = selectedSectionDetails.reduce(
+    (acc, s) => {
+      acc[s.section_type] = (acc[s.section_type] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
 
   // Save handler
   const handleSave = async () => {
     if (!title.trim()) {
-      setSaveError("패키지명은 필수입니다.");
+      toast.error("패키지명은 필수입니다.");
       return;
     }
 
     setSaving(true);
-    setSaveError(null);
-
     try {
-      const res = await fetch("/api/packages", {
-        method: "POST",
+      const res = await fetch(`/api/packages/${id}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim() || null,
           exam_type: examType,
+          difficulty: difficulty || null,
+          time_limit_minutes: timeLimitMinutes ? Number(timeLimitMinutes) : null,
+          display_order: displayOrder ? Number(displayOrder) : null,
           is_practice: isPractice,
           is_published: isPublished,
           is_free: isFree,
           access_type: accessType,
-          section_ids: selectedSections,
+          section_ids: selectedSectionIds,
         }),
       });
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "패키지 생성에 실패했습니다.");
+        throw new Error(data.error || "저장에 실패했습니다.");
       }
 
+      toast.success("패키지가 저장되었습니다.");
       router.push("/packages");
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.");
+      toast.error(err instanceof Error ? err.message : "저장 실패");
     } finally {
       setSaving(false);
     }
   };
 
+  // Delete handler
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/packages/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "삭제에 실패했습니다.");
+      }
+      toast.success("패키지가 삭제되었습니다.");
+      router.push("/packages");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "삭제 실패");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-muted-foreground">패키지 불러오는 중...</span>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-center">
+          <p className="text-destructive font-medium">{loadError}</p>
+          <Button variant="outline" className="mt-4" asChild>
+            <Link href="/packages">목록으로 돌아가기</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="패키지 생성"
-        description="섹션들을 조합하여 새로운 시험 패키지를 생성합니다."
+        title="패키지 수정"
+        description="섹션 구성을 변경하여 시험 패키지를 수정합니다."
         actions={
           <div className="flex gap-2">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={deleting}>
+                  {deleting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-2 h-4 w-4" />
+                  )}
+                  삭제
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>패키지를 삭제하시겠습니까?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    &quot;{title}&quot; 패키지가 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>취소</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    삭제
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
             <Button variant="outline" asChild>
               <Link href="/packages">
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -219,19 +391,13 @@ export default function NewPackagePage() {
         }
       />
 
-      {saveError && (
-        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
-          {saveError}
-        </div>
-      )}
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Package Info */}
         <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>기본 정보</CardTitle>
-              <CardDescription>패키지의 기본 정보를 입력합니다.</CardDescription>
+              <CardDescription>패키지의 기본 정보를 수정합니다.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -268,7 +434,7 @@ export default function NewPackagePage() {
                 </div>
                 <div className="space-y-2">
                   <Label>난이도</Label>
-                  <Select>
+                  <Select value={difficulty} onValueChange={setDifficulty}>
                     <SelectTrigger>
                       <SelectValue placeholder="선택" />
                     </SelectTrigger>
@@ -281,6 +447,27 @@ export default function NewPackagePage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>시간 제한 (분)</Label>
+                  <Input
+                    type="number"
+                    placeholder="예: 180"
+                    value={timeLimitMinutes}
+                    onChange={(e) => setTimeLimitMinutes(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>표시 순서</Label>
+                  <Input
+                    type="number"
+                    placeholder="예: 1"
+                    value={displayOrder}
+                    onChange={(e) => setDisplayOrder(e.target.value)}
+                  />
+                </div>
+              </div>
+
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
@@ -289,7 +476,6 @@ export default function NewPackagePage() {
                   </div>
                   <Switch checked={isPractice} onCheckedChange={setIsPractice} />
                 </div>
-
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label>공개 여부</Label>
@@ -297,7 +483,6 @@ export default function NewPackagePage() {
                   </div>
                   <Switch checked={isPublished} onCheckedChange={setIsPublished} />
                 </div>
-
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label>무료 제공</Label>
@@ -315,70 +500,38 @@ export default function NewPackagePage() {
               <CardTitle>접근 권한 설정</CardTitle>
               <CardDescription>이 패키지를 볼 수 있는 대상을 설정합니다.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>접근 유형</Label>
-                <Select value={accessType} onValueChange={setAccessType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="public">
-                      <div className="flex items-center gap-2">
-                        <Globe className="h-4 w-4" />
-                        전체 공개
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="groups">
-                      <div className="flex items-center gap-2">
-                        <Lock className="h-4 w-4" />
-                        특정 그룹만
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="individuals">
-                      <div className="flex items-center gap-2">
-                        <Lock className="h-4 w-4" />
-                        특정 사용자만
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="groups_and_individuals">
-                      <div className="flex items-center gap-2">
-                        <Lock className="h-4 w-4" />
-                        그룹 + 사용자
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {accessType === "public" && (
-                <p className="text-sm text-muted-foreground">
-                  모든 사용자가 이 패키지를 볼 수 있습니다.
-                </p>
-              )}
-              {accessType !== "public" && (
-                <p className="text-sm text-muted-foreground">
-                  그룹/사용자 지정은 패키지 생성 후 수정 화면에서 설정할 수 있습니다.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>이미지</CardTitle>
-              <CardDescription>패키지 썸네일 이미지를 설정합니다.</CardDescription>
-            </CardHeader>
             <CardContent>
-              <div className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/50 transition-colors">
-                <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  이미지를 업로드하세요
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  PNG, JPG (권장: 800x600)
-                </p>
-              </div>
+              <Select value={accessType} onValueChange={setAccessType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4" />
+                      전체 공개
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="groups">
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-4 w-4" />
+                      특정 그룹만
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="individuals">
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-4 w-4" />
+                      특정 사용자만
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="groups_and_individuals">
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-4 w-4" />
+                      그룹 + 사용자
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </CardContent>
           </Card>
 
@@ -391,7 +544,7 @@ export default function NewPackagePage() {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">선택된 섹션</span>
-                  <span className="font-medium">{selectedSections.length}개</span>
+                  <span className="font-medium">{selectedSectionIds.length}개</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">예상 소요 시간</span>
@@ -404,9 +557,9 @@ export default function NewPackagePage() {
                       <Badge
                         key={type}
                         variant="outline"
-                        className={typeColors[type as keyof typeof typeColors]}
+                        className={typeColors[type] || ""}
                       >
-                        {typeLabels[type as keyof typeof typeLabels]}&times;{count}
+                        {typeLabels[type] || type.charAt(0).toUpperCase()}&times;{count}
                       </Badge>
                     ))}
                     {Object.keys(sectionSummary).length === 0 && (
@@ -415,21 +568,16 @@ export default function NewPackagePage() {
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">유형</span>
+                  <span className="text-muted-foreground">상태</span>
                   <div className="flex gap-1">
+                    {isPublished ? (
+                      <Badge className="bg-green-100 text-green-700">공개</Badge>
+                    ) : (
+                      <Badge variant="secondary">비공개</Badge>
+                    )}
                     {isPractice && <Badge variant="secondary">연습</Badge>}
                     {isFree && <Badge variant="outline" className="text-green-600">무료</Badge>}
-                    {!isPractice && !isFree && <span className="text-sm">-</span>}
                   </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">접근 권한</span>
-                  <Badge variant="outline">
-                    {accessType === "public" && "전체 공개"}
-                    {accessType === "groups" && "특정 그룹"}
-                    {accessType === "individuals" && "특정 사용자"}
-                    {accessType === "groups_and_individuals" && "그룹 + 사용자"}
-                  </Badge>
                 </div>
               </div>
             </CardContent>
@@ -468,12 +616,6 @@ export default function NewPackagePage() {
                 </Select>
               </div>
 
-              {sectionsError && (
-                <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-                  {sectionsError}
-                </div>
-              )}
-
               {sectionsLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -499,13 +641,13 @@ export default function NewPackagePage() {
                         >
                           <TableCell>
                             <Checkbox
-                              checked={selectedSections.includes(section.id)}
+                              checked={selectedSectionIds.includes(section.id)}
                               onCheckedChange={() => toggleSection(section.id)}
                             />
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
-                              <span className={`px-2 py-0.5 text-xs rounded ${typeColors[section.section_type as keyof typeof typeColors] || ""}`}>
+                              <span className={`px-2 py-0.5 text-xs rounded ${typeColors[section.section_type] || ""}`}>
                                 {section.section_type.charAt(0).toUpperCase()}
                               </span>
                               {section.is_practice && (
@@ -533,16 +675,16 @@ export default function NewPackagePage() {
 
               <div className="flex justify-between items-center text-sm text-muted-foreground">
                 <span>{filteredSections.length}개 섹션</span>
-                <span>{selectedSections.length}개 선택됨</span>
+                <span>{selectedSectionIds.length}개 선택됨</span>
               </div>
             </CardContent>
           </Card>
 
-          {/* Selected Sections */}
+          {/* Selected Sections with ordering */}
           <Card>
             <CardHeader>
-              <CardTitle>선택된 섹션 ({selectedSections.length})</CardTitle>
-              <CardDescription>드래그하여 순서를 변경할 수 있습니다.</CardDescription>
+              <CardTitle>시험 구성 순서 ({selectedSectionIds.length})</CardTitle>
+              <CardDescription>화살표 버튼으로 섹션 순서를 변경하세요. 위에서부터 시험 순서입니다.</CardDescription>
             </CardHeader>
             <CardContent>
               {selectedSectionDetails.length > 0 ? (
@@ -550,29 +692,43 @@ export default function NewPackagePage() {
                   {selectedSectionDetails.map((section, index) => (
                     <div
                       key={section.id}
-                      className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg"
+                      className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg"
                     >
-                      <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
-                      <span className="text-sm font-medium w-6">{index + 1}.</span>
-                      <div className="flex items-center gap-1">
-                        <span className={`px-2 py-0.5 text-xs rounded ${typeColors[section.section_type as keyof typeof typeColors] || ""}`}>
-                          {section.section_type.charAt(0).toUpperCase()}
-                        </span>
-                        {section.is_practice && (
-                          <Badge variant="secondary" className="text-xs">연습</Badge>
-                        )}
+                      <div className="flex flex-col gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5"
+                          disabled={index === 0}
+                          onClick={() => moveSectionUp(index)}
+                        >
+                          <ArrowUp className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5"
+                          disabled={index === selectedSectionDetails.length - 1}
+                          onClick={() => moveSectionDown(index)}
+                        >
+                          <ArrowDown className="h-3 w-3" />
+                        </Button>
                       </div>
-                      <span className="flex-1 font-medium text-sm">{section.title}</span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-sm font-medium w-6 text-muted-foreground">{index + 1}.</span>
+                      <span className={`px-2 py-0.5 text-xs rounded ${typeColors[section.section_type] || ""}`}>
+                        {section.section_type.charAt(0).toUpperCase()}
+                      </span>
+                      <span className="flex-1 font-medium text-sm truncate">{section.title}</span>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
                         {section.time_limit_minutes ? `${section.time_limit_minutes}분` : "-"}
                       </span>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
                         onClick={() => removeSection(section.id)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   ))}

@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { sanitizeHtml } from "@/lib/utils/sanitize";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Mic } from "lucide-react";
 
@@ -220,7 +221,7 @@ export function QuestionPreviewDialog({
         <div
           className="leading-relaxed [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-slate-300 [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-slate-300 [&_th]:px-3 [&_th]:py-2 [&_th]:bg-slate-100 [&_th]:font-semibold"
           dangerouslySetInnerHTML={{
-            __html: (q.content || "").replace(
+            __html: sanitizeHtml(q.content || "").replace(
               /\[(\d+)\]/g,
               '<span style="display:inline-flex;align-items:center;gap:4px;"><span style="width:22px;height:22px;background:#6366f1;color:white;font-size:11px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;">$1</span><span style="display:inline-block;width:80px;height:28px;border-bottom:2px solid #6366f1;"></span></span>'
             ),
@@ -348,7 +349,7 @@ export function QuestionPreviewDialog({
           <div
             className="prose prose-sm max-w-none [&_p]:my-1 [&_strong]:font-bold"
             dangerouslySetInnerHTML={{
-              __html: (q.content || "").replace(
+              __html: sanitizeHtml(q.content || "").replace(
                 /\[(\d+)\]/g,
                 '<div style="display:inline-block;border:2px solid #94a3b8;border-radius:4px;padding:2px 24px;margin:8px 0;font-weight:bold;text-align:center;min-width:80px;">$1</div>'
               ),

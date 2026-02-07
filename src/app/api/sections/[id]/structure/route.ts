@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { UUID_REGEX } from "@/lib/utils/sanitize";
 
 // GET: 전체 구조 조회 (콘텐츠 블록 + 문제 그룹 + 문제)
 export async function GET(
@@ -12,6 +10,16 @@ export async function GET(
   try {
     const { id: sectionId } = await params;
     const supabase = await createClient();
+
+    // 인증 체크
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     if (!UUID_REGEX.test(sectionId)) {
       return NextResponse.json(
