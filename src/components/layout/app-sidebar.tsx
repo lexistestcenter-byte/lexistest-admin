@@ -10,6 +10,7 @@ import {
   ClipboardList,
   BarChart3,
   MessageSquare,
+  MessageSquareText,
   Bell,
   Activity,
   BookOpen,
@@ -107,6 +108,12 @@ const navigationGroups: NavGroup[] = [
         icon: GraduationCap,
         permission: "groups",
       },
+      {
+        title: "문의 관리",
+        href: "/inquiries",
+        icon: MessageSquareText,
+        permission: "inquiries",
+      },
     ],
   },
   {
@@ -120,29 +127,17 @@ const navigationGroups: NavGroup[] = [
       },
     ],
   },
-  // {
-  //   title: "Test & Scoring",
-  //   items: [
-  //     {
-  //       title: "응시 현황",
-  //       href: "/sessions",
-  //       icon: ClipboardList,
-  //       permission: "sessions",
-  //     },
-  //     {
-  //       title: "성적 관리",
-  //       href: "/scores",
-  //       icon: BarChart3,
-  //       permission: "scores",
-  //     },
-  //     {
-  //       title: "피드백 관리",
-  //       href: "/feedback",
-  //       icon: MessageSquare,
-  //       permission: "feedback",
-  //     },
-  //   ],
-  // },
+  {
+    title: "Test & Scoring",
+    items: [
+      {
+        title: "시험 목록",
+        href: "/sessions",
+        icon: ClipboardList,
+        permission: "sessions",
+      },
+    ],
+  },
   // {
   //   title: "Notifications & Logs",
   //   items: [

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/common/page-header";
 import { DataTable, Column } from "@/components/common/data-table";
 import { Button } from "@/components/ui/button";
@@ -119,6 +120,7 @@ const mockGroups = [
 ];
 
 export default function StudentsPage() {
+  const router = useRouter();
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isAccessOpen, setIsAccessOpen] = useState(false);
   const [isGroupOpen, setIsGroupOpen] = useState(false);
@@ -236,7 +238,7 @@ export default function StudentsPage() {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>작업</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => openDetailModal(student)}>
+            <DropdownMenuItem onClick={() => router.push(`/students/${student.id}`)}>
               <Eye className="mr-2 h-4 w-4" />
               상세 보기
             </DropdownMenuItem>
