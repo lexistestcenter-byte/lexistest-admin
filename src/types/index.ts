@@ -539,6 +539,31 @@ export interface ActivityLog {
 }
 
 // =============================================
+// Package Assignment Types
+// =============================================
+export interface PackageAssignment {
+  id: string;
+  package_id: string;
+  package_title: string;
+  assignment_type: "group" | "individual";
+  group_id?: string | null;
+  group_name?: string | null;
+  user_id?: string | null;
+  user_name?: string | null;
+  user_email?: string | null;
+  assigned_by: string;
+  assigned_by_name?: string | null;
+  scheduled_start?: string | null;
+  scheduled_end?: string | null;
+  is_active: boolean;
+  memo?: string | null;
+  created_at: string;
+  updated_at: string;
+  // Detail only
+  member_count?: number;
+}
+
+// =============================================
 // Dashboard Stats Types
 // =============================================
 export interface DashboardStats {

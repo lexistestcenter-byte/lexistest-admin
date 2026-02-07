@@ -29,6 +29,7 @@ import Image from "next/image";
 import { getCdnUrl } from "@/lib/cdn";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { api } from "@/lib/api/client";
 import { SectionPreview, type PreviewQuestion } from "./new/section-preview";
 
 const typeFilters = [
@@ -105,14 +106,13 @@ export default function SectionsPage() {
         params.set("search", search);
       }
 
-      const response = await fetch(`/api/sections?${params.toString()}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch sections");
-      }
-
-      const result = await response.json();
-      setSections(result.sections || []);
-      setTotalItems(result.pagination?.total || 0);
+      const { data: result, error: apiError } = await api.get<{
+        sections: SectionRow[];
+        pagination: { total: number };
+      }>(`/api/sections?${params.toString()}`);
+      if (apiError) throw new Error(apiError);
+      setSections(result?.sections || []);
+      setTotalItems(result?.pagination?.total || 0);
     } catch (error) {
       console.error("Error loading sections:", error);
       toast.error("섹션 목록을 불러오는데 실패했습니다.");
@@ -142,13 +142,8 @@ export default function SectionsPage() {
         label: "삭제",
         onClick: async () => {
           try {
-            const response = await fetch(`/api/sections/${section.id}`, {
-              method: "DELETE",
-            });
-            if (!response.ok) {
-              const error = await response.json();
-              throw new Error(error.error || "Failed to delete");
-            }
+            const { error: apiError } = await api.delete(`/api/sections/${section.id}`);
+            if (apiError) throw new Error(apiError);
             toast.success("섹션이 삭제되었습니다.");
             loadSections();
           } catch (error) {
@@ -172,9 +167,11 @@ export default function SectionsPage() {
     setIsLoadingPreview(true);
     setShowPreview(true);
     try {
-      const structRes = await fetch(`/api/sections/${section.id}/structure`);
-      if (!structRes.ok) throw new Error("Failed to load structure");
-      const structData = await structRes.json();
+      const { data: structData, error: structError } = await api.get<{
+        content_blocks: Record<string, unknown>[];
+        question_groups: { id: string; title?: string; instructions?: string; content_block_id?: string; items?: { question_id: string }[] }[];
+      }>(`/api/sections/${section.id}/structure`);
+      if (structError || !structData) throw new Error(structError || "Failed to load structure");
 
       const blocks = (structData.content_blocks || []).map((b: Record<string, unknown>) => ({
         id: b.id as string,
@@ -197,10 +194,9 @@ export default function SectionsPage() {
         const uniqueIds = [...new Set(allQuestionIds)];
         const details = await Promise.all(
           uniqueIds.map(async (qId) => {
-            const res = await fetch(`/api/questions/${qId}`);
-            if (!res.ok) return null;
-            const data = await res.json();
-            return data.question as PreviewQuestion;
+            const { data, error } = await api.get<{ question: PreviewQuestion }>(`/api/questions/${qId}`);
+            if (error || !data) return null;
+            return data.question;
           })
         );
         const detailMap = new Map(

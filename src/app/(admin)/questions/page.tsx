@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { api } from "@/lib/api/client";
 import { QuestionPreviewDialog } from "./question-preview-dialog";
 
 interface QuestionRow {
@@ -170,14 +171,13 @@ export default function QuestionsPage() {
         params.set("search", search);
       }
 
-      const response = await fetch(`/api/questions?${params.toString()}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch questions");
-      }
-
-      const result = await response.json();
-      setQuestions(result.questions || []);
-      setTotalItems(result.pagination?.total || 0);
+      const { data: result, error: apiError } = await api.get<{
+        questions: QuestionRow[];
+        pagination: { total: number };
+      }>(`/api/questions?${params.toString()}`);
+      if (apiError) throw new Error(apiError);
+      setQuestions(result?.questions || []);
+      setTotalItems(result?.pagination?.total || 0);
     } catch (error) {
       console.error("Error loading questions:", error);
       toast.error("문제 목록을 불러오는데 실패했습니다.");
@@ -204,14 +204,8 @@ export default function QuestionsPage() {
 
     setIsDeleting(true);
     try {
-      const response = await fetch(`/api/questions/${deleteTarget.id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to delete");
-      }
+      const { error: apiError } = await api.delete(`/api/questions/${deleteTarget.id}`);
+      if (apiError) throw new Error(apiError);
 
       toast.success("문제가 삭제되었습니다.");
       loadQuestions();

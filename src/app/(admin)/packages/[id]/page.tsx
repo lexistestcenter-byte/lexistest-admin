@@ -48,14 +48,13 @@ import {
   Save,
   ArrowLeft,
   Search,
-  Globe,
-  Lock,
   Loader2,
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { api } from "@/lib/api/client";
 
 interface SectionItem {
   id: string;
@@ -141,12 +140,8 @@ export default function EditPackagePage() {
     setLoading(true);
     setLoadError(null);
     try {
-      const res = await fetch(`/api/packages/${id}`);
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "패키지를 불러오는데 실패했습니다.");
-      }
-      const pkg: PackageData = await res.json();
+      const { data: pkg, error: apiError } = await api.get<PackageData>(`/api/packages/${id}`);
+      if (apiError || !pkg) throw new Error(apiError || "패키지를 불러오는데 실패했습니다.");
 
       setTitle(pkg.title || "");
       setDescription(pkg.description || "");
@@ -174,19 +169,9 @@ export default function EditPackagePage() {
   const loadSections = useCallback(async () => {
     setSectionsLoading(true);
     try {
-      const res = await fetch("/api/sections?limit=200");
-      if (!res.ok) throw new Error("섹션 목록 조회 실패");
-      const data = await res.json();
-      setAllSections(
-        (data.sections || []).map((s: Record<string, unknown>) => ({
-          id: s.id,
-          title: s.title,
-          section_type: s.section_type,
-          difficulty: s.difficulty,
-          is_practice: s.is_practice,
-          time_limit_minutes: s.time_limit_minutes,
-        }))
-      );
+      const { data, error: apiError } = await api.get<{ sections: SectionItem[] }>("/api/sections?limit=200");
+      if (apiError) throw new Error(apiError);
+      setAllSections(data?.sections || []);
     } catch {
       // Sections loading error is non-critical
     } finally {
@@ -266,28 +251,20 @@ export default function EditPackagePage() {
 
     setSaving(true);
     try {
-      const res = await fetch(`/api/packages/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim() || null,
-          exam_type: examType,
-          difficulty: difficulty || null,
-          time_limit_minutes: timeLimitMinutes ? Number(timeLimitMinutes) : null,
-          display_order: displayOrder ? Number(displayOrder) : null,
-          is_practice: isPractice,
-          is_published: isPublished,
-          is_free: isFree,
-          access_type: accessType,
-          section_ids: selectedSectionIds,
-        }),
+      const { error: apiError } = await api.put(`/api/packages/${id}`, {
+        title: title.trim(),
+        description: description.trim() || null,
+        exam_type: examType,
+        difficulty: difficulty || null,
+        time_limit_minutes: timeLimitMinutes ? Number(timeLimitMinutes) : null,
+        display_order: displayOrder ? Number(displayOrder) : null,
+        is_practice: isPractice,
+        is_published: isPublished,
+        is_free: isFree,
+        access_type: accessType,
+        section_ids: selectedSectionIds,
       });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "저장에 실패했습니다.");
-      }
+      if (apiError) throw new Error(apiError);
 
       toast.success("패키지가 저장되었습니다.");
       router.push("/packages");
@@ -302,11 +279,8 @@ export default function EditPackagePage() {
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/packages/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "삭제에 실패했습니다.");
-      }
+      const { error: apiError } = await api.delete(`/api/packages/${id}`);
+      if (apiError) throw new Error(apiError);
       toast.success("패키지가 삭제되었습니다.");
       router.push("/packages");
     } catch (err) {
@@ -491,47 +465,6 @@ export default function EditPackagePage() {
                   <Switch checked={isFree} onCheckedChange={setIsFree} />
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Access Control */}
-          <Card>
-            <CardHeader>
-              <CardTitle>접근 권한 설정</CardTitle>
-              <CardDescription>이 패키지를 볼 수 있는 대상을 설정합니다.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Select value={accessType} onValueChange={setAccessType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="public">
-                    <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4" />
-                      전체 공개
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="groups">
-                    <div className="flex items-center gap-2">
-                      <Lock className="h-4 w-4" />
-                      특정 그룹만
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="individuals">
-                    <div className="flex items-center gap-2">
-                      <Lock className="h-4 w-4" />
-                      특정 사용자만
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="groups_and_individuals">
-                    <div className="flex items-center gap-2">
-                      <Lock className="h-4 w-4" />
-                      그룹 + 사용자
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
             </CardContent>
           </Card>
 

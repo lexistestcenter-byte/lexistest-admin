@@ -46,6 +46,7 @@ export const MENU_PERMISSIONS: Record<string, string> = {
   "/packages": "packages",
   "/students": "students",
   "/groups": "groups",
+  "/assignments": "coupons",
   "/coupons": "coupons",
   "/sessions": "sessions",
   "/scores": "scores",

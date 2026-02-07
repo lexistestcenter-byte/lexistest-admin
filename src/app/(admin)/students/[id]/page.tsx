@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { api } from "@/lib/api/client";
 
 interface StudentInfo {
   id: string;
@@ -161,17 +162,16 @@ export default function StudentDetailPage() {
       try {
         setLoading(true);
         const offset = (page - 1) * size;
-        const res = await fetch(
-          `/api/students/${id}/sessions?limit=${size}&offset=${offset}`
-        );
-        if (!res.ok) {
-          throw new Error("데이터를 불러오는데 실패했습니다.");
-        }
-        const data = await res.json();
-        setStudent(data.student);
-        setSessions(data.sessions || []);
+        const { data, error: apiError } = await api.get<{
+          student: StudentInfo;
+          sessions: SessionRow[];
+          pagination: Pagination;
+        }>(`/api/students/${id}/sessions?limit=${size}&offset=${offset}`);
+        if (apiError) throw new Error(apiError);
+        setStudent(data?.student || null);
+        setSessions(data?.sessions || []);
         setPagination(
-          data.pagination || { total: 0, limit: size, offset }
+          data?.pagination || { total: 0, limit: size, offset }
         );
       } catch (err) {
         toast.error(

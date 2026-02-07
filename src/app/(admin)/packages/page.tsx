@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { api } from "@/lib/api/client";
 import { MoreHorizontal, Pencil, Trash2, Copy, Layers, FileCheck, LayoutGrid, BookMarked, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { getCdnUrl } from "@/lib/cdn";
@@ -106,16 +107,13 @@ export default function PackagesPage() {
         params.set("search", search);
       }
 
-      const res = await fetch(`/api/packages?${params.toString()}`);
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "패키지 목록을 불러오는데 실패했습니다.");
-      }
-
-      const data = await res.json();
-      setPackages(data.packages);
-      setTotalItems(data.pagination.total);
+      const { data, error: apiError } = await api.get<{
+        packages: PackageRow[];
+        pagination: { total: number };
+      }>(`/api/packages?${params.toString()}`);
+      if (apiError) throw new Error(apiError);
+      setPackages(data?.packages || []);
+      setTotalItems(data?.pagination?.total || 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.");
     } finally {
@@ -136,11 +134,8 @@ export default function PackagesPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/packages/${deleteTarget.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "삭제에 실패했습니다.");
-      }
+      const { error: apiError } = await api.delete(`/api/packages/${deleteTarget.id}`);
+      if (apiError) throw new Error(apiError);
       toast.success(`"${deleteTarget.title}" 패키지가 삭제되었습니다.`);
       setDeleteTarget(null);
       fetchPackages();

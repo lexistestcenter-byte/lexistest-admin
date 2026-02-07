@@ -50,6 +50,7 @@ import {
   FileText,
   MessageSquare,
 } from "lucide-react";
+import { api } from "@/lib/api/client";
 
 // --- Types ---
 
@@ -196,12 +197,9 @@ export default function SessionDetailPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`/api/sessions/${id}`);
-      if (!res.ok) {
-        throw new Error("세션 정보를 불러올 수 없습니다.");
-      }
-      const data = await res.json();
-      const s: SessionData = data.session;
+      const { data, error: apiError } = await api.get<{ session: SessionData }>(`/api/sessions/${id}`);
+      if (apiError || !data?.session) throw new Error(apiError || "세션 정보를 불러올 수 없습니다.");
+      const s = data.session;
       setSession(s);
       setReviewerNotes(s.reviewer_notes || "");
       setScoringStatus(s.scoring_status || "pending");
@@ -230,15 +228,11 @@ export default function SessionDetailPage() {
   const handleSaveReview = async () => {
     setSavingReview(true);
     try {
-      const res = await fetch(`/api/sessions/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reviewer_notes: reviewerNotes,
-          scoring_status: scoringStatus,
-        }),
+      const { error: apiError } = await api.patch(`/api/sessions/${id}`, {
+        reviewer_notes: reviewerNotes,
+        scoring_status: scoringStatus,
       });
-      if (!res.ok) throw new Error("저장에 실패했습니다.");
+      if (apiError) throw new Error(apiError);
       toast.success("리뷰가 저장되었습니다.");
       await fetchSession();
     } catch (err) {
@@ -255,15 +249,11 @@ export default function SessionDetailPage() {
 
     setSavingResponseId(responseId);
     try {
-      const res = await fetch(`/api/sessions/${id}/responses/${responseId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          admin_score: edit.admin_score !== "" ? parseFloat(edit.admin_score) : null,
-          admin_feedback: edit.admin_feedback || null,
-        }),
+      const { error: apiError } = await api.patch(`/api/sessions/${id}/responses/${responseId}`, {
+        admin_score: edit.admin_score !== "" ? parseFloat(edit.admin_score) : null,
+        admin_feedback: edit.admin_feedback || null,
       });
-      if (!res.ok) throw new Error("채점 저장에 실패했습니다.");
+      if (apiError) throw new Error(apiError);
       toast.success("채점이 저장되었습니다.");
       await fetchSession();
     } catch (err) {
@@ -277,11 +267,8 @@ export default function SessionDetailPage() {
   const handleFinalize = async () => {
     setFinalizing(true);
     try {
-      const res = await fetch(`/api/sessions/${id}/finalize`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) throw new Error("채점 완료 처리에 실패했습니다.");
+      const { error: apiError } = await api.post(`/api/sessions/${id}/finalize`, {});
+      if (apiError) throw new Error(apiError);
       toast.success("채점이 완료되었습니다.");
       await fetchSession();
     } catch (err) {

@@ -4,8 +4,7 @@ import { sanitizeHtml, containsSqlInjection } from "@/lib/utils/sanitize";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const EXAM_TYPES = ["full", "section_only"] as const;
-const DIFFICULTIES = ["easy", "medium", "hard"] as const;
+const EXAM_TYPES = ["full", "section", "practice", "free"] as const;
 const ACCESS_TYPES = ["public", "groups", "individuals", "groups_and_individuals"] as const;
 
 // GET: 패키지 상세 조회
@@ -96,14 +95,6 @@ export async function PUT(
       );
     }
 
-    // difficulty 검증
-    if (body.difficulty && !DIFFICULTIES.includes(body.difficulty)) {
-      return NextResponse.json(
-        { error: `Invalid difficulty. Must be one of: ${DIFFICULTIES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
     // access_type 검증
     if (body.access_type && !ACCESS_TYPES.includes(body.access_type)) {
       return NextResponse.json(
@@ -133,13 +124,9 @@ export async function PUT(
         : null;
     if (body.image_url !== undefined) updateData.image_url = body.image_url;
     if (body.exam_type !== undefined) updateData.exam_type = body.exam_type;
-    if (body.difficulty !== undefined) updateData.difficulty = body.difficulty;
     if (body.time_limit_minutes !== undefined)
       updateData.time_limit_minutes = body.time_limit_minutes;
-    if (body.is_practice !== undefined) updateData.is_practice = body.is_practice;
     if (body.access_type !== undefined) updateData.access_type = body.access_type;
-    if (body.is_published !== undefined) updateData.is_published = body.is_published;
-    if (body.is_free !== undefined) updateData.is_free = body.is_free;
     if (body.display_order !== undefined) updateData.display_order = body.display_order;
     if (body.tags !== undefined) updateData.tags = body.tags;
 

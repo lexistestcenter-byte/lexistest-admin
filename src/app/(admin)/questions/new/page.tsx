@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api/client";
 import {
   Dialog,
   DialogContent,
@@ -333,12 +334,14 @@ export default function NewQuestionPage() {
     if (selectedQuestionType === "speaking") {
       setIsLoadingSpeakingData(true);
       Promise.all([
-        fetch("/api/speaking/categories").then(res => res.json()),
-        fetch("/api/speaking/part2-questions").then(res => res.json()),
+        api.get<{ categories: SpeakingCategory[] }>("/api/speaking/categories"),
+        api.get<{ questions: Part2Question[] }>("/api/speaking/part2-questions"),
       ])
-        .then(([categoriesData, part2Data]) => {
-          setSpeakingCategories(categoriesData.categories || []);
-          setPart2Questions(part2Data.questions || []);
+        .then(([categoriesRes, part2Res]) => {
+          if (categoriesRes.error) throw new Error(categoriesRes.error);
+          if (part2Res.error) throw new Error(part2Res.error);
+          setSpeakingCategories(categoriesRes.data?.categories || []);
+          setPart2Questions(part2Res.data?.questions || []);
         })
         .catch(err => {
           console.error("Failed to load speaking data:", err);
@@ -860,20 +863,11 @@ export default function NewQuestionPage() {
           }
         }
 
-        const response = await fetch("/api/questions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+        const { data: result, error } = await api.post<{ id: string; question_code: string }>("/api/questions", payload);
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "저장 실패");
-        }
-
-        const result = await response.json();
-        const questionId = result.data?.id;
-        const questionCode = result.data?.question_code;
+        if (error || !result) throw new Error(error || "저장 실패");
+        const questionId = result.id;
+        const questionCode = result.question_code;
 
         // 2단계: pending 파일이 있으면 코드 기반 경로로 R2 업로드
         if (questionId && questionCode) {
@@ -897,14 +891,9 @@ export default function NewQuestionPage() {
 
           // 업데이트할 내용이 있으면 PUT 요청
           if (Object.keys(updatePayload).length > 0) {
-            const updateRes = await fetch(`/api/questions/${questionId}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(updatePayload),
-            });
-            if (!updateRes.ok) {
-              const updateErr = await updateRes.json().catch(() => ({}));
-              console.error("파일 URL 업데이트 실패:", updateErr);
+            const { error: updateError } = await api.put(`/api/questions/${questionId}`, updatePayload);
+            if (updateError) {
+              console.error("파일 URL 업데이트 실패:", updateError);
               toast.error("파일 URL 업데이트에 실패했습니다. 상세 페이지에서 다시 저장해주세요.");
             }
           }

@@ -44,6 +44,7 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import Link from "next/link";
+import { api } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 import {
   DndContext,
@@ -291,17 +292,17 @@ export default function SectionEditPage({
     const loadSection = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(`/api/sections/${id}`);
-        if (!response.ok) {
-          if (response.status === 404) {
+        const { data, error } = await api.get<SectionData>(`/api/sections/${id}`);
+        if (error) {
+          if (error.includes("404") || error.includes("not found")) {
             toast.error("섹션을 찾을 수 없습니다.");
             router.push("/sections");
             return;
           }
-          throw new Error("Failed to load section");
+          throw new Error(error);
         }
 
-        const data: SectionData = await response.json();
+        if (!data) throw new Error("섹션 데이터가 없습니다.");
         setSection(data);
         setTitle(data.title);
         setDescription(data.description || "");
@@ -323,13 +324,12 @@ export default function SectionEditPage({
 
   const loadStructure = useCallback(async () => {
     try {
-      const response = await fetch(`/api/sections/${id}/structure`);
-      if (!response.ok) throw new Error("Failed to load structure");
-      const data = await response.json();
-      setContentBlocks(data.content_blocks || []);
-      setQuestionGroups(data.question_groups || []);
-      if (data.question_groups?.length > 0) {
-        setActiveGroupId(data.question_groups[0].id);
+      const { data, error } = await api.get<{ content_blocks: ContentBlock[]; question_groups: QuestionGroupData[] }>(`/api/sections/${id}/structure`);
+      if (error) throw new Error(error);
+      setContentBlocks(data!.content_blocks || []);
+      setQuestionGroups(data!.question_groups || []);
+      if (data!.question_groups?.length > 0) {
+        setActiveGroupId(data!.question_groups[0].id);
       }
     } catch (error) {
       console.error("Error loading structure:", error);
@@ -353,11 +353,10 @@ export default function SectionEditPage({
       if (searchQuery) params.set("search", searchQuery);
       params.set("limit", "100");
 
-      const response = await fetch(
+      const { data, error } = await api.get<AvailableQuestion[]>(
         `/api/sections/${id}/available-questions?${params.toString()}`
       );
-      if (!response.ok) throw new Error("Failed to load available questions");
-      const data = await response.json();
+      if (error) throw new Error(error);
       setAvailableQuestions(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error loading available questions:", error);
@@ -412,15 +411,11 @@ export default function SectionEditPage({
     if (!section) return;
     const contentType = section.section_type === "listening" ? "audio" : "passage";
     try {
-      const res = await fetch(`/api/sections/${id}/content-blocks`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          display_order: contentBlocks.length,
-          content_type: contentType,
-        }),
+      const { error } = await api.post(`/api/sections/${id}/content-blocks`, {
+        display_order: contentBlocks.length,
+        content_type: contentType,
       });
-      if (!res.ok) throw new Error("Failed to add content block");
+      if (error) throw new Error(error);
       toast.success("콘텐츠 블록이 추가되었습니다.");
       await loadStructure();
     } catch (error) {
@@ -437,20 +432,17 @@ export default function SectionEditPage({
       const block = contentBlocks.find((b) => b.id === blockId);
       if (!block) return;
 
-      await fetch(`/api/sections/${id}/content-blocks`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          block_id: blockId,
-          display_order: data.display_order ?? block.display_order,
-          content_type: data.content_type ?? block.content_type,
-          passage_title: data.passage_title ?? block.passage_title,
-          passage_content: data.passage_content ?? block.passage_content,
-          passage_footnotes: data.passage_footnotes ?? block.passage_footnotes,
-          audio_url: data.audio_url ?? block.audio_url,
-          audio_transcript: data.audio_transcript ?? block.audio_transcript,
-        }),
+      const { error } = await api.post(`/api/sections/${id}/content-blocks`, {
+        block_id: blockId,
+        display_order: data.display_order ?? block.display_order,
+        content_type: data.content_type ?? block.content_type,
+        passage_title: data.passage_title ?? block.passage_title,
+        passage_content: data.passage_content ?? block.passage_content,
+        passage_footnotes: data.passage_footnotes ?? block.passage_footnotes,
+        audio_url: data.audio_url ?? block.audio_url,
+        audio_transcript: data.audio_transcript ?? block.audio_transcript,
       });
+      if (error) throw new Error(error);
     } catch (error) {
       console.error("Error updating content block:", error);
       toast.error("콘텐츠 블록 저장에 실패했습니다.");
@@ -459,11 +451,10 @@ export default function SectionEditPage({
 
   const handleRemoveContentBlock = async (blockId: string) => {
     try {
-      const res = await fetch(
-        `/api/sections/${id}/content-blocks?block_id=${blockId}`,
-        { method: "DELETE" }
+      const { error } = await api.delete(
+        `/api/sections/${id}/content-blocks?block_id=${blockId}`
       );
-      if (!res.ok) throw new Error("Failed to remove content block");
+      if (error) throw new Error(error);
       toast.success("콘텐츠 블록이 삭제되었습니다.");
       await loadStructure();
     } catch (error) {
@@ -476,16 +467,12 @@ export default function SectionEditPage({
 
   const handleAddGroup = async () => {
     try {
-      const res = await fetch(`/api/sections/${id}/groups`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          display_order: questionGroups.length,
-          content_block_id: contentBlocks.length > 0 ? contentBlocks[0].id : null,
-          question_number_start: totalItemCount + 1,
-        }),
+      const { error } = await api.post(`/api/sections/${id}/groups`, {
+        display_order: questionGroups.length,
+        content_block_id: contentBlocks.length > 0 ? contentBlocks[0].id : null,
+        question_number_start: totalItemCount + 1,
       });
-      if (!res.ok) throw new Error("Failed to add group");
+      if (error) throw new Error(error);
       toast.success("문제 그룹이 추가되었습니다.");
       await loadStructure();
     } catch (error) {
@@ -499,11 +486,8 @@ export default function SectionEditPage({
     data: Record<string, unknown>
   ) => {
     try {
-      await fetch(`/api/sections/${id}/groups/${groupId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+      const { error } = await api.put(`/api/sections/${id}/groups/${groupId}`, data);
+      if (error) throw new Error(error);
     } catch (error) {
       console.error("Error updating group:", error);
       toast.error("그룹 정보 저장에 실패했습니다.");
@@ -512,10 +496,8 @@ export default function SectionEditPage({
 
   const handleRemoveGroup = async (groupId: string) => {
     try {
-      const res = await fetch(`/api/sections/${id}/groups/${groupId}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Failed to remove group");
+      const { error } = await api.delete(`/api/sections/${id}/groups/${groupId}`);
+      if (error) throw new Error(error);
       toast.success("문제 그룹이 삭제되었습니다.");
       await loadStructure();
       if (showAddPanel) loadAvailableQuestions();
@@ -540,15 +522,12 @@ export default function SectionEditPage({
         const q = availableQuestions.find((aq) => aq.id === qId);
         const itemCount = q?.item_count || 1;
 
-        await fetch(`/api/sections/${id}/groups/${activeGroupId}/items`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            question_id: qId,
-            question_number_start: currentNum,
-            display_order: currentOrder + i,
-          }),
+        const { error } = await api.post(`/api/sections/${id}/groups/${activeGroupId}/items`, {
+          question_id: qId,
+          question_number_start: currentNum,
+          display_order: currentOrder + i,
         });
+        if (error) throw new Error(error);
 
         currentNum += itemCount;
       }
@@ -567,10 +546,8 @@ export default function SectionEditPage({
 
   const handleRemoveItem = async (itemId: string) => {
     try {
-      const res = await fetch(`/api/sections/${id}/items?item_id=${itemId}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Failed to remove item");
+      const { error } = await api.delete(`/api/sections/${id}/items?item_id=${itemId}`);
+      if (error) throw new Error(error);
       toast.success("문제가 제거되었습니다.");
       await loadStructure();
       if (showAddPanel) loadAvailableQuestions();
@@ -626,11 +603,8 @@ export default function SectionEditPage({
         };
       });
 
-      await fetch(`/api/sections/${id}/groups`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ groups: groupsPayload }),
-      });
+      const { error } = await api.put(`/api/sections/${id}/groups`, { groups: groupsPayload });
+      if (error) throw new Error(error);
     } catch (error) {
       console.error("Error reordering:", error);
       toast.error("순서 변경에 실패했습니다.");
@@ -664,16 +638,8 @@ export default function SectionEditPage({
         instruction_html: instructionHtml || null,
       };
 
-      const response = await fetch(`/api/sections/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updateData),
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Failed to update section");
-      }
+      const { error } = await api.put(`/api/sections/${id}`, updateData);
+      if (error) throw new Error(error);
 
       // 2. Save content blocks
       for (let i = 0; i < contentBlocks.length; i++) {
@@ -705,11 +671,8 @@ export default function SectionEditPage({
       });
 
       if (groupsPayload.length > 0) {
-        await fetch(`/api/sections/${id}/groups`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ groups: groupsPayload }),
-        });
+        const { error: groupError } = await api.put(`/api/sections/${id}/groups`, { groups: groupsPayload });
+        if (groupError) throw new Error(groupError);
       }
 
       toast.success("섹션이 저장되었습니다.");
@@ -733,8 +696,8 @@ export default function SectionEditPage({
         label: "삭제",
         onClick: async () => {
           try {
-            const response = await fetch(`/api/sections/${id}`, { method: "DELETE" });
-            if (!response.ok) throw new Error("Failed to delete");
+            const { error } = await api.delete(`/api/sections/${id}`);
+            if (error) throw new Error(error);
             toast.success("섹션이 삭제되었습니다.");
             router.push("/sections");
           } catch (error) {
@@ -883,10 +846,9 @@ export default function SectionEditPage({
       const uniqueIds = [...new Set(allQuestionIds)];
       const details = await Promise.all(
         uniqueIds.map(async (qId) => {
-          const res = await fetch(`/api/questions/${qId}`);
-          if (!res.ok) throw new Error(`Failed to fetch question ${qId}`);
-          const data = await res.json();
-          return data.question as PreviewQuestion;
+          const { data, error } = await api.get<{ question: PreviewQuestion }>(`/api/questions/${qId}`);
+          if (error) throw new Error(`Failed to fetch question ${qId}`);
+          return data!.question;
         })
       );
       const detailMap = new Map(details.map((d) => [d.id, d]));

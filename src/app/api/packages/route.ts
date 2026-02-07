@@ -5,8 +5,7 @@ import { rateLimit } from "@/lib/utils/rate-limit";
 
 const createPackageLimiter = rateLimit({ interval: 60000, uniqueTokenPerInterval: 500, limit: 20 });
 
-const EXAM_TYPES = ["full", "section_only"] as const;
-const DIFFICULTIES = ["easy", "medium", "hard"] as const;
+const EXAM_TYPES = ["full", "section", "practice", "free"] as const;
 const ACCESS_TYPES = ["public", "groups", "individuals", "groups_and_individuals"] as const;
 
 // GET: 패키지 목록 조회
@@ -26,8 +25,6 @@ export async function GET(request: NextRequest) {
     }
 
     const examType = searchParams.get("exam_type");
-    const isPublished = searchParams.get("is_published");
-    const isPractice = searchParams.get("is_practice");
     const search = searchParams.get("search");
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
@@ -48,12 +45,6 @@ export async function GET(request: NextRequest) {
 
     if (examType) {
       query = query.eq("exam_type", examType);
-    }
-    if (isPublished !== null && isPublished !== undefined) {
-      query = query.eq("is_published", isPublished === "true");
-    }
-    if (isPractice !== null && isPractice !== undefined) {
-      query = query.eq("is_practice", isPractice === "true");
     }
     if (search) {
       query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
@@ -132,14 +123,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // difficulty 검증
-    if (body.difficulty && !DIFFICULTIES.includes(body.difficulty)) {
-      return NextResponse.json(
-        { error: `Invalid difficulty. Must be one of: ${DIFFICULTIES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
     // access_type 검증
     if (body.access_type && !ACCESS_TYPES.includes(body.access_type)) {
       return NextResponse.json(
@@ -165,12 +148,8 @@ export async function POST(request: NextRequest) {
       description: body.description ? sanitizeHtml(body.description) : null,
       image_url: body.image_url || null,
       exam_type: body.exam_type || "full",
-      difficulty: body.difficulty || null,
       time_limit_minutes: body.time_limit_minutes || null,
-      is_practice: body.is_practice || false,
       access_type: body.access_type || "public",
-      is_published: body.is_published || false,
-      is_free: body.is_free || false,
       display_order: body.display_order || 0,
       tags: body.tags || null,
       created_by: user.id,

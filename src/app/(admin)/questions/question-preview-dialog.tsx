@@ -14,6 +14,7 @@ import { Loader2, Mic } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { getCdnUrl } from "@/lib/cdn";
+import { api } from "@/lib/api/client";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -91,10 +92,9 @@ export function QuestionPreviewDialog({
     const fetchQuestion = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch(`/api/questions/${questionId}`);
-        if (!res.ok) throw new Error("Failed to fetch");
-        const data = await res.json();
-        setQuestion(data.question || null);
+        const { data, error } = await api.get<{ question: QuestionData }>(`/api/questions/${questionId}`);
+        if (error) throw new Error(error);
+        setQuestion(data?.question || null);
       } catch (err) {
         console.error("Failed to load question:", err);
         setQuestion(null);

@@ -78,6 +78,7 @@ import {
 import { FlowchartEditor } from "@/components/questions/flowchart-editor";
 import { FileUpload } from "@/components/ui/file-upload";
 import { getCdnUrl } from "@/lib/cdn";
+import { api } from "@/lib/api/client";
 
 // =============================================================================
 // question_type 별 정보
@@ -248,17 +249,16 @@ export default function EditQuestionPage({
   useEffect(() => {
     const loadQuestion = async () => {
       try {
-        const response = await fetch(`/api/questions/${id}`);
-        if (!response.ok) {
-          if (response.status === 404) {
+        const { data: result, error } = await api.get<{ question: any }>(`/api/questions/${id}`);
+        if (error) {
+          if (error.includes("404") || error.includes("not found")) {
             toast.error("문제를 찾을 수 없습니다.");
             router.push("/questions");
             return;
           }
-          throw new Error("Failed to fetch question");
+          throw new Error(error);
         }
-        const result = await response.json();
-        const data = result.question;
+        const data = result?.question;
 
         if (!data) {
           toast.error("문제 데이터가 없습니다.");
@@ -498,12 +498,12 @@ export default function EditQuestionPage({
     if (selectedQuestionType === "speaking") {
       setIsLoadingSpeakingData(true);
       Promise.all([
-        fetch("/api/speaking/categories").then(res => res.json()),
-        fetch("/api/speaking/part2-questions").then(res => res.json()),
+        api.get<{ categories: any[] }>("/api/speaking/categories"),
+        api.get<{ questions: any[] }>("/api/speaking/part2-questions"),
       ])
-        .then(([categoriesData, part2Data]) => {
-          setSpeakingCategories(categoriesData.categories || []);
-          setPart2Questions(part2Data.questions || []);
+        .then(([categoriesRes, part2Res]) => {
+          setSpeakingCategories(categoriesRes.data?.categories || []);
+          setPart2Questions(part2Res.data?.questions || []);
         })
         .catch(err => {
           console.error("Failed to load speaking data:", err);
@@ -982,15 +982,10 @@ export default function EditQuestionPage({
           : null,
       };
 
-      const response = await fetch(`/api/questions/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(questionData),
-      });
+      const { error } = await api.put(`/api/questions/${id}`, questionData);
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || error.details?.join(", ") || "Failed to update question");
+      if (error) {
+        throw new Error(error);
       }
 
       toast.success("문제가 수정되었습니다.");
@@ -1011,12 +1006,10 @@ export default function EditQuestionPage({
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      const response = await fetch(`/api/questions/${id}`, {
-        method: "DELETE",
-      });
+      const { error } = await api.delete(`/api/questions/${id}`);
 
-      if (!response.ok) {
-        throw new Error("Failed to delete question");
+      if (error) {
+        throw new Error(error);
       }
 
       toast.success("문제가 삭제되었습니다.");

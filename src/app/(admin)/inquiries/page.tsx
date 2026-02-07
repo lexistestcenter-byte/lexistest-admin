@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { RefreshCw, Loader2, MessageSquareText, Send } from "lucide-react";
 import { toast } from "sonner";
+import { api } from "@/lib/api/client";
 
 interface InquiryUser {
   email: string;
@@ -125,15 +126,15 @@ export default function InquiriesPage() {
         params.set("search", search);
       }
 
-      const response = await fetch(`/api/inquiries?${params.toString()}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch inquiries");
-      }
-
-      const result = await response.json();
-      setInquiries(result.inquiries || []);
-      setStatusCounts(result.statusCounts || { all: 0, pending: 0, in_progress: 0, resolved: 0, closed: 0 });
-      setTotalItems(result.pagination?.total || 0);
+      const { data: result, error: apiError } = await api.get<{
+        inquiries: InquiryRow[];
+        statusCounts: StatusCounts;
+        pagination: { total: number };
+      }>(`/api/inquiries?${params.toString()}`);
+      if (apiError) throw new Error(apiError);
+      setInquiries(result?.inquiries || []);
+      setStatusCounts(result?.statusCounts || { all: 0, pending: 0, in_progress: 0, resolved: 0, closed: 0 });
+      setTotalItems(result?.pagination?.total || 0);
     } catch (error) {
       console.error("Error loading inquiries:", error);
       toast.error("문의 목록을 불러오는데 실패했습니다.");
@@ -162,11 +163,7 @@ export default function InquiriesPage() {
     // 대기중인 문의를 열면 처리중으로 변경
     if (inquiry.status === "pending") {
       try {
-        await fetch(`/api/inquiries/${inquiry.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "in_progress" }),
-        });
+        await api.patch(`/api/inquiries/${inquiry.id}`, { status: "in_progress" });
         loadInquiries();
       } catch {
         // 상태 변경 실패해도 다이얼로그는 열기
@@ -180,16 +177,10 @@ export default function InquiriesPage() {
 
     setIsReplying(true);
     try {
-      const response = await fetch(`/api/inquiries/${selectedInquiry.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reply: replyText.trim() }),
+      const { error: apiError } = await api.patch(`/api/inquiries/${selectedInquiry.id}`, {
+        reply: replyText.trim(),
       });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "답변 등록에 실패했습니다.");
-      }
+      if (apiError) throw new Error(apiError);
 
       toast.success("답변이 등록되었습니다.");
       setSelectedInquiry(null);
@@ -205,15 +196,10 @@ export default function InquiriesPage() {
   // Change status
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
-      const response = await fetch(`/api/inquiries/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+      const { error: apiError } = await api.patch(`/api/inquiries/${id}`, {
+        status: newStatus,
       });
-
-      if (!response.ok) {
-        throw new Error("상태 변경에 실패했습니다.");
-      }
+      if (apiError) throw new Error(apiError);
 
       toast.success(`상태가 "${statusLabels[newStatus]}"(으)로 변경되었습니다.`);
       loadInquiries();

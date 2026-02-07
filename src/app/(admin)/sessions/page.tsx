@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { api } from "@/lib/api/client";
 import { Loader2, RefreshCw } from "lucide-react";
 
 type ScoringStatus = "not_scored" | "auto_scored" | "under_review" | "finalized";
@@ -137,17 +138,15 @@ export default function SessionsPage() {
         params.set("search", search);
       }
 
-      const res = await fetch(`/api/sessions?${params.toString()}`);
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "시험 목록을 불러오는데 실패했습니다.");
-      }
-
-      const data = await res.json();
-      setSessions(data.sessions);
-      setScoringCounts(data.scoringCounts);
-      setTotalItems(data.pagination.total);
+      const { data, error: apiError } = await api.get<{
+        sessions: SessionRow[];
+        scoringCounts: ScoringCounts;
+        pagination: { total: number };
+      }>(`/api/sessions?${params.toString()}`);
+      if (apiError) throw new Error(apiError);
+      setSessions(data?.sessions || []);
+      setScoringCounts(data?.scoringCounts || { all: 0, not_scored: 0, auto_scored: 0, under_review: 0, finalized: 0 });
+      setTotalItems(data?.pagination?.total || 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.");
       toast.error("시험 목록을 불러오는데 실패했습니다.");

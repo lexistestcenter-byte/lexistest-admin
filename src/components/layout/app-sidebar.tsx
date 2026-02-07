@@ -1,23 +1,19 @@
 "use client";
 
 import {
-  LayoutDashboard,
   GraduationCap,
   Package,
   Layers,
   FileQuestion,
   Ticket,
   ClipboardList,
-  BarChart3,
-  MessageSquare,
   MessageSquareText,
-  Bell,
-  Activity,
   BookOpen,
   Users,
   Settings,
   LogOut,
   Shield,
+  ClipboardCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -119,6 +115,12 @@ const navigationGroups: NavGroup[] = [
   {
     title: "Access & Coupons",
     items: [
+      {
+        title: "패키지 할당",
+        href: "/assignments",
+        icon: ClipboardCheck,
+        permission: "coupons",
+      },
       {
         title: "쿠폰 관리",
         href: "/coupons",

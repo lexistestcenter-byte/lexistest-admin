@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { api } from "@/lib/api/client";
 
 interface CouponRow {
   id: string;
@@ -94,12 +95,15 @@ export default function CouponsPage() {
       params.set("offset", ((currentPage - 1) * limit).toString());
       if (search) params.set("search", search);
 
-      const response = await fetch(`/api/coupons?${params.toString()}`);
-      if (!response.ok) throw new Error("Failed to fetch coupons");
+      const { data, error } = await api.get<{
+        coupons: CouponRow[];
+        pagination: { total: number };
+      }>(`/api/coupons?${params.toString()}`);
 
-      const json = await response.json();
-      setCoupons(json.data?.coupons || []);
-      setTotalItems(json.data?.pagination?.total || 0);
+      if (error) throw new Error(error);
+
+      setCoupons(data?.coupons || []);
+      setTotalItems(data?.pagination?.total || 0);
     } catch (error) {
       console.error("Error loading coupons:", error);
       toast.error("쿠폰 목록을 불러오는데 실패했습니다.");
@@ -168,24 +172,15 @@ export default function CouponsPage() {
         expires_at: formData.expires_at || null,
       };
 
-      let response;
+      let result;
       if (editTarget) {
-        response = await fetch(`/api/coupons/${editTarget.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+        result = await api.put(`/api/coupons/${editTarget.id}`, payload);
       } else {
-        response = await fetch("/api/coupons", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+        result = await api.post(`/api/coupons`, payload);
       }
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Failed to save");
+      if (result.error) {
+        throw new Error(result.error);
       }
 
       toast.success(editTarget ? "쿠폰이 수정되었습니다." : "쿠폰이 생성되었습니다.");
@@ -207,13 +202,10 @@ export default function CouponsPage() {
 
     setIsDeleting(true);
     try {
-      const response = await fetch(`/api/coupons/${deleteTarget.id}`, {
-        method: "DELETE",
-      });
+      const { error } = await api.delete(`/api/coupons/${deleteTarget.id}`);
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Failed to delete");
+      if (error) {
+        throw new Error(error);
       }
 
       toast.success("쿠폰이 비활성화되었습니다.");

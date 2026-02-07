@@ -44,6 +44,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { api } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 import {
   DndContext,
@@ -455,11 +456,9 @@ export default function NewSectionPage() {
       params.set("limit", "100");
       if (searchQuery) params.set("search", searchQuery);
 
-      const response = await fetch(`/api/questions?${params.toString()}`);
-      if (!response.ok) throw new Error("Failed to fetch questions");
-
-      const result = await response.json();
-      setAvailableQuestions(result.questions || []);
+      const { data: result, error } = await api.get<{ questions: Question[] }>(`/api/questions?${params.toString()}`);
+      if (error) throw new Error(error);
+      setAvailableQuestions(result?.questions || []);
     } catch (error) {
       console.error("Error loading questions:", error);
       toast.error("문제 목록을 불러오는데 실패했습니다.");
@@ -531,19 +530,9 @@ export default function NewSectionPage() {
         instruction_html: instructionHtml || null,
       };
 
-      const sectionResponse = await fetch("/api/sections", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(sectionData),
-      });
-
-      if (!sectionResponse.ok) {
-        const error = await sectionResponse.json();
-        throw new Error(error.error || "Failed to create section");
-      }
-
-      const newSection = await sectionResponse.json();
-      const sectionId = newSection.id;
+      const { data: newSection, error: sectionError } = await api.post<{ id: string }>("/api/sections", sectionData);
+      if (sectionError) throw new Error(sectionError);
+      const sectionId = newSection!.id;
 
       // Content blocks
       const blockIdMap: Record<string, string> = {};
@@ -553,22 +542,17 @@ export default function NewSectionPage() {
         const block = contentBlocks[i];
         const hasPendingFile = !!block.audioFile;
 
-        const res = await fetch(`/api/sections/${sectionId}/content-blocks`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            display_order: i,
-            content_type: block.content_type,
-            passage_title: block.passage_title || null,
-            passage_content: block.passage_content || null,
-            passage_footnotes: block.passage_footnotes || null,
-            // deferred 파일이 있으면 URL 제외 (blob URL이므로)
-            audio_url: hasPendingFile ? null : (block.audio_url || null),
-            audio_transcript: block.audio_transcript || null,
-          }),
+        const { data: result, error: blockError } = await api.post<{ block_id: string }>(`/api/sections/${sectionId}/content-blocks`, {
+          display_order: i,
+          content_type: block.content_type,
+          passage_title: block.passage_title || null,
+          passage_content: block.passage_content || null,
+          passage_footnotes: block.passage_footnotes || null,
+          // deferred 파일이 있으면 URL 제외 (blob URL이므로)
+          audio_url: hasPendingFile ? null : (block.audio_url || null),
+          audio_transcript: block.audio_transcript || null,
         });
-        if (res.ok) {
-          const result = await res.json();
+        if (!blockError && result) {
           blockIdMap[block.id] = result.block_id;
           // pending 파일 기록
           if (hasPendingFile && block.audioFile) {
@@ -582,13 +566,9 @@ export default function NewSectionPage() {
         const context = `sections/${sectionId}`;
         const uploaded = await uploadFile(pending.file, "audio", context);
         // 블록 업데이트 (upsert with block_id)
-        await fetch(`/api/sections/${sectionId}/content-blocks`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            block_id: pending.blockId,
-            audio_url: uploaded.path,
-          }),
+        await api.post(`/api/sections/${sectionId}/content-blocks`, {
+          block_id: pending.blockId,
+          audio_url: uploaded.path,
         });
       }
 
@@ -600,20 +580,15 @@ export default function NewSectionPage() {
           ? blockIdMap[group.content_block_id] || null
           : null;
 
-        const groupRes = await fetch(`/api/sections/${sectionId}/groups`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            content_block_id: serverBlockId,
-            display_order: gi,
-            title: group.title || null,
-            instructions: group.instructions || null,
-            question_number_start: currentNumber,
-          }),
+        const { data: groupResult, error: groupError } = await api.post<{ group_id: string }>(`/api/sections/${sectionId}/groups`, {
+          content_block_id: serverBlockId,
+          display_order: gi,
+          title: group.title || null,
+          instructions: group.instructions || null,
+          question_number_start: currentNumber,
         });
 
-        if (!groupRes.ok) continue;
-        const groupResult = await groupRes.json();
+        if (groupError || !groupResult) continue;
         const serverGroupId = groupResult.group_id;
 
         for (let qi = 0; qi < group.questions.length; qi++) {
@@ -621,18 +596,11 @@ export default function NewSectionPage() {
           const question = availableQuestions.find((q) => q.id === questionId);
           const itemCount = question?.item_count || 1;
 
-          await fetch(
-            `/api/sections/${sectionId}/groups/${serverGroupId}/items`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                question_id: questionId,
-                question_number_start: currentNumber,
-                display_order: qi,
-              }),
-            }
-          );
+          await api.post(`/api/sections/${sectionId}/groups/${serverGroupId}/items`, {
+            question_id: questionId,
+            question_number_start: currentNumber,
+            display_order: qi,
+          });
 
           currentNumber += itemCount;
         }
@@ -663,10 +631,9 @@ export default function NewSectionPage() {
       const uniqueIds = [...new Set(allQuestionIds)];
       const details = await Promise.all(
         uniqueIds.map(async (qId) => {
-          const res = await fetch(`/api/questions/${qId}`);
-          if (!res.ok) throw new Error(`Failed to fetch question ${qId}`);
-          const data = await res.json();
-          return data.question as PreviewQuestion;
+          const { data, error } = await api.get<{ question: PreviewQuestion }>(`/api/questions/${qId}`);
+          if (error) throw new Error(error);
+          return data!.question;
         })
       );
       const detailMap = new Map(details.map((d) => [d.id, d]));

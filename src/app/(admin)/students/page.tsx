@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/common/page-header";
 import { DataTable, Column } from "@/components/common/data-table";
@@ -32,7 +32,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MoreHorizontal, Eye, Mail, Package, Users } from "lucide-react";
+import { MoreHorizontal, Eye, Package, Users, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { api } from "@/lib/api/client";
+
+interface StudentGroup {
+  id: string;
+  name: string;
+}
 
 interface StudentRow {
   id: string;
@@ -41,92 +48,136 @@ interface StudentRow {
   phone?: string;
   target_score?: number;
   avatar_url?: string;
-  groups: string[];
+  groups: StudentGroup[];
   package_count: number;
   last_login_at?: string;
   created_at: string;
 }
 
-// Mock data
-const mockStudents: StudentRow[] = [
-  {
-    id: "1",
-    name: "홍길동",
-    email: "hong@example.com",
-    phone: "010-1234-5678",
-    target_score: 7.0,
-    groups: ["2026년 1월 기초반"],
-    package_count: 3,
-    last_login_at: "2026-01-27 10:30",
-    created_at: "2026-01-02",
-  },
-  {
-    id: "2",
-    name: "김철수",
-    email: "kim@example.com",
-    phone: "010-2345-6789",
-    target_score: 6.5,
-    groups: ["2026년 1월 중급반", "Writing 특강반"],
-    package_count: 5,
-    last_login_at: "2026-01-26 15:20",
-    created_at: "2026-01-05",
-  },
-  {
-    id: "3",
-    name: "이영희",
-    email: "lee@example.com",
-    target_score: 8.0,
-    groups: ["2025년 12월 심화반"],
-    package_count: 2,
-    last_login_at: "2026-01-25 09:15",
-    created_at: "2025-12-10",
-  },
-  {
-    id: "4",
-    name: "박민수",
-    email: "park@example.com",
-    phone: "010-3456-7890",
-    groups: [],
-    package_count: 1,
-    created_at: "2026-01-15",
-  },
-  {
-    id: "5",
-    name: "정수진",
-    email: "jung@example.com",
-    target_score: 7.5,
-    groups: ["Writing 특강반"],
-    package_count: 4,
-    last_login_at: "2026-01-27 08:00",
-    created_at: "2026-01-10",
-  },
-];
+interface StudentsResponse {
+  students: StudentRow[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
+}
 
-// Mock packages for access management
-const mockPackages = [
-  { id: "1", title: "IELTS 풀패키지 1회" },
-  { id: "2", title: "IELTS 풀패키지 2회" },
-  { id: "3", title: "Writing 단과 1회" },
-  { id: "4", title: "Speaking 단과 1회" },
-  { id: "5", title: "Listening 단과 1회" },
-];
+interface GroupOption {
+  id: string;
+  name: string;
+}
 
-// Mock groups
-const mockGroups = [
-  { id: "1", name: "2026년 1월 기초반" },
-  { id: "2", name: "2026년 1월 중급반" },
-  { id: "3", name: "2025년 12월 심화반" },
-  { id: "4", name: "Writing 특강반" },
-];
+interface GroupsResponse {
+  groups: GroupOption[];
+}
+
+interface PackageOption {
+  id: string;
+  title: string;
+}
+
+interface PackagesResponse {
+  packages: PackageOption[];
+}
+
+const PAGE_SIZE = 10;
 
 export default function StudentsPage() {
   const router = useRouter();
+
+  // List state
+  const [students, setStudents] = useState<StudentRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [totalItems, setTotalItems] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [search, setSearch] = useState("");
+
+  // Modal state
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isAccessOpen, setIsAccessOpen] = useState(false);
   const [isGroupOpen, setIsGroupOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentRow | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Access modal
   const [selectedPackage, setSelectedPackage] = useState("");
+  const [packages, setPackages] = useState<PackageOption[]>([]);
+
+  // Group modal
   const [selectedGroup, setSelectedGroup] = useState("");
+  const [groups, setGroups] = useState<GroupOption[]>([]);
+
+  // Load students
+  const loadStudents = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("limit", PAGE_SIZE.toString());
+      params.set("offset", ((currentPage - 1) * PAGE_SIZE).toString());
+      if (search) params.set("search", search);
+
+      const { data, error } = await api.get<StudentsResponse>(`/api/students?${params.toString()}`);
+
+      if (error) {
+        // Fallback: /api/students가 없으면 /api/users 사용
+        const { data: usersData, error: usersError } = await api.get<{ users: Array<{ id: string; name: string; email: string; created_at: string }>; pagination: { total: number } }>(`/api/users?${params.toString()}`);
+        if (usersError) throw new Error(usersError);
+        // /api/users는 groups, package_count 등이 없으므로 기본값 설정
+        const mapped: StudentRow[] = (usersData?.users || []).map((u) => ({
+          ...u,
+          groups: [],
+          package_count: 0,
+        }));
+        setStudents(mapped);
+        setTotalItems(usersData?.pagination?.total || 0);
+        return;
+      }
+
+      setStudents(data?.students || []);
+      setTotalItems(data?.pagination?.total || 0);
+    } catch (error) {
+      console.error("Error loading students:", error);
+      toast.error("학생 목록을 불러오는데 실패했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentPage, search]);
+
+  useEffect(() => {
+    loadStudents();
+  }, [loadStudents]);
+
+  // Search debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (currentPage !== 1) setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Load packages for assignment modal
+  const loadPackages = async () => {
+    try {
+      const { data, error } = await api.get<PackagesResponse>("/api/packages?limit=100");
+      if (error) throw new Error(error);
+      setPackages(data?.packages || []);
+    } catch (error) {
+      console.error("Error loading packages:", error);
+    }
+  };
+
+  // Load groups for assignment modal
+  const loadGroups = async () => {
+    try {
+      const { data, error } = await api.get<GroupsResponse>("/api/groups?limit=100");
+      if (error) throw new Error(error);
+      setGroups(data?.groups || []);
+    } catch (error) {
+      console.error("Error loading groups:", error);
+    }
+  };
 
   const openDetailModal = (student: StudentRow) => {
     setSelectedStudent(student);
@@ -137,24 +188,54 @@ export default function StudentsPage() {
     setSelectedStudent(student);
     setSelectedPackage("");
     setIsAccessOpen(true);
+    loadPackages();
   };
 
   const openGroupModal = (student: StudentRow) => {
     setSelectedStudent(student);
     setSelectedGroup("");
     setIsGroupOpen(true);
+    loadGroups();
   };
 
-  const handleAddAccess = () => {
-    // TODO: API 연동
-    console.log("Add package access:", selectedStudent?.id, selectedPackage);
-    setIsAccessOpen(false);
+  const handleAddAccess = async () => {
+    if (!selectedStudent || !selectedPackage) return;
+    setIsSaving(true);
+    try {
+      const { error } = await api.post(`/api/students/${selectedStudent.id}/packages`, {
+        package_id: selectedPackage,
+      });
+      if (error) throw new Error(error);
+
+      toast.success("패키지가 배정되었습니다.");
+      setIsAccessOpen(false);
+      loadStudents();
+    } catch (error) {
+      console.error("Error assigning package:", error);
+      toast.error("패키지 배정에 실패했습니다.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleAddToGroup = () => {
-    // TODO: API 연동
-    console.log("Add to group:", selectedStudent?.id, selectedGroup);
-    setIsGroupOpen(false);
+  const handleAddToGroup = async () => {
+    if (!selectedStudent || !selectedGroup) return;
+    setIsSaving(true);
+    try {
+      const { error } = await api.post(`/api/groups/${selectedGroup}/members`, {
+        user_ids: [selectedStudent.id],
+      });
+      if (error) throw new Error(error);
+
+      toast.success("그룹에 배정되었습니다.");
+      setIsGroupOpen(false);
+      loadStudents();
+    } catch (error) {
+      console.error("Error assigning to group:", error);
+      toast.error("그룹 배정에 실패했습니다.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const getInitials = (name: string) => {
@@ -198,9 +279,9 @@ export default function StudentsPage() {
       cell: (student) => (
         <div className="flex flex-wrap gap-1">
           {student.groups.length > 0 ? (
-            student.groups.map((group, idx) => (
-              <Badge key={idx} variant="secondary" className="text-xs">
-                {group}
+            student.groups.map((group) => (
+              <Badge key={group.id} variant="secondary" className="text-xs">
+                {group.name}
               </Badge>
             ))
           ) : (
@@ -221,7 +302,9 @@ export default function StudentsPage() {
       header: "마지막 접속",
       cell: (student) => (
         <span className="text-muted-foreground text-sm">
-          {student.last_login_at || "접속 기록 없음"}
+          {student.last_login_at
+            ? new Date(student.last_login_at).toLocaleString("ko-KR")
+            : "접속 기록 없음"}
         </span>
       ),
     },
@@ -238,7 +321,7 @@ export default function StudentsPage() {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>작업</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push(`/students/${student.id}`)}>
+            <DropdownMenuItem onClick={() => openDetailModal(student)}>
               <Eye className="mr-2 h-4 w-4" />
               상세 보기
             </DropdownMenuItem>
@@ -249,11 +332,6 @@ export default function StudentsPage() {
             <DropdownMenuItem onClick={() => openGroupModal(student)}>
               <Users className="mr-2 h-4 w-4" />
               그룹 배정
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <Mail className="mr-2 h-4 w-4" />
-              이메일 발송
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -266,14 +344,18 @@ export default function StudentsPage() {
     <div className="space-y-6">
       <PageHeader
         title="학생 관리"
-        description="개별 학생 정보를 조회하고 패키지/그룹을 배정합니다. 학생 계정은 WordPress SSO를 통해 자동 생성됩니다."
+        description="개별 학생 정보를 조회하고 패키지/그룹을 배정합니다."
       />
 
       <DataTable
         columns={columns}
-        data={mockStudents}
+        data={students}
         searchPlaceholder="이름 또는 이메일로 검색..."
-        totalItems={128}
+        totalItems={totalItems}
+        pageSize={PAGE_SIZE}
+        currentPage={currentPage}
+        onSearch={setSearch}
+        onPageChange={setCurrentPage}
       />
 
       {/* Student Detail Modal */}
@@ -314,11 +396,17 @@ export default function StudentsPage() {
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">가입일</Label>
-                  <p className="font-medium">{selectedStudent.created_at}</p>
+                  <p className="font-medium">
+                    {new Date(selectedStudent.created_at).toLocaleDateString("ko-KR")}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">마지막 접속</Label>
-                  <p className="font-medium">{selectedStudent.last_login_at || "-"}</p>
+                  <p className="font-medium">
+                    {selectedStudent.last_login_at
+                      ? new Date(selectedStudent.last_login_at).toLocaleString("ko-KR")
+                      : "-"}
+                  </p>
                 </div>
               </div>
 
@@ -326,9 +414,9 @@ export default function StudentsPage() {
                 <Label className="text-muted-foreground text-xs">소속 그룹</Label>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {selectedStudent.groups.length > 0 ? (
-                    selectedStudent.groups.map((group, idx) => (
-                      <Badge key={idx} variant="secondary">
-                        {group}
+                    selectedStudent.groups.map((group) => (
+                      <Badge key={group.id} variant="secondary">
+                        {group.name}
                       </Badge>
                     ))
                   ) : (
@@ -370,7 +458,7 @@ export default function StudentsPage() {
                   <SelectValue placeholder="패키지를 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockPackages.map((pkg) => (
+                  {packages.map((pkg) => (
                     <SelectItem key={pkg.id} value={pkg.id}>
                       {pkg.title}
                     </SelectItem>
@@ -384,7 +472,8 @@ export default function StudentsPage() {
             <Button variant="outline" onClick={() => setIsAccessOpen(false)}>
               취소
             </Button>
-            <Button onClick={handleAddAccess} disabled={!selectedPackage}>
+            <Button onClick={handleAddAccess} disabled={!selectedPackage || isSaving}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               배정
             </Button>
           </DialogFooter>
@@ -409,8 +498,8 @@ export default function StudentsPage() {
                   <SelectValue placeholder="그룹을 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockGroups
-                    .filter((g) => !selectedStudent?.groups.includes(g.name))
+                  {groups
+                    .filter((g) => !selectedStudent?.groups.some((sg) => sg.id === g.id))
                     .map((group) => (
                       <SelectItem key={group.id} value={group.id}>
                         {group.name}
@@ -425,7 +514,8 @@ export default function StudentsPage() {
             <Button variant="outline" onClick={() => setIsGroupOpen(false)}>
               취소
             </Button>
-            <Button onClick={handleAddToGroup} disabled={!selectedGroup}>
+            <Button onClick={handleAddToGroup} disabled={!selectedGroup || isSaving}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               배정
             </Button>
           </DialogFooter>
