@@ -194,6 +194,7 @@ export default function EditQuestionPage({
   // 매칭 (드래그앤드랍)
   const [matchingTitle, setMatchingTitle] = useState("");
   const [matchingAllowDuplicate, setMatchingAllowDuplicate] = useState(false);
+  const [separateNumbers, setSeparateNumbers] = useState(false);
   const [matchingOptions, setMatchingOptions] = useState<MatchingOption[]>([
     { id: "o1", label: "A", text: "" },
     { id: "o2", label: "B", text: "" },
@@ -459,6 +460,9 @@ export default function EditQuestionPage({
             }
           }
         }
+
+        // separateNumbers (공통)
+        if (optionsData?.separateNumbers) setSeparateNumbers(optionsData.separateNumbers);
 
         // Audio data (Listening)
         if (data.audio_url) setAudioUrl(data.audio_url);
@@ -978,6 +982,15 @@ export default function EditQuestionPage({
         };
       }
 
+      // separateNumbers를 multi-item 유형에 공통 추가
+      if ([
+        "true_false_ng", "matching", "heading_matching",
+        "fill_blank_typing", "fill_blank_drag",
+        "flowchart", "table_completion", "map_labeling",
+      ].includes(selectedFormat!) || (selectedFormat === "mcq" && mcqIsMultiple)) {
+        optionsData = { ...optionsData, separateNumbers };
+      }
+
       const questionData = {
         question_type: selectedQuestionType,
         question_format: actualFormat,
@@ -1143,6 +1156,28 @@ export default function EditQuestionPage({
                   onCheckedChange={setIsPractice}
                 />
               </div>
+
+              {/* 별도 문항 번호 토글 — multi-item 유형 공통 */}
+              {selectedFormat && ([
+                "true_false_ng", "matching", "heading_matching",
+                "fill_blank_typing", "fill_blank_drag",
+                "flowchart", "table_completion", "map_labeling",
+              ].includes(selectedFormat) || (selectedFormat === "mcq" && mcqIsMultiple)) && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-xs">별도 문항 번호 부여</Label>
+                    <p className="text-xs text-muted-foreground">
+                      {separateNumbers
+                        ? "각 항목이 별도 문항 번호를 차지합니다 (예: Questions 5–8)"
+                        : "하나의 문항으로 처리됩니다 (예: Question 5)"}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={separateNumbers}
+                    onCheckedChange={setSeparateNumbers}
+                  />
+                </div>
+              )}
 
             </div>
 
@@ -1434,6 +1469,7 @@ export default function EditQuestionPage({
                 questionCode={questionCode}
               />
             )}
+
           </div>
         </div>
       </div>

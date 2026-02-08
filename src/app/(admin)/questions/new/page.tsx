@@ -1218,6 +1218,46 @@ export default function NewQuestionPage() {
                 />
               </div>
 
+              {/* 별도 문항 번호 토글 — multi-item 유형 공통 */}
+              {currentTab.format && [
+                "true_false_ng", "matching", "heading_matching",
+                "fill_blank_typing", "fill_blank_drag",
+                "flowchart", "table_completion", "map_labeling",
+              ].includes(currentTab.format) && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-xs">별도 문항 번호 부여</Label>
+                    <p className="text-xs text-muted-foreground">
+                      {currentTab.separateNumbers
+                        ? "각 항목이 별도 문항 번호를 차지합니다 (예: Questions 5–8)"
+                        : "하나의 문항으로 처리됩니다 (예: Question 5)"}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={currentTab.separateNumbers}
+                    onCheckedChange={(v) => updateCurrentTab("separateNumbers", v)}
+                  />
+                </div>
+              )}
+
+              {/* 별도 문항 번호 토글 — MCQ 복수선택 */}
+              {currentTab.format === "mcq" && currentTab.mcqIsMultiple && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-xs">별도 문항 번호 부여</Label>
+                    <p className="text-xs text-muted-foreground">
+                      {currentTab.mcqSeparateNumbers
+                        ? `각 정답이 별도 문항 번호를 차지합니다 (예: Questions 5–${4 + currentTab.mcqMaxSelections})`
+                        : "하나의 문항으로 처리됩니다 (예: Question 5)"}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={currentTab.mcqSeparateNumbers}
+                    onCheckedChange={(v) => updateCurrentTab("mcqSeparateNumbers", v)}
+                  />
+                </div>
+              )}
+
             </div>
 
             {/* Audio Settings (Listening & Speaking) */}
@@ -1326,8 +1366,6 @@ export default function NewQuestionPage() {
                 setIsMultiple={toggleMcqMode}
                 maxSelections={currentTab.mcqMaxSelections}
                 setMaxSelections={(v) => updateCurrentTab("mcqMaxSelections", v)}
-                separateNumbers={currentTab.mcqSeparateNumbers}
-                setSeparateNumbers={(v) => updateCurrentTab("mcqSeparateNumbers", v)}
               />
             )}
 
@@ -1512,27 +1550,6 @@ export default function NewQuestionPage() {
               />
             )}
 
-            {/* 별도 문항 번호 토글 — multi-item 유형 공통 */}
-            {currentTab.format && [
-              "true_false_ng", "matching", "heading_matching",
-              "fill_blank_typing", "fill_blank_drag",
-              "flowchart", "table_completion", "map_labeling",
-            ].includes(currentTab.format) && (
-                <div className="flex items-center justify-between p-3 bg-blue-50/50 rounded-lg border border-blue-200 mt-6">
-                  <div>
-                    <p className="text-sm font-medium">별도 문항 번호 부여</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {currentTab.separateNumbers
-                        ? "각 항목이 별도 문항 번호를 차지합니다 (예: Questions 5–8)"
-                        : "하나의 문항으로 처리됩니다 (예: Question 5)"}
-                    </p>
-                  </div>
-                  <Switch
-                    checked={currentTab.separateNumbers}
-                    onCheckedChange={(v) => updateCurrentTab("separateNumbers", v)}
-                  />
-                </div>
-              )}
           </div>
         </div>
       </div>
@@ -1581,8 +1598,6 @@ function MCQEditor({
   setIsMultiple,
   maxSelections,
   setMaxSelections,
-  separateNumbers,
-  setSeparateNumbers,
 }: {
   question: string;
   setQuestion: (v: string) => void;
@@ -1595,8 +1610,6 @@ function MCQEditor({
   setIsMultiple: (v: boolean) => void;
   maxSelections: number;
   setMaxSelections: (v: number) => void;
-  separateNumbers: boolean;
-  setSeparateNumbers: (v: boolean) => void;
 }) {
   const correctCount = options.filter(o => o.isCorrect).length;
 
@@ -1640,21 +1653,6 @@ function MCQEditor({
           </div>
         )}
       </div>
-
-      {/* 별도 문항 번호 (복수선택 시에만) */}
-      {isMultiple && (
-        <div className="flex items-center justify-between p-3 bg-blue-50/50 rounded-lg border border-blue-200">
-          <div>
-            <p className="text-sm font-medium">별도 문항 번호 부여</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {separateNumbers
-                ? `각 정답이 별도 문항 번호를 차지합니다 (예: Questions 5–${4 + maxSelections})`
-                : `하나의 문항으로 처리됩니다 (예: Question 5)`}
-            </p>
-          </div>
-          <Switch checked={separateNumbers} onCheckedChange={setSeparateNumbers} />
-        </div>
-      )}
 
       {/* 문제 */}
       <div className="space-y-2">
