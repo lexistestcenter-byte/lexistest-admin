@@ -47,6 +47,7 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/api/client";
+import { stripHtml } from "@/lib/utils/sanitize";
 import { QuestionPreviewDialog } from "./question-preview-dialog";
 
 interface QuestionRow {
@@ -60,6 +61,7 @@ interface QuestionRow {
   is_practice: boolean;
   is_active: boolean;
   created_at: string;
+  options_data?: Record<string, unknown>;
 }
 
 const typeColors = {
@@ -261,7 +263,10 @@ export default function QuestionsPage() {
             </Badge>
           )}
           <span className="text-sm">
-            {q.title || q.content}
+            {(() => {
+              const displayText = q.title || (q.options_data?.title as string) || stripHtml(q.content || "");
+              return displayText.length > 80 ? displayText.substring(0, 80) + "..." : displayText;
+            })()}
           </span>
         </div>
       ),

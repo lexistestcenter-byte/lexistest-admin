@@ -393,7 +393,7 @@ export function FlowchartEditor({
                 {isBranch ? (
                   <div className="flex justify-center gap-3 items-start flex-wrap">
                     {group.map((node) => (
-                      <div key={node.id} className="w-2/5">
+                      <div key={node.id} className="w-2/5 min-w-[180px]">
                         <NodeCard
                           node={node}
                           blanks={blanks}
@@ -642,7 +642,7 @@ function NodeCard({
 
   return (
     <div
-      className={`relative group rounded-lg border-2 ${borderColor} ${bgColor} transition-colors shadow-sm flex flex-col w-full h-28`}
+      className={`relative group rounded-lg border-2 ${borderColor} ${bgColor} transition-colors shadow-sm flex flex-col w-full min-h-[80px]`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -666,25 +666,15 @@ function NodeCard({
         </button>
       )}
 
-      {/* Label */}
-      <div className="px-3 pt-2 pb-0 shrink-0" onClick={!isEditing ? onStartEdit : undefined}>
-        {isEditing ? (
-          <Input
-            ref={labelRef}
-            value={node.label || ""}
-            onChange={(e) => onUpdate(node.id, { label: e.target.value })}
-            placeholder="라벨 (예: Theory 1:)"
-            className="h-6 text-xs font-medium bg-transparent border-0 border-b border-dashed p-0 rounded-none focus-visible:ring-0"
-          />
-        ) : (
-          <span className={`text-xs font-medium ${isBranch ? "text-blue-600" : "text-slate-500"}`}>
-            {node.label || (
-              <span className={isBranch ? "text-blue-400 italic" : "text-slate-300 italic"}>
-                라벨 없음
-              </span>
-            )}
-          </span>
-        )}
+      {/* Label - always editable */}
+      <div className="px-3 pt-2 pb-0 shrink-0">
+        <Input
+          ref={labelRef}
+          value={node.label || ""}
+          onChange={(e) => onUpdate(node.id, { label: e.target.value })}
+          placeholder="라벨 (선택)"
+          className={`h-6 text-xs font-medium bg-transparent border-0 border-b border-dashed p-0 rounded-none focus-visible:ring-0 ${isBranch ? "text-blue-600 placeholder:text-blue-300" : "text-slate-500 placeholder:text-slate-300"}`}
+        />
       </div>
 
       {/* Content */}

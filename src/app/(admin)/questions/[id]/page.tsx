@@ -76,8 +76,8 @@ import {
   FlowchartNode,
 } from "@/components/questions/types";
 import { FlowchartEditor } from "@/components/questions/flowchart-editor";
+import { QuestionPreview, tabToPreviewData, type QuestionPreviewData } from "@/components/questions/question-preview";
 import { FileUpload } from "@/components/ui/file-upload";
-import { getCdnUrl } from "@/lib/cdn";
 import { api } from "@/lib/api/client";
 
 // =============================================================================
@@ -234,6 +234,8 @@ export default function EditQuestionPage({
   const [audioTranscript, setAudioTranscript] = useState("");
 
   // Map Labeling
+  const [mapLabelingTitle, setMapLabelingTitle] = useState("");
+  const [mapLabelingPassage, setMapLabelingPassage] = useState("");
   const [mapLabelingImageUrl, setMapLabelingImageUrl] = useState("");
   const [mapLabelingLabels, setMapLabelingLabels] = useState<string[]>(["A", "B", "C", "D", "E", "F", "G", "H"]);
   const [mapLabelingItems, setMapLabelingItems] = useState<{ id: string; number: number; statement: string; correctLabel: string }[]>([
@@ -460,6 +462,8 @@ export default function EditQuestionPage({
         // Map Labeling
         else if (format === "map_labeling") {
           if (optionsData) {
+            setMapLabelingTitle(String(optionsData.title || data.title || ""));
+            setMapLabelingPassage(data.content || "");
             setMapLabelingImageUrl(optionsData.image_url || "");
             if (Array.isArray(optionsData.labels)) {
               setMapLabelingLabels(optionsData.labels);
@@ -937,8 +941,9 @@ export default function EditQuestionPage({
       }
       // Map Labeling
       else if (selectedFormat === "map_labeling") {
-        content = "";
+        content = mapLabelingPassage || " ";
         optionsData = {
+          title: mapLabelingTitle || undefined,
           image_url: mapLabelingImageUrl,
           labels: mapLabelingLabels,
           items: mapLabelingItems.map(i => ({
@@ -959,7 +964,7 @@ export default function EditQuestionPage({
         question_type: selectedQuestionType,
         question_format: actualFormat,
         content,
-        title: contentTitle || flowchartTitle || null,
+        title: contentTitle || flowchartTitle || mapLabelingTitle || null,
         instructions: (selectedFormat !== "mcq" && selectedFormat !== "true_false_ng") ? (instructions || null) : null,
         options_data: optionsData,
         answer_data: answerData,
@@ -1415,6 +1420,10 @@ export default function EditQuestionPage({
             {/* Map Labeling */}
             {selectedFormat === "map_labeling" && (
               <MapLabelingEditor
+                title={mapLabelingTitle}
+                setTitle={setMapLabelingTitle}
+                passage={mapLabelingPassage}
+                setPassage={setMapLabelingPassage}
                 imageUrl={mapLabelingImageUrl}
                 setImageUrl={setMapLabelingImageUrl}
                 labels={mapLabelingLabels}
@@ -1468,38 +1477,26 @@ export default function EditQuestionPage({
         open={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         questionType={selectedQuestionType}
-        format={selectedFormat}
-        instructions={instructions}
-        contentTitle={contentTitle}
-        contentHtml={contentHtml}
-        blanks={blanks}
-        wordBank={wordBank}
-        mcqQuestion={mcqQuestion}
-        mcqOptions={mcqOptions}
-        mcqMaxSelections={mcqMaxSelections}
-        mcqIsMultiple={mcqIsMultiple}
-        tfngStatement={tfngStatement}
-        tfngAnswer={tfngAnswer}
-        matchingTitle={matchingTitle}
-        matchingOptions={matchingOptions}
-        matchingItems={matchingItems}
-        matchingAllowDuplicate={matchingAllowDuplicate}
-        flowchartTitle={flowchartTitle}
-        flowchartNodes={flowchartNodes}
-        flowchartBlanks={flowchartBlanks}
-        writingTitle={writingTitle}
-        writingCondition={writingCondition}
-        writingPrompt={writingPrompt}
-        writingImageUrl={writingImageUrl}
-        writingMinWords={writingMinWords}
-        speakingQuestion={speakingQuestion}
-        cueCardTopic={cueCardTopic}
-        cueCardPoints={cueCardPoints}
-        audioUrl={audioUrl}
-        tableInputMode={tableInputMode}
-        fillBlankDragAllowDuplicate={fillBlankDragAllowDuplicate}
-        fillBlankItems={fillBlankItems}
-        fillBlankInputStyle={fillBlankInputStyle}
+        previewData={selectedFormat ? tabToPreviewData({
+          format: selectedFormat,
+          mcqQuestion, mcqOptions, mcqIsMultiple, mcqMaxSelections,
+          tfngStatement,
+          matchingTitle, matchingAllowDuplicate, matchingOptions,
+          contentTitle, contentHtml, blanks, wordBank,
+          fillBlankDragAllowDuplicate, fillBlankItems, fillBlankInputStyle,
+          tableInputMode,
+          flowchartTitle, flowchartNodes,
+          writingTitle, writingCondition, writingPrompt, writingImageUrl, writingMinWords,
+          speakingQuestion, cueCardTopic, cueCardPoints, cueCardImageUrl: "",
+          speakingCategory: "", relatedPart2Id: "", depthLevel: 1,
+          targetBandMin: "", targetBandMax: "",
+          audioUrl,
+          mapLabelingTitle, mapLabelingPassage,
+          mapLabelingImageUrl,
+          mapLabelingLabels,
+          mapLabelingItems,
+          instructions,
+        }, selectedQuestionType || "") : null}
       />
     </div>
   );
@@ -3508,6 +3505,10 @@ interface MapLabelingItem {
 }
 
 function MapLabelingEditor({
+  title,
+  setTitle,
+  passage,
+  setPassage,
   imageUrl,
   setImageUrl,
   labels,
@@ -3516,6 +3517,10 @@ function MapLabelingEditor({
   setItems,
   questionCode,
 }: {
+  title: string;
+  setTitle: (v: string) => void;
+  passage: string;
+  setPassage: (v: string) => void;
   imageUrl: string;
   setImageUrl: (v: string) => void;
   labels: string[];
@@ -3555,8 +3560,29 @@ function MapLabelingEditor({
   };
 
   return (
-    <div className="grid grid-cols-2 gap-4">
-      {/* 왼쪽: 이미지 */}
+    <div className="space-y-4">
+      {/* 제목 + 지문 */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <RequiredLabel>제목</RequiredLabel>
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="예: Map of Shopping Centre"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>지문 (선택)</Label>
+          <Textarea
+            value={passage}
+            onChange={(e) => setPassage(e.target.value)}
+            placeholder="지도에 대한 설명 텍스트 (선택사항)"
+            className="min-h-[60px]"
+          />
+        </div>
+      </div>
+
+      {/* 이미지 */}
       <div className="space-y-3">
         <RequiredLabel required>지도/이미지</RequiredLabel>
         <p className="text-xs text-muted-foreground">
@@ -3571,7 +3597,7 @@ function MapLabelingEditor({
         />
       </div>
 
-      {/* 오른쪽: 라벨 설정 + 테이블 */}
+      {/* 라벨 설정 + 테이블 */}
       <div className="space-y-3">
         {/* 라벨 개수 설정 */}
         <div className="flex items-center gap-3">
@@ -3598,10 +3624,9 @@ function MapLabelingEditor({
           <table className="w-full text-sm">
             <thead className="bg-slate-100">
               <tr>
-                <th className="px-2 py-2 text-left font-medium w-8">#</th>
                 <th className="px-2 py-2 text-left font-medium">건물/장소명</th>
                 {labels.map((label) => (
-                  <th key={label} className="px-1 py-2 text-center font-medium w-8">{label}</th>
+                  <th key={label} className="px-1 py-2 text-center font-medium w-12">{label}</th>
                 ))}
                 <th className="w-8"></th>
               </tr>
@@ -3609,21 +3634,23 @@ function MapLabelingEditor({
             <tbody>
               {items.map((item) => (
                 <tr key={item.id} className="border-t">
-                  <td className="px-2 py-1.5 font-bold text-muted-foreground">{item.number}</td>
-                  <td className="px-1 py-1">
-                    <Input
-                      className="h-8 text-sm"
-                      value={item.statement}
-                      onChange={(e) => updateItem(item.id, "statement", e.target.value)}
-                      placeholder="예: Quilt Shop"
-                    />
+                  <td className="px-2 py-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-muted-foreground shrink-0 w-5 text-right">{item.number}</span>
+                      <Input
+                        className="h-8 text-sm min-w-[200px]"
+                        value={item.statement}
+                        onChange={(e) => updateItem(item.id, "statement", e.target.value)}
+                        placeholder="예: Quilt Shop"
+                      />
+                    </div>
                   </td>
                   {labels.map((label) => (
                     <td key={label} className="px-1 py-1.5 text-center">
                       <button
                         type="button"
                         className={cn(
-                          "w-6 h-6 rounded border-2 flex items-center justify-center transition-colors mx-auto",
+                          "w-9 h-9 rounded border-2 flex items-center justify-center transition-colors mx-auto",
                           item.correctLabel === label
                             ? "border-green-500 bg-green-500 text-white"
                             : "border-gray-300 hover:border-gray-400"
@@ -3658,276 +3685,19 @@ function MapLabelingEditor({
 }
 
 // =============================================================================
-// 빈칸채우기 (드래그앤드랍) 미리보기 컴포넌트
-// =============================================================================
-function FillBlankDragPreview({
-  title, content, blanks, wordBank, allowDuplicate = false, items = [], inputStyle = "editor",
-}: {
-  title: string; content: string; blanks: Blank[]; wordBank: string[]; allowDuplicate?: boolean;
-  items?: string[]; inputStyle?: "editor" | "items";
-}) {
-  const [placedWords, setPlacedWords] = useState<Record<number, string>>({});
-  const [draggedWord, setDraggedWord] = useState<string | null>(null);
-  const availableWords = allowDuplicate
-    ? wordBank.filter(w => w)
-    : wordBank.filter(w => w && !Object.values(placedWords).includes(w));
-
-  const handleDrop = (num: number) => {
-    if (draggedWord) {
-      setPlacedWords(prev => ({ ...prev, [num]: draggedWord }));
-      setDraggedWord(null);
-    }
-  };
-
-  const renderItemContent = (text: string) => {
-    const parts = text.split(/\[(\d+)\]/g);
-    return parts.map((part, index) => {
-      if (index % 2 === 1) {
-        const num = parseInt(part);
-        const placed = placedWords[num];
-        return (
-          <span key={index} className="inline-flex items-center mx-0.5 align-middle">
-            <span
-              className={`inline-flex items-center justify-center min-w-[120px] h-8 border-2 rounded px-2 text-sm transition-colors ${placed ? "bg-green-50 border-green-400 text-green-800 cursor-pointer" : draggedWord ? "border-dashed border-primary bg-primary/5" : "border-slate-300 bg-white text-slate-400"}`}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => handleDrop(num)}
-              onDoubleClick={() => placed && setPlacedWords(prev => { const n = { ...prev }; delete n[num]; return n; })}
-              title={placed ? "더블클릭하여 제거" : ""}
-            >
-              {placed || num}
-            </span>
-          </span>
-        );
-      }
-      return <span key={index}>{part}</span>;
-    });
-  };
-
-  const renderContent = () => {
-    if (!content) return null;
-    const parts = content.split(/\[(\d+)\]/g);
-    return parts.map((part, index) => {
-      if (index % 2 === 1) {
-        const num = parseInt(part);
-        const placed = placedWords[num];
-        return (
-          <span key={index} className="inline-flex items-center mx-0.5 align-middle">
-            <span
-              className={`inline-flex items-center justify-center min-w-[120px] h-8 border-2 rounded px-2 text-sm transition-colors ${placed ? "bg-green-50 border-green-400 text-green-800 cursor-pointer" : draggedWord ? "border-dashed border-primary bg-primary/5" : "border-slate-300 bg-white text-slate-400"
-                }`}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => handleDrop(num)}
-              onDoubleClick={() => placed && setPlacedWords(prev => { const n = { ...prev }; delete n[num]; return n; })}
-              title={placed ? "더블클릭하여 제거" : ""}
-            >
-              {placed || num}
-            </span>
-          </span>
-        );
-      }
-      return <span key={index} dangerouslySetInnerHTML={{ __html: part }} />;
-    });
-  };
-
-  return (
-    <div className="bg-[#d6dfe8] rounded-lg p-8">
-      <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
-        {title && <h2 className="text-lg font-bold text-center">{title}</h2>}
-        {inputStyle === "items" ? (
-          <ul className="space-y-2 list-disc pl-5">
-            {items.filter(i => i.trim()).map((item, idx) => (
-              <li key={idx} className="leading-[2] text-sm">
-                {renderItemContent(item)}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="leading-[2] text-sm">{renderContent()}</div>
-        )}
-        <div className="pt-4 border-t mt-4">
-          <div className="flex flex-wrap gap-2">
-            {availableWords.map((word, i) => (
-              <span key={`${word}-${i}`} draggable
-                onDragStart={() => setDraggedWord(word)}
-                onDragEnd={() => setDraggedWord(null)}
-                className={`px-4 py-1.5 bg-white rounded border border-slate-300 cursor-grab hover:bg-slate-50 select-none text-sm ${draggedWord === word ? "opacity-50 scale-95" : ""
-                  }`}>
-                {word}
-              </span>
-            ))}
-            {availableWords.length === 0 && wordBank.length > 0 && (
-              <span className="text-sm text-muted-foreground">모든 단어가 사용되었습니다</span>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// =============================================================================
-// Writing 미리보기 컴포넌트
-// =============================================================================
-function WritingPreview({
-  title,
-  condition,
-  prompt,
-  imageUrl,
-  minWords,
-}: {
-  title: string;
-  condition: string;
-  prompt: string;
-  imageUrl: string;
-  minWords?: string;
-}) {
-  const [wordCount, setWordCount] = useState(0);
-  const [answerText, setAnswerText] = useState("");
-
-  const countWords = (text: string) => {
-    const words = text.trim().split(/\s+/).filter(w => w.length > 0);
-    return words.length;
-  };
-
-  const handleAnswerChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const text = e.target.value;
-    setAnswerText(text);
-    setWordCount(countWords(text));
-  };
-
-  const stripHtml = (html: string) => {
-    return html.replace(/<[^>]*>/g, "").trim();
-  };
-
-  return (
-    <div className="bg-white rounded-lg overflow-hidden border">
-      {/* 타이틀 */}
-      <div className="px-4 py-3 border-b bg-slate-50">
-        <h2 className="font-bold text-lg">{title || "Writing Task"}</h2>
-        {condition && (
-          <p className="text-sm text-muted-foreground mt-1">{condition}</p>
-        )}
-      </div>
-
-      {/* 메인 콘텐츠 */}
-      <div className="flex">
-        {/* 왼쪽: 지문 */}
-        <div className="flex-1 p-4 bg-[#d8dce8]">
-          {stripHtml(prompt) ? (
-            <div
-              className="text-sm prose prose-sm max-w-none [&_p]:my-2 [&_strong]:font-bold"
-              dangerouslySetInnerHTML={{ __html: prompt }}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">(지문을 입력하세요)</p>
-          )}
-
-          {imageUrl && (
-            <div className="mt-4 p-3 bg-white rounded border">
-              <img src={getCdnUrl(imageUrl)} alt="Task" className="max-w-full h-auto" />
-            </div>
-          )}
-        </div>
-
-        {/* 오른쪽: 답안 입력 영역 */}
-        <div className="w-[350px] p-4 flex flex-col bg-slate-100">
-          <textarea
-            value={answerText}
-            onChange={handleAnswerChange}
-            className="flex-1 w-full border border-blue-400 rounded p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            placeholder="답안을 입력하세요..."
-            style={{ minHeight: "400px" }}
-          />
-          <div className="flex items-center justify-between mt-2 text-sm">
-            <span>Word Count: {wordCount}</span>
-            {minWords && (
-              <span className={wordCount < parseInt(minWords) ? "text-red-500" : "text-green-600"}>
-                최소 {minWords}단어
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// =============================================================================
 // 미리보기 다이얼로그
 // =============================================================================
 function PreviewDialog({
-  open, onClose, questionType, format, instructions,
-  contentTitle, contentHtml, blanks, wordBank,
-  mcqQuestion, mcqOptions, mcqMaxSelections, mcqIsMultiple,
-  tfngStatement, tfngAnswer,
-  matchingTitle, matchingOptions, matchingItems, matchingAllowDuplicate,
-  flowchartTitle, flowchartNodes, flowchartBlanks,
-  writingTitle, writingCondition, writingPrompt, writingImageUrl, writingMinWords,
-  speakingQuestion, cueCardTopic, cueCardPoints, audioUrl,
-  tableInputMode, fillBlankDragAllowDuplicate, fillBlankItems, fillBlankInputStyle,
+  open,
+  onClose,
+  questionType,
+  previewData,
 }: {
   open: boolean;
   onClose: () => void;
   questionType: QuestionType | null;
-  format: QuestionFormat | null;
-  instructions: string;
-  contentTitle: string;
-  contentHtml: string;
-  blanks: Blank[];
-  wordBank: string[];
-  mcqQuestion: string;
-  mcqOptions: MCQOption[];
-  mcqMaxSelections: number;
-  mcqIsMultiple: boolean;
-  tfngStatement: string;
-  tfngAnswer: "true" | "false" | "not_given";
-  matchingTitle: string;
-  matchingOptions: MatchingOption[];
-  matchingItems: MatchingItem[];
-  matchingAllowDuplicate: boolean;
-  flowchartTitle: string;
-  flowchartNodes: FlowchartNode[];
-  flowchartBlanks: Blank[];
-  writingTitle: string;
-  writingCondition: string;
-  writingPrompt: string;
-  writingImageUrl: string;
-  writingMinWords: string;
-  speakingQuestion: string;
-  cueCardTopic: string;
-  cueCardPoints: string[];
-  audioUrl: string;
-  tableInputMode: "typing" | "drag";
-  fillBlankDragAllowDuplicate: boolean;
-  fillBlankItems: string[];
-  fillBlankInputStyle: "editor" | "items";
+  previewData: QuestionPreviewData | null;
 }) {
-  // [숫자] 형식을 빈칸 UI로 변환
-  const renderContent = (text: string, blankList: Blank[]) => {
-    if (!text) return null;
-
-    const parts = text.split(/\[(\d+)\]/g);
-    return parts.map((part, index) => {
-      if (index % 2 === 1) {
-        const num = parseInt(part);
-        return (
-          <span key={index} className="inline-flex items-center mx-1">
-            <span className="w-6 h-6 bg-primary text-white text-xs rounded-full flex items-center justify-center">
-              {num}
-            </span>
-            <span className="w-24 h-7 border-b-2 border-primary mx-1" />
-          </span>
-        );
-      }
-      return part.split('\n').map((line, i, arr) => (
-        <span key={`${index}-${i}`}>
-          {line}
-          {i < arr.length - 1 && <br />}
-        </span>
-      ));
-    });
-  };
-
   const typeInfo = questionType ? questionTypeInfo.find(t => t.id === questionType) : null;
 
   return (
@@ -3946,266 +3716,20 @@ function PreviewDialog({
 
         <div className="flex-1 overflow-y-auto">
           <div className="p-8 bg-slate-100 min-h-full">
-            {/* Audio — 자동재생 */}
-            {audioUrl && (
-              <audio src={getCdnUrl(audioUrl)} autoPlay />
+            {/* Audio */}
+            {previewData?.audioUrl && (
+              <audio src={previewData.audioUrl} autoPlay />
             )}
 
             {/* 지시문 */}
-            {instructions && (
+            {previewData?.instructions && (
               <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="font-medium text-blue-900">{instructions}</p>
+                <p className="font-medium text-blue-900">{previewData.instructions}</p>
               </div>
             )}
 
-            {/* 빈칸채우기 (직접입력) */}
-            {format === "fill_blank_typing" && (
-              <div className="bg-white rounded-lg border p-6 space-y-4">
-                {contentTitle && (
-                  <h2 className="text-lg font-bold border-b pb-3">{contentTitle}</h2>
-                )}
-                {fillBlankInputStyle === "items" ? (
-                  <ul className="space-y-2 list-disc pl-5">
-                    {fillBlankItems.filter(i => i.trim()).map((item, idx) => (
-                      <li key={idx} className="leading-relaxed">
-                        {renderContent(item, blanks)}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="leading-relaxed prose prose-sm max-w-none [&_p]:my-1 [&_strong]:font-bold">
-                    {renderContent(contentHtml, blanks)}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 빈칸채우기 (드래그앤드랍) */}
-            {format === "fill_blank_drag" && (
-              <FillBlankDragPreview
-                title={contentTitle}
-                content={contentHtml}
-                blanks={blanks}
-                wordBank={wordBank}
-                allowDuplicate={fillBlankDragAllowDuplicate}
-                items={fillBlankItems}
-                inputStyle={fillBlankInputStyle}
-              />
-            )}
-
-            {/* 테이블 완성하기 */}
-            {format === "table_completion" && (
-              <div className="bg-white rounded-lg border p-6 space-y-4">
-                {contentTitle && <h2 className="text-lg font-bold border-b pb-3">{contentTitle}</h2>}
-                <div
-                  className="leading-relaxed [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-slate-300 [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-slate-300 [&_th]:px-3 [&_th]:py-2 [&_th]:bg-slate-100 [&_th]:font-semibold"
-                  dangerouslySetInnerHTML={{
-                    __html: contentHtml.replace(
-                      /\[(\d+)\]/g,
-                      '<span style="display:inline-flex;align-items:center;gap:4px;"><span style="width:22px;height:22px;background:#6366f1;color:white;font-size:11px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;">$1</span><span style="display:inline-block;width:80px;height:28px;border-bottom:2px solid #6366f1;"></span></span>'
-                    )
-                  }}
-                />
-                {tableInputMode === "drag" && wordBank.length > 0 && (
-                  <div className="pt-4 border-t">
-                    <p className="text-sm font-medium mb-2">Word Bank</p>
-                    <div className="flex flex-wrap gap-2">
-                      {wordBank.map((word, i) => (
-                        <span key={`${word}-${i}`} className="px-4 py-1.5 bg-white rounded border border-slate-300 text-sm">
-                          {word}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* MCQ (통합: 단일/복수 선택) */}
-            {(format === "mcq" || format === "mcq_single" || format === "mcq_multiple") && (
-              <div className="bg-white rounded-lg border p-6 space-y-4">
-                <p className="text-lg">{mcqQuestion || "(문제 입력)"}</p>
-                {mcqIsMultiple && (
-                  <p className="text-sm text-blue-600">Choose {mcqMaxSelections} answers.</p>
-                )}
-                <div className="space-y-3 mt-4">
-                  {mcqOptions.map((option) => (
-                    <label key={option.id} className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-slate-50">
-                      <div className={`w-8 h-8 border-2 flex items-center justify-center ${mcqIsMultiple ? "rounded" : "rounded-full"}`}>
-                        {option.label}
-                      </div>
-                      <span>{option.text || `(선택지 ${option.label})`}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* T/F/NG */}
-            {format === "true_false_ng" && (
-              <div className="bg-white rounded-lg border p-6 space-y-4">
-                <div className="p-4 border rounded-lg">
-                  <p className="mb-4">{tfngStatement || "(진술문 입력)"}</p>
-                  <div className="flex gap-2">
-                    {["TRUE", "FALSE", "NOT GIVEN"].map((label) => (
-                      <span key={label} className="px-4 py-2 border rounded text-sm cursor-pointer hover:bg-slate-50">
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 제목 매칭 */}
-            {format === "matching" && (
-              <div className="grid grid-cols-[1fr_340px] gap-6">
-                {/* 왼쪽: 지문 */}
-                <div className="bg-white rounded-lg border p-6">
-                  {matchingTitle && <h2 className="text-lg font-bold mb-4">{matchingTitle}</h2>}
-                  <div
-                    className="prose prose-sm max-w-none [&_p]:my-1 [&_strong]:font-bold"
-                    dangerouslySetInnerHTML={{
-                      __html: contentHtml.replace(
-                        /\[(\d+)\]/g,
-                        '<div style="display:inline-block;border:2px solid #94a3b8;border-radius:4px;padding:2px 24px;margin:8px 0;font-weight:bold;text-align:center;min-width:80px;">$1</div>'
-                      )
-                    }}
-                  />
-                </div>
-                {/* 오른쪽: 제목 목록 */}
-                <div className="bg-white rounded-lg border p-4 h-fit">
-                  <h3 className="font-semibold mb-1">List of Headings</h3>
-                  <p className="text-xs text-muted-foreground mb-4">Choose the correct heading for each section.</p>
-                  {matchingAllowDuplicate && (
-                    <p className="text-xs text-blue-600 mb-3">* 같은 제목을 여러 번 사용할 수 있습니다</p>
-                  )}
-                  <div className="space-y-2">
-                    {matchingOptions.map((option) => (
-                      <div key={option.id} className="px-4 py-2.5 bg-slate-50 rounded-lg border cursor-grab hover:bg-slate-100">
-                        <span className="font-semibold">{option.text || `(제목 ${option.label} 입력)`}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 플로우차트 */}
-            {format === "flowchart" && (() => {
-              const rowMap = new Map<number, FlowchartNode[]>();
-              for (const n of flowchartNodes) {
-                const row = n.row ?? 0;
-                if (!rowMap.has(row)) rowMap.set(row, []);
-                rowMap.get(row)!.push(n);
-              }
-              for (const [, group] of rowMap) {
-                group.sort((a, b) => (a.col ?? 0) - (b.col ?? 0));
-              }
-              const sortedRows = [...rowMap.keys()].sort((a, b) => a - b);
-
-              return (
-                <div className="bg-white rounded-lg border p-6">
-                  {flowchartTitle && (
-                    <h2 className="text-lg font-bold text-center mb-6">{flowchartTitle}</h2>
-                  )}
-                  <div className="flex flex-col items-center">
-                    {sortedRows.map((row, rowIndex) => {
-                      const group = rowMap.get(row)!;
-                      const isBranch = group.length > 1 || group[0]?.type === "branch";
-
-                      return (
-                        <div key={row}>
-                          {/* Connector from previous row */}
-                          {rowIndex > 0 && (
-                            <div className="flex justify-center py-1">
-                              <div className="flex flex-col items-center">
-                                <div className="w-px h-3 bg-slate-400" />
-                                <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-transparent border-t-slate-400" />
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Branch split connector */}
-                          {isBranch && group.length > 1 && (
-                            <div className="flex justify-center mb-1">
-                              <div className="flex items-end" style={{ width: `${Math.min(group.length * 200, 600)}px` }}>
-                                {group.map((_, i) => (
-                                  <div key={i} className="flex-1 border-t-2 border-slate-400 h-0" />
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Node row */}
-                          {isBranch ? (
-                            <div className="flex justify-center gap-3">
-                              {group.map((node) => (
-                                <div key={node.id} className="p-4 rounded-lg border-2 border-blue-300 bg-blue-50 min-w-[160px] text-center">
-                                  {node.label && <div className="font-semibold text-blue-700 mb-1 text-xs">{node.label}</div>}
-                                  <div className="text-sm">{renderContent(node.content || "(내용 입력)", flowchartBlanks)}</div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="flex justify-center">
-                              <div className="p-4 rounded-lg border-2 border-slate-300 bg-slate-50 min-w-[200px] text-center">
-                                <div className="text-sm">{renderContent(group[0].content || "(내용 입력)", flowchartBlanks)}</div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Writing */}
-            {format === "essay" && (
-              <WritingPreview
-                title={writingTitle}
-                condition={writingCondition}
-                prompt={writingPrompt}
-                imageUrl={writingImageUrl}
-                minWords={writingMinWords}
-              />
-            )}
-
-            {/* Speaking Part 1 & 3 */}
-            {(format === "speaking_part1" || format === "speaking_part3") && (
-              <div className="bg-white rounded-lg border p-6">
-                <p className="text-xl font-medium">{speakingQuestion || "(질문 입력)"}</p>
-                <div className="mt-6 flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
-                    <Mic className="h-8 w-8 text-red-600" />
-                  </div>
-                  <p className="text-muted-foreground">녹음 버튼을 눌러 답변하세요</p>
-                </div>
-              </div>
-            )}
-
-            {/* Speaking Part 2 */}
-            {format === "speaking_part2" && (
-              <div className="bg-white rounded-lg border p-6">
-                <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-6 mb-6">
-                  <p className="text-lg font-medium mb-4">{cueCardTopic || "(주제 입력)"}</p>
-                  <p className="text-sm text-muted-foreground mb-2">You should say:</p>
-                  <ul className="list-disc list-inside text-sm space-y-1">
-                    {cueCardPoints.map((point, i) => (
-                      <li key={i}>{point || `(포인트 ${i + 1})`}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
-                    <Mic className="h-8 w-8 text-red-600" />
-                  </div>
-                  <p className="text-muted-foreground">1분간 준비 후 1~2분간 답변하세요</p>
-                </div>
-              </div>
-            )}
+            {/* Question content */}
+            {previewData && <QuestionPreview data={previewData} />}
           </div>
         </div>
       </DialogContent>

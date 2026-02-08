@@ -137,6 +137,9 @@ export async function POST(request: NextRequest) {
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       return apiError("Invalid date format for scheduled_start or scheduled_end", 400);
     }
+    if (start < new Date()) {
+      return apiError("시작일은 현재 시간 이후여야 합니다", 400);
+    }
     if (start >= end) {
       return apiError("scheduled_start must be before scheduled_end", 400);
     }

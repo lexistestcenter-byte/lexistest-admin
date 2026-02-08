@@ -779,10 +779,10 @@ export function SectionPreview({
                     <div
                       key={node.id}
                       className={cn(
-                        "p-3 border rounded text-sm text-center min-w-[140px] flex-1 max-w-[300px]",
+                        "p-3 border rounded text-sm text-center flex-1",
                         node.type === "branch"
-                          ? "bg-amber-50 border-amber-300"
-                          : "bg-white border-gray-300"
+                          ? "bg-amber-50 border-amber-300 min-w-[180px] max-w-[260px] min-h-[80px]"
+                          : "bg-white border-gray-300 min-w-[200px] max-w-[400px]"
                       )}
                     >
                       {node.label ? (

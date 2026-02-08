@@ -67,7 +67,9 @@ import {
   Part2Question,
 } from "@/components/questions/types";
 import { FlowchartEditor } from "@/components/questions/flowchart-editor";
+import { QuestionPreview, tabToPreviewData } from "@/components/questions/question-preview";
 import { FileUpload, uploadFile } from "@/components/ui/file-upload";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 
 // =============================================================================
 // question_type 별 정보
@@ -206,6 +208,8 @@ interface QuestionTab {
   audioFile: File | null;
 
   // Map Labeling
+  mapLabelingTitle: string;
+  mapLabelingPassage: string;
   mapLabelingImageUrl: string;
   mapLabelingImageFile: File | null;
 
@@ -289,6 +293,8 @@ const createDefaultTab = (): QuestionTab => ({
   audioTranscript: "",
   audioFile: null,
 
+  mapLabelingTitle: "",
+  mapLabelingPassage: "",
   mapLabelingImageUrl: "",
   mapLabelingImageFile: null,
   writingImageFile: null,
@@ -599,8 +605,14 @@ export default function NewQuestionPage() {
 
     // Writing 검증
     if (format === "essay") {
+      if (!tab.writingTitle.trim()) {
+        return { valid: false, message: `탭 ${index + 1}: 제목을 입력하세요.` };
+      }
+      if (!tab.writingMinWords.trim()) {
+        return { valid: false, message: `탭 ${index + 1}: 최소 단어 수를 입력하세요.` };
+      }
       if (!tab.writingPrompt.trim()) {
-        return { valid: false, message: `탭 ${index + 1}: 작문 프롬프트를 입력하세요.` };
+        return { valid: false, message: `탭 ${index + 1}: 작문 주제를 입력하세요.` };
       }
     }
 
@@ -805,8 +817,9 @@ export default function NewQuestionPage() {
         } else if (tab.format === "speaking_part3") {
           content = tab.speakingQuestion;
         } else if (tab.format === "map_labeling") {
-          content = "";
+          content = tab.mapLabelingPassage || " ";
           optionsData = {
+            title: tab.mapLabelingTitle || undefined,
             image_url: tab.mapLabelingImageUrl,
             labels: tab.mapLabelingLabels,
             items: tab.mapLabelingItems.map(i => ({
@@ -833,7 +846,9 @@ export default function NewQuestionPage() {
             ? tab.contentTitle
             : tab.format === "essay"
               ? tab.writingTitle
-              : undefined,
+              : tab.format === "map_labeling"
+                ? tab.mapLabelingTitle || undefined
+                : undefined,
           instructions: (tab.format !== "mcq" && tab.format !== "true_false_ng") ? tab.instructions || undefined : undefined,
           options_data: Object.keys(optionsData).length > 0 ? optionsData : undefined,
           answer_data: Object.keys(answerData).length > 0 ? answerData : undefined,
@@ -1465,6 +1480,10 @@ export default function NewQuestionPage() {
             {/* Map Labeling */}
             {currentTab.format === "map_labeling" && (
               <MapLabelingEditor
+                title={currentTab.mapLabelingTitle}
+                setTitle={(v) => updateCurrentTab("mapLabelingTitle", v)}
+                passage={currentTab.mapLabelingPassage}
+                setPassage={(v) => updateCurrentTab("mapLabelingPassage", v)}
                 imageUrl={currentTab.mapLabelingImageUrl}
                 setImageUrl={(v) => updateCurrentTab("mapLabelingImageUrl", v)}
                 onImageFileReady={(file) => updateCurrentTab("mapLabelingImageFile", file)}
@@ -3152,7 +3171,7 @@ function WritingEditor({
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>제목 (선택)</Label>
+          <Label>제목 *</Label>
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -3161,7 +3180,7 @@ function WritingEditor({
         </div>
 
         <div className="space-y-2">
-          <Label>최소 단어 수 (선택)</Label>
+          <Label>최소 단어 수 *</Label>
           <Input
             type="text"
             inputMode="numeric"
@@ -3191,12 +3210,15 @@ function WritingEditor({
       </div>
 
       <div className="space-y-2">
-        <Label>프롬프트 *</Label>
-        <Textarea
+        <div className="flex items-center justify-between">
+          <Label>작문 주제 *</Label>
+          <p className="text-xs text-muted-foreground">Ctrl+B: 굵게</p>
+        </div>
+        <RichTextEditor
           value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          onChange={setPrompt}
           placeholder="작문 주제를 입력하세요"
-          rows={5}
+          minHeight="200px"
         />
       </div>
 
@@ -3556,6 +3578,10 @@ interface MapLabelingItem {
 }
 
 function MapLabelingEditor({
+  title,
+  setTitle,
+  passage,
+  setPassage,
   imageUrl,
   setImageUrl,
   onImageFileReady,
@@ -3564,6 +3590,10 @@ function MapLabelingEditor({
   items,
   setItems,
 }: {
+  title: string;
+  setTitle: (v: string) => void;
+  passage: string;
+  setPassage: (v: string) => void;
   imageUrl: string;
   setImageUrl: (v: string) => void;
   onImageFileReady?: (file: File | null) => void;
@@ -3603,8 +3633,29 @@ function MapLabelingEditor({
   };
 
   return (
-    <div className="grid grid-cols-2 gap-4">
-      {/* 왼쪽: 이미지 */}
+    <div className="space-y-4">
+      {/* 제목 + 지문 */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <RequiredLabel>제목</RequiredLabel>
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="예: Map of Shopping Centre"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>지문 (선택)</Label>
+          <Textarea
+            value={passage}
+            onChange={(e) => setPassage(e.target.value)}
+            placeholder="지도에 대한 설명 텍스트 (선택사항)"
+            className="min-h-[60px]"
+          />
+        </div>
+      </div>
+
+      {/* 이미지 */}
       <div className="space-y-3">
         <RequiredLabel required>지도/이미지</RequiredLabel>
         <p className="text-xs text-muted-foreground">
@@ -3620,7 +3671,7 @@ function MapLabelingEditor({
         />
       </div>
 
-      {/* 오른쪽: 라벨 설정 + 테이블 */}
+      {/* 라벨 설정 + 테이블 */}
       <div className="space-y-3">
         {/* 라벨 개수 설정 */}
         <div className="flex items-center gap-3">
@@ -3647,10 +3698,9 @@ function MapLabelingEditor({
           <table className="w-full text-sm">
             <thead className="bg-slate-100">
               <tr>
-                <th className="px-2 py-2 text-left font-medium w-8">#</th>
                 <th className="px-2 py-2 text-left font-medium">건물/장소명</th>
                 {labels.map((label) => (
-                  <th key={label} className="px-1 py-2 text-center font-medium w-8">{label}</th>
+                  <th key={label} className="px-1 py-2 text-center font-medium w-12">{label}</th>
                 ))}
                 <th className="w-8"></th>
               </tr>
@@ -3658,21 +3708,23 @@ function MapLabelingEditor({
             <tbody>
               {items.map((item) => (
                 <tr key={item.id} className="border-t">
-                  <td className="px-2 py-1.5 font-bold text-muted-foreground">{item.number}</td>
-                  <td className="px-1 py-1">
-                    <Input
-                      className="h-8 text-sm"
-                      value={item.statement}
-                      onChange={(e) => updateItem(item.id, "statement", e.target.value)}
-                      placeholder="예: Quilt Shop"
-                    />
+                  <td className="px-2 py-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-muted-foreground shrink-0 w-5 text-right">{item.number}</span>
+                      <Input
+                        className="h-8 text-sm min-w-[200px]"
+                        value={item.statement}
+                        onChange={(e) => updateItem(item.id, "statement", e.target.value)}
+                        placeholder="예: Quilt Shop"
+                      />
+                    </div>
                   </td>
                   {labels.map((label) => (
                     <td key={label} className="px-1 py-1.5 text-center">
                       <button
                         type="button"
                         className={cn(
-                          "w-6 h-6 rounded border-2 flex items-center justify-center transition-colors mx-auto",
+                          "w-9 h-9 rounded border-2 flex items-center justify-center transition-colors mx-auto",
                           item.correctLabel === label
                             ? "border-green-500 bg-green-500 text-white"
                             : "border-gray-300 hover:border-gray-400"
@@ -3707,114 +3759,6 @@ function MapLabelingEditor({
 }
 
 // =============================================================================
-// 빈칸채우기 드래그앤드랍 미리보기 (시험 환경 시뮬레이션)
-// =============================================================================
-function FillBlankDragPreview({
-  title, content, blanks, wordBank, allowDuplicate = false, items = [], inputStyle = "editor",
-}: {
-  title: string; content: string; blanks: Blank[]; wordBank: string[]; allowDuplicate?: boolean;
-  items?: string[]; inputStyle?: "editor" | "items";
-}) {
-  const [placedWords, setPlacedWords] = useState<Record<number, string>>({});
-  const [draggedWord, setDraggedWord] = useState<string | null>(null);
-  const availableWords = allowDuplicate
-    ? wordBank.filter(w => w)
-    : wordBank.filter(w => w && !Object.values(placedWords).includes(w));
-
-  const handleDrop = (num: number) => {
-    if (draggedWord) {
-      setPlacedWords(prev => ({ ...prev, [num]: draggedWord }));
-      setDraggedWord(null);
-    }
-  };
-
-  const renderItemContent = (text: string) => {
-    const parts = text.split(/\[(\d+)\]/g);
-    return parts.map((part, index) => {
-      if (index % 2 === 1) {
-        const num = parseInt(part);
-        const placed = placedWords[num];
-        return (
-          <span key={index} className="inline-flex items-center mx-0.5 align-middle">
-            <span
-              className={`inline-flex items-center justify-center min-w-[120px] h-8 border-2 rounded px-2 text-sm transition-colors ${placed ? "bg-green-50 border-green-400 text-green-800 cursor-pointer" : draggedWord ? "border-dashed border-primary bg-primary/5" : "border-slate-300 bg-white text-slate-400"}`}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => handleDrop(num)}
-              onDoubleClick={() => placed && setPlacedWords(prev => { const n = { ...prev }; delete n[num]; return n; })}
-              title={placed ? "더블클릭하여 제거" : ""}
-            >
-              {placed || num}
-            </span>
-          </span>
-        );
-      }
-      return <span key={index}>{part}</span>;
-    });
-  };
-
-  const renderContent = () => {
-    if (!content) return null;
-    const parts = content.split(/\[(\d+)\]/g);
-    return parts.map((part, index) => {
-      if (index % 2 === 1) {
-        const num = parseInt(part);
-        const placed = placedWords[num];
-        return (
-          <span key={index} className="inline-flex items-center mx-0.5 align-middle">
-            <span
-              className={`inline-flex items-center justify-center min-w-[120px] h-8 border-2 rounded px-2 text-sm transition-colors ${placed ? "bg-green-50 border-green-400 text-green-800 cursor-pointer" : draggedWord ? "border-dashed border-primary bg-primary/5" : "border-slate-300 bg-white text-slate-400"
-                }`}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => handleDrop(num)}
-              onDoubleClick={() => placed && setPlacedWords(prev => { const n = { ...prev }; delete n[num]; return n; })}
-              title={placed ? "더블클릭하여 제거" : ""}
-            >
-              {placed || num}
-            </span>
-          </span>
-        );
-      }
-      return <span key={index} dangerouslySetInnerHTML={{ __html: part }} />;
-    });
-  };
-
-  return (
-    <div className="bg-[#d6dfe8] rounded-lg p-8">
-      <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
-        {title && <h2 className="text-lg font-bold text-center">{title}</h2>}
-        {inputStyle === "items" ? (
-          <ul className="space-y-2 list-disc pl-5">
-            {items.filter(i => i.trim()).map((item, idx) => (
-              <li key={idx} className="leading-[2] text-sm">
-                {renderItemContent(item)}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="leading-[2] text-sm">{renderContent()}</div>
-        )}
-        <div className="pt-4 border-t mt-4">
-          <div className="flex flex-wrap gap-2">
-            {availableWords.map((word, i) => (
-              <span key={`${word}-${i}`} draggable
-                onDragStart={() => setDraggedWord(word)}
-                onDragEnd={() => setDraggedWord(null)}
-                className={`px-4 py-1.5 bg-white rounded border border-slate-300 cursor-grab hover:bg-slate-50 select-none text-sm ${draggedWord === word ? "opacity-50 scale-95" : ""
-                  }`}>
-                {word}
-              </span>
-            ))}
-            {availableWords.length === 0 && wordBank.length > 0 && (
-              <span className="text-sm text-muted-foreground">모든 단어가 사용되었습니다</span>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// =============================================================================
 // 미리보기 다이얼로그
 // =============================================================================
 function PreviewDialog({
@@ -3828,31 +3772,8 @@ function PreviewDialog({
   questionType: QuestionType | null;
   tab: QuestionTab;
 }) {
-  const renderContent = (text: string) => {
-    if (!text) return null;
-    const parts = text.split(/\[(\d+)\]/g);
-    return parts.map((part, index) => {
-      if (index % 2 === 1) {
-        const num = parseInt(part);
-        return (
-          <span key={index} className="inline-flex items-center mx-1">
-            <span className="w-6 h-6 bg-primary text-white text-xs rounded-full flex items-center justify-center">
-              {num}
-            </span>
-            <span className="w-24 h-7 border-b-2 border-primary mx-1" />
-          </span>
-        );
-      }
-      return part.split('\n').map((line, i, arr) => (
-        <span key={`${index}-${i}`}>
-          {line}
-          {i < arr.length - 1 && <br />}
-        </span>
-      ));
-    });
-  };
-
   const typeInfo = questionType ? questionTypeInfo.find(t => t.id === questionType) : null;
+  const previewData = tab.format ? tabToPreviewData(tab, questionType || "") : null;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -3870,7 +3791,7 @@ function PreviewDialog({
 
         <div className="flex-1 overflow-y-auto">
           <div className="p-8 bg-slate-100 min-h-full">
-            {/* Audio — 자동재생 */}
+            {/* Audio */}
             {tab.audioUrl && (
               <audio src={tab.audioUrl} autoPlay />
             )}
@@ -3882,281 +3803,8 @@ function PreviewDialog({
               </div>
             )}
 
-            {/* MCQ */}
-            {tab.format === "mcq" && (
-              <div className="bg-white rounded-lg border p-6 space-y-4">
-                <p className="text-lg">{tab.mcqQuestion || "(문제 입력)"}</p>
-                {tab.mcqIsMultiple && (
-                  <p className="text-sm text-blue-600">Choose {tab.mcqMaxSelections} answers.</p>
-                )}
-                <div className="space-y-3 mt-4">
-                  {tab.mcqOptions.map((option) => (
-                    <label key={option.id} className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-slate-50">
-                      <div className={`w-8 h-8 ${tab.mcqIsMultiple ? "rounded" : "rounded-full"} border-2 flex items-center justify-center`}>
-                        {option.label}
-                      </div>
-                      <span>{option.text || `(선택지 ${option.label})`}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* T/F/NG */}
-            {tab.format === "true_false_ng" && (
-              <div className="bg-white rounded-lg border p-6 space-y-4">
-                <div className="p-4 border rounded-lg">
-                  <p className="mb-4">{tab.tfngStatement || "(진술문 입력)"}</p>
-                  <div className="flex gap-2">
-                    {["TRUE", "FALSE", "NOT GIVEN"].map((label) => (
-                      <span key={label} className="px-4 py-2 border rounded text-sm cursor-pointer hover:bg-slate-50">
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 제목 매칭 */}
-            {tab.format === "matching" && (
-              <div className="grid grid-cols-[1fr_340px] gap-6">
-                {/* 왼쪽: 지문 */}
-                <div className="bg-white rounded-lg border p-6">
-                  {tab.matchingTitle && <h2 className="text-lg font-bold mb-4">{tab.matchingTitle}</h2>}
-                  <div
-                    className="prose prose-sm max-w-none [&_p]:my-1 [&_strong]:font-bold"
-                    dangerouslySetInnerHTML={{
-                      __html: tab.contentHtml.replace(
-                        /\[(\d+)\]/g,
-                        '<div style="display:inline-block;border:2px solid #94a3b8;border-radius:4px;padding:2px 24px;margin:8px 0;font-weight:bold;text-align:center;min-width:80px;">$1</div>'
-                      )
-                    }}
-                  />
-                </div>
-                {/* 오른쪽: 제목 목록 */}
-                <div className="bg-white rounded-lg border p-4 h-fit">
-                  <h3 className="font-semibold mb-1">List of Headings</h3>
-                  <p className="text-xs text-muted-foreground mb-4">Choose the correct heading for each section.</p>
-                  {tab.matchingAllowDuplicate && (
-                    <p className="text-xs text-blue-600 mb-3">* 같은 제목을 여러 번 사용할 수 있습니다</p>
-                  )}
-                  <div className="space-y-2">
-                    {tab.matchingOptions.map((option) => (
-                      <div key={option.id} className="px-4 py-2.5 bg-slate-50 rounded-lg border cursor-grab hover:bg-slate-100">
-                        <span className="font-semibold">{option.text || `(제목 ${option.label} 입력)`}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 빈칸채우기 (직접입력) */}
-            {tab.format === "fill_blank_typing" && (
-              <div className="bg-white rounded-lg border p-6 space-y-4">
-                {tab.contentTitle && <h2 className="text-lg font-bold border-b pb-3">{tab.contentTitle}</h2>}
-                {tab.fillBlankInputStyle === "items" ? (
-                  <ul className="space-y-2 list-disc pl-5">
-                    {tab.fillBlankItems.filter(i => i.trim()).map((item, idx) => (
-                      <li key={idx} className="leading-relaxed">
-                        {renderContent(item)}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="leading-relaxed prose prose-sm max-w-none [&_p]:my-1 [&_strong]:font-bold">
-                    {renderContent(tab.contentHtml)}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 빈칸채우기 (드래그앤드랍) */}
-            {tab.format === "fill_blank_drag" && (
-              <FillBlankDragPreview
-                title={tab.contentTitle}
-                content={tab.contentHtml}
-                blanks={tab.blanks}
-                wordBank={tab.wordBank}
-                allowDuplicate={tab.fillBlankDragAllowDuplicate}
-                items={tab.fillBlankItems}
-                inputStyle={tab.fillBlankInputStyle}
-              />
-            )}
-
-            {/* 테이블 완성하기 */}
-            {tab.format === "table_completion" && (
-              <div className="bg-white rounded-lg border p-6 space-y-4">
-                {tab.contentTitle && <h2 className="text-lg font-bold border-b pb-3">{tab.contentTitle}</h2>}
-                <div
-                  className="leading-relaxed [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-slate-300 [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-slate-300 [&_th]:px-3 [&_th]:py-2 [&_th]:bg-slate-100 [&_th]:font-semibold"
-                  dangerouslySetInnerHTML={{
-                    __html: tab.contentHtml.replace(
-                      /\[(\d+)\]/g,
-                      '<span style="display:inline-flex;align-items:center;gap:4px;"><span style="width:22px;height:22px;background:#6366f1;color:white;font-size:11px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;">$1</span><span style="display:inline-block;width:80px;height:28px;border-bottom:2px solid #6366f1;"></span></span>'
-                    )
-                  }}
-                />
-                {tab.tableInputMode === "drag" && tab.wordBank.length > 0 && (
-                  <div className="pt-4 border-t">
-                    <p className="text-sm font-medium mb-2">Word Bank</p>
-                    <div className="flex flex-wrap gap-2">
-                      {tab.wordBank.map((word, i) => (
-                        <span key={`${word}-${i}`} className="px-4 py-1.5 bg-white rounded border border-slate-300 text-sm">
-                          {word}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 플로우차트 */}
-            {tab.format === "flowchart" && (() => {
-              const rowMap = new Map<number, typeof tab.flowchartNodes>();
-              for (const n of tab.flowchartNodes) {
-                const row = n.row ?? 0;
-                if (!rowMap.has(row)) rowMap.set(row, []);
-                rowMap.get(row)!.push(n);
-              }
-              for (const [, group] of rowMap) {
-                group.sort((a, b) => (a.col ?? 0) - (b.col ?? 0));
-              }
-              const sortedRows = [...rowMap.keys()].sort((a, b) => a - b);
-
-              return (
-                <div className="bg-white rounded-lg border p-6">
-                  {tab.flowchartTitle && <h2 className="text-lg font-bold text-center mb-6">{tab.flowchartTitle}</h2>}
-                  <div className="flex flex-col items-center">
-                    {sortedRows.map((row, rowIndex) => {
-                      const group = rowMap.get(row)!;
-                      const isBranch = group.length > 1 || group[0]?.type === "branch";
-
-                      return (
-                        <div key={row}>
-                          {/* Connector from previous row */}
-                          {rowIndex > 0 && (
-                            <div className="flex justify-center py-1">
-                              <div className="flex flex-col items-center">
-                                <div className="w-px h-3 bg-slate-400" />
-                                <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-transparent border-t-slate-400" />
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Branch split connector */}
-                          {isBranch && group.length > 1 && (
-                            <div className="flex justify-center mb-1">
-                              <div className="flex items-end" style={{ width: `${Math.min(group.length * 200, 600)}px` }}>
-                                {group.map((_, i) => (
-                                  <div key={i} className="flex-1 border-t-2 border-slate-400 h-0" />
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Node row */}
-                          {isBranch ? (
-                            <div className="flex justify-center gap-3">
-                              {group.map((node) => (
-                                <div key={node.id} className="p-4 rounded-lg border-2 border-blue-300 bg-blue-50 min-w-[160px] text-center">
-                                  {node.label && <div className="font-semibold text-blue-700 mb-1 text-xs">{node.label}</div>}
-                                  <div className="text-sm">{renderContent(node.content || "(내용 입력)")}</div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="flex justify-center">
-                              <div className="p-4 rounded-lg border-2 border-slate-300 bg-slate-50 min-w-[200px] text-center">
-                                <div className="text-sm">{renderContent(group[0].content || "(내용 입력)")}</div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Writing */}
-            {tab.format === "essay" && (
-              <div className="bg-white rounded-lg overflow-hidden border">
-                {/* 타이틀 바 */}
-                <div className="px-4 py-3 border-b bg-slate-50">
-                  <h2 className="font-bold text-lg">{tab.writingTitle || "Writing Task"}</h2>
-                  {tab.writingCondition && (
-                    <p className="text-sm text-muted-foreground mt-1">{tab.writingCondition}</p>
-                  )}
-                </div>
-                {/* 메인 */}
-                <div className="flex">
-                  {/* 좌: 지문 + 이미지 */}
-                  <div className="flex-1 p-4 bg-[#d8dce8]">
-                    <p className="whitespace-pre-wrap text-sm">{tab.writingPrompt || "(프롬프트 입력)"}</p>
-                    {tab.writingImageUrl && (
-                      <div className="mt-4 p-3 bg-white rounded border">
-                        <img src={tab.writingImageUrl} alt="Task" className="max-w-full h-auto rounded" />
-                      </div>
-                    )}
-                  </div>
-                  {/* 우: 답안 영역 */}
-                  <div className="w-[300px] p-4 flex flex-col bg-slate-100">
-                    <textarea
-                      rows={12}
-                      placeholder="답안을 입력하세요..."
-                      className="flex-1 w-full border border-blue-400 rounded p-3 text-sm resize-none bg-white"
-                      disabled
-                    />
-                    <div className="flex items-center justify-between mt-2 text-sm">
-                      <span>Word Count: 0</span>
-                      {tab.writingMinWords && (
-                        <span className="text-muted-foreground">최소 {tab.writingMinWords}단어</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Speaking */}
-            {(tab.format === "speaking_part1" || tab.format === "speaking_part3") && (
-              <div className="bg-white rounded-lg border p-6">
-                <p className="text-xl font-medium">{tab.speakingQuestion || "(질문 입력)"}</p>
-                <div className="mt-6 flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
-                    <Mic className="h-8 w-8 text-red-600" />
-                  </div>
-                  <p className="text-muted-foreground">녹음 버튼을 눌러 답변하세요</p>
-                </div>
-              </div>
-            )}
-
-            {tab.format === "speaking_part2" && (
-              <div className="bg-white rounded-lg border p-6">
-                <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-6 mb-6">
-                  <p className="text-lg font-medium mb-4">{tab.cueCardTopic || "(주제 입력)"}</p>
-                  <p className="text-sm text-muted-foreground mb-2">You should say:</p>
-                  <ul className="list-disc list-inside text-sm space-y-1">
-                    {tab.cueCardPoints.map((point, i) => (
-                      <li key={i}>{point || `(포인트 ${i + 1})`}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
-                    <Mic className="h-8 w-8 text-red-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium">1분간 준비 후 답변하세요</p>
-                    <p className="text-sm text-muted-foreground">1~2분간 발표합니다</p>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Question content */}
+            {previewData && <QuestionPreview data={previewData} />}
           </div>
         </div>
       </DialogContent>

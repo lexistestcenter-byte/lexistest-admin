@@ -33,7 +33,7 @@ async function request<T>(
       return { error: json.error || "Request failed" };
     }
 
-    return { data: json.data };
+    return { data: json.data ?? json };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Network error" };
   }

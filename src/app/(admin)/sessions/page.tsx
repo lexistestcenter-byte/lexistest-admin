@@ -262,7 +262,7 @@ export default function SessionsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="시험 목록"
+        title="성적 관리"
         description="학생들의 시험 응시 내역을 조회하고 채점합니다."
         actions={
           <Button
@@ -289,11 +289,10 @@ export default function SessionsPage() {
                   {tab.label}
                   <Badge
                     variant="secondary"
-                    className={`ml-1 h-5 min-w-[20px] px-1.5 text-[10px] ${
-                      isNotScored && count > 0
+                    className={`ml-1 h-5 min-w-[20px] px-1.5 text-[10px] ${isNotScored && count > 0
                         ? "bg-yellow-200 text-yellow-800"
                         : ""
-                    }`}
+                      }`}
                   >
                     {count}
                   </Badge>

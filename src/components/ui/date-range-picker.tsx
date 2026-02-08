@@ -7,6 +7,7 @@ import {
   endOfMonth,
   startOfWeek,
   endOfWeek,
+  startOfDay,
   addMonths,
   subMonths,
   isSameDay,
@@ -76,6 +77,9 @@ export function DateRangePicker({
   }, [currentMonth]);
 
   const handleDayClick = (day: Date) => {
+    // Ignore past dates
+    if (isBefore(day, startOfDay(today))) return;
+
     if (!value.from || (value.from && value.to)) {
       // First click or resetting
       onChange({ from: day, to: null });
@@ -214,35 +218,42 @@ export function DateRangePicker({
                 getDayState(day);
               const dayIsToday = isToday(day);
               const dayOfWeek = day.getDay();
+              const isPast = isBefore(day, startOfDay(today));
 
               return (
                 <button
                   key={day.toISOString()}
                   type="button"
+                  disabled={isPast}
                   onClick={() => handleDayClick(day)}
                   onMouseEnter={() => setHoverDate(day)}
                   onMouseLeave={() => setHoverDate(null)}
                   className={cn(
                     "h-8 w-full relative flex items-center justify-center text-xs transition-colors",
+                    // Past date styling
+                    isPast && "opacity-30 cursor-not-allowed pointer-events-none",
                     // Base text color
-                    !inCurrentMonth && "text-muted-foreground/40",
-                    inCurrentMonth && dayOfWeek === 0 && "text-red-500",
-                    inCurrentMonth && dayOfWeek === 6 && "text-blue-500",
+                    !isPast && !inCurrentMonth && "text-muted-foreground/40",
+                    !isPast && inCurrentMonth && dayOfWeek === 0 && "text-red-500",
+                    !isPast && inCurrentMonth && dayOfWeek === 6 && "text-blue-500",
                     // Range background
-                    (inRange || inPreview) &&
+                    !isPast &&
+                      (inRange || inPreview) &&
                       !isStart &&
                       !isEnd &&
                       "bg-accent",
                     // Preview (hover) styling
-                    inPreview && !isStart && !isEnd && "bg-accent/60",
+                    !isPast && inPreview && !isStart && !isEnd && "bg-accent/60",
                     // Start & End: primary pill
-                    (isStart || isEnd) &&
+                    !isPast &&
+                      (isStart || isEnd) &&
                       "bg-primary text-primary-foreground font-semibold rounded-md z-10",
                     // Range connectors (no rounding on inner edges)
-                    inRange && isStart && value.to && !isSameDay(value.from!, value.to!) && "rounded-r-none",
-                    inRange && isEnd && value.from && !isSameDay(value.from!, value.to!) && "rounded-l-none",
+                    !isPast && inRange && isStart && value.to && !isSameDay(value.from!, value.to!) && "rounded-r-none",
+                    !isPast && inRange && isEnd && value.from && !isSameDay(value.from!, value.to!) && "rounded-l-none",
                     // Hover when not selected
-                    !isStart &&
+                    !isPast &&
+                      !isStart &&
                       !isEnd &&
                       inCurrentMonth &&
                       "hover:bg-accent/80 rounded-md"

@@ -156,7 +156,10 @@ export function validateQuestionInput(body: Record<string, unknown>): Validation
   }
 
   if (!body.content || (body.content as string).trim() === "") {
-    errors.push("문제 내용(content)은 필수입니다");
+    // map_labeling은 이미지 기반이므로 content 없어도 허용
+    if (body.question_format !== "map_labeling") {
+      errors.push("문제 내용(content)은 필수입니다");
+    }
   }
 
   // URL 검증

@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     // context 검증 (Path Traversal 방어)
-    if (context && !/^[a-zA-Z0-9_-]+$/.test(context)) {
+    if (context && (context.includes('..') || !/^[a-zA-Z0-9_\-\/]+$/.test(context))) {
       return NextResponse.json({ error: "유효하지 않은 context입니다." }, { status: 400 });
     }
 

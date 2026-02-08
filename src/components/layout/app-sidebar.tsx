@@ -87,6 +87,12 @@ const navigationGroups: NavGroup[] = [
         icon: Package,
         permission: "packages",
       },
+      {
+        title: "패키지 할당",
+        href: "/assignments",
+        icon: ClipboardCheck,
+        permission: "coupons",
+      },
     ],
   },
   {
@@ -116,12 +122,6 @@ const navigationGroups: NavGroup[] = [
     title: "Access & Coupons",
     items: [
       {
-        title: "패키지 할당",
-        href: "/assignments",
-        icon: ClipboardCheck,
-        permission: "coupons",
-      },
-      {
         title: "쿠폰 관리",
         href: "/coupons",
         icon: Ticket,
@@ -133,7 +133,7 @@ const navigationGroups: NavGroup[] = [
     title: "Test & Scoring",
     items: [
       {
-        title: "시험 목록",
+        title: "성적 관리",
         href: "/sessions",
         icon: ClipboardList,
         permission: "sessions",
