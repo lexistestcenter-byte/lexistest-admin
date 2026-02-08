@@ -214,7 +214,7 @@ export default function NewPackagePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>패키지명 *</Label>
+                <Label>패키지명 <span className="text-red-500">*</span></Label>
                 <Input
                   placeholder="예: IELTS Academic Full Test 1"
                   value={title}

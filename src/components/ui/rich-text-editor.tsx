@@ -2,7 +2,8 @@
 
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { Bold, Italic } from "lucide-react";
+import TextAlign from "@tiptap/extension-text-align";
+import { Bold, Italic, AlignLeft, AlignCenter, AlignRight, List } from "lucide-react";
 import { Button } from "./button";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
@@ -25,15 +26,15 @@ export function RichTextEditor({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        // 필요한 것만 활성화
         heading: false,
-        bulletList: false,
         orderedList: false,
-        listItem: false,
         blockquote: false,
         codeBlock: false,
         code: false,
         horizontalRule: false,
+      }),
+      TextAlign.configure({
+        types: ["heading", "paragraph"],
       }),
     ],
     content: value,
@@ -91,6 +92,56 @@ export function RichTextEditor({
         >
           <Italic className="h-4 w-4" />
         </Button>
+        <div className="w-px h-5 bg-slate-200 mx-1" />
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          className={cn(
+            "h-8 w-8 p-0",
+            editor.isActive("bulletList") && "bg-slate-200"
+          )}
+        >
+          <List className="h-4 w-4" />
+        </Button>
+        <div className="w-px h-5 bg-slate-200 mx-1" />
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => editor.chain().focus().setTextAlign("left").run()}
+          className={cn(
+            "h-8 w-8 p-0",
+            editor.isActive({ textAlign: "left" }) && "bg-slate-200"
+          )}
+        >
+          <AlignLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => editor.chain().focus().setTextAlign("center").run()}
+          className={cn(
+            "h-8 w-8 p-0",
+            editor.isActive({ textAlign: "center" }) && "bg-slate-200"
+          )}
+        >
+          <AlignCenter className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => editor.chain().focus().setTextAlign("right").run()}
+          className={cn(
+            "h-8 w-8 p-0",
+            editor.isActive({ textAlign: "right" }) && "bg-slate-200"
+          )}
+        >
+          <AlignRight className="h-4 w-4" />
+        </Button>
         <span className="text-xs text-muted-foreground ml-2">
           Ctrl+B: 굵게, Ctrl+I: 기울임
         </span>
@@ -100,11 +151,6 @@ export function RichTextEditor({
         editor={editor}
         className="bg-white"
       />
-      {!value && placeholder && (
-        <p className="absolute top-[50px] left-3 text-muted-foreground pointer-events-none">
-          {placeholder}
-        </p>
-      )}
     </div>
   );
 }

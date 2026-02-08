@@ -630,7 +630,7 @@ export default function GroupsPage() {
             {/* Basic Info */}
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-name">그룹명 *</Label>
+                <Label htmlFor="edit-name">그룹명 <span className="text-red-500">*</span></Label>
                 <Input
                   id="edit-name"
                   value={name}

@@ -93,10 +93,19 @@ function getBool(obj: Record<string, unknown>, key: string): boolean {
   return Boolean(obj[key]);
 }
 
+/** Strip block-level <p> tags so content stays inline when split by [N] */
+function stripBlockTags(text: string): string {
+  return text
+    .replace(/<\/p>\s*<p[^>]*>/gi, "<br>")
+    .replace(/^<p[^>]*>/i, "")
+    .replace(/<\/p>$/i, "");
+}
+
 /** [N] → input placeholders for static display */
 function renderBlankPlaceholders(text: string): ReactNode {
   if (!text) return null;
-  const parts = text.split(/\[(\d+)\]/g);
+  const inlineText = stripBlockTags(text).replace(/\n/g, "<br>");
+  const parts = inlineText.split(/\[(\d+)\]/g);
   return parts.map((part, index) => {
     if (index % 2 === 1) {
       const num = parseInt(part);
@@ -108,12 +117,7 @@ function renderBlankPlaceholders(text: string): ReactNode {
         </span>
       );
     }
-    return part.split("\n").map((line, i, arr) => (
-      <span key={`${index}-${i}`}>
-        {line}
-        {i < arr.length - 1 && <br />}
-      </span>
-    ));
+    return <span key={index} dangerouslySetInnerHTML={{ __html: sanitizeHtml(part) }} />;
   });
 }
 
@@ -148,7 +152,7 @@ function MCQPreview({ data }: { data: QuestionPreviewData }) {
 
   return (
     <div className="bg-white rounded-lg border p-6 space-y-4">
-      <p className="text-lg">{question || "(문제 입력)"}</p>
+      <p className="text-lg" dangerouslySetInnerHTML={{ __html: sanitizeHtml(question || "(문제 입력)") }} />
       {isMultiple && (
         <p className="text-sm text-blue-600">Choose {maxSelections} answers.</p>
       )}
@@ -156,6 +160,7 @@ function MCQPreview({ data }: { data: QuestionPreviewData }) {
         {options.map((option, idx) => {
           const optId = option.id || String(idx);
           const isSelected = selected.has(optId);
+          const label = option.label || String.fromCharCode(65 + idx);
           return (
             <button
               key={optId}
@@ -166,16 +171,30 @@ function MCQPreview({ data }: { data: QuestionPreviewData }) {
                 isSelected ? "bg-primary/10 border-primary" : "hover:bg-slate-50"
               )}
             >
-              <div
-                className={cn(
-                  "w-8 h-8 border-2 flex items-center justify-center text-sm font-medium shrink-0",
-                  isMultiple ? "rounded" : "rounded-full",
-                  isSelected ? "border-primary bg-primary text-white" : "border-gray-300"
-                )}
-              >
-                {isSelected ? "✓" : option.label || String.fromCharCode(65 + idx)}
-              </div>
-              <span>{option.text || `(선택지 ${option.label || idx + 1})`}</span>
+              {isMultiple ? (
+                <div
+                  className={cn(
+                    "w-5 h-5 border-2 rounded flex items-center justify-center shrink-0 transition-colors",
+                    isSelected ? "border-primary bg-primary text-white" : "border-gray-300"
+                  )}
+                >
+                  {isSelected && (
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+              ) : (
+                <div
+                  className={cn(
+                    "w-5 h-5 border-2 rounded-full flex items-center justify-center shrink-0 transition-colors",
+                    isSelected ? "border-primary" : "border-gray-300"
+                  )}
+                >
+                  {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                </div>
+              )}
+              <span>{option.text || `(선택지 ${label})`}</span>
             </button>
           );
         })}
@@ -205,19 +224,24 @@ function TFNGPreview({ data }: { data: QuestionPreviewData }) {
     return (
       <div className="bg-white rounded-lg border p-6 space-y-4">
         <div className="p-4 border rounded-lg">
-          <p className="mb-4">{data.content || "(진술문 입력)"}</p>
-          <div className="flex gap-2">
+          <p className="mb-4" dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content || "(진술문 입력)") }} />
+          <div className="flex gap-4">
             {["TRUE", "FALSE", "NOT GIVEN"].map((label) => (
               <button
                 key={label}
                 type="button"
                 onClick={() => toggleAnswer(0, label)}
-                className={cn(
-                  "px-4 py-2 border rounded text-sm cursor-pointer transition-colors",
-                  answers[0] === label ? "bg-primary text-white border-primary" : "hover:bg-slate-50"
-                )}
+                className="flex items-center gap-2 cursor-pointer text-sm"
               >
-                {label}
+                <div
+                  className={cn(
+                    "w-5 h-5 border-2 rounded-full flex items-center justify-center shrink-0 transition-colors",
+                    answers[0] === label ? "border-primary" : "border-gray-300"
+                  )}
+                >
+                  {answers[0] === label && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                </div>
+                <span>{label}</span>
               </button>
             ))}
           </div>
@@ -234,20 +258,25 @@ function TFNGPreview({ data }: { data: QuestionPreviewData }) {
             <span className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
               {idx + 1}
             </span>
-            <p className="flex-1">{item.statement || "(진술문)"}</p>
+            <p className="flex-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.statement || "(진술문)") }} />
           </div>
-          <div className="flex gap-2 mt-3 ml-9">
+          <div className="flex gap-4 mt-3 ml-9">
             {["TRUE", "FALSE", "NOT GIVEN"].map((label) => (
               <button
                 key={label}
                 type="button"
                 onClick={() => toggleAnswer(idx, label)}
-                className={cn(
-                  "px-3 py-1.5 border rounded text-sm cursor-pointer transition-colors",
-                  answers[idx] === label ? "bg-primary text-white border-primary" : "hover:bg-slate-50"
-                )}
+                className="flex items-center gap-2 cursor-pointer text-sm"
               >
-                {label}
+                <div
+                  className={cn(
+                    "w-5 h-5 border-2 rounded-full flex items-center justify-center shrink-0 transition-colors",
+                    answers[idx] === label ? "border-primary" : "border-gray-300"
+                  )}
+                >
+                  {answers[idx] === label && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                </div>
+                <span>{label}</span>
               </button>
             ))}
           </div>
@@ -270,7 +299,12 @@ function FillBlankTypingPreview({ data }: { data: QuestionPreviewData }) {
 
   const renderWithInputs = (text: string): ReactNode => {
     if (!text) return null;
-    const parts = text.split(/\[(\d+)\]/g);
+    // Strip block-level <p> tags to keep content inline (prevent forced line breaks)
+    const inlineText = text
+      .replace(/<\/p>\s*<p[^>]*>/gi, "<br>")
+      .replace(/^<p[^>]*>/i, "")
+      .replace(/<\/p>$/i, "");
+    const parts = inlineText.split(/\[(\d+)\]/g);
     return parts.map((part, index) => {
       if (index % 2 === 1) {
         const num = parseInt(part);
@@ -286,12 +320,7 @@ function FillBlankTypingPreview({ data }: { data: QuestionPreviewData }) {
           </span>
         );
       }
-      return part.split("\n").map((line, i, arr) => (
-        <span key={`${index}-${i}`}>
-          {line}
-          {i < arr.length - 1 && <br />}
-        </span>
-      ));
+      return <span key={index} dangerouslySetInnerHTML={{ __html: sanitizeHtml(part) }} />;
     });
   };
 
@@ -322,7 +351,9 @@ function FillBlankDragPreview({ data }: { data: QuestionPreviewData }) {
   const o = od(data);
   const contentTitle = getStr(o, "title", data.title || "");
   const wordBank = getArr(o, "word_bank").map(String);
-  const allowDuplicate = getBool(o, "allowDuplicate");
+  const allowDuplicate = getBool(o, "allowDuplicate") || getBool(o, "allow_duplicate");
+  const blankMode = getStr(o, "blank_mode", "word");
+  const isSentenceMode = blankMode === "sentence";
   const inputStyle = getStr(o, "input_style", "editor");
   const items = getArr(o, "items").map(String);
 
@@ -349,7 +380,8 @@ function FillBlankDragPreview({ data }: { data: QuestionPreviewData }) {
   };
 
   const renderSlotContent = (text: string): ReactNode => {
-    const parts = text.split(/\[(\d+)\]/g);
+    const inlineText = stripBlockTags(text);
+    const parts = inlineText.split(/\[(\d+)\]/g);
     return parts.map((part, index) => {
       if (index % 2 === 1) {
         const num = parseInt(part);
@@ -395,7 +427,7 @@ function FillBlankDragPreview({ data }: { data: QuestionPreviewData }) {
       {wordBank.length > 0 && (
         <div className="pt-4 border-t">
           <p className="text-sm font-medium mb-2">Word Bank</p>
-          <div className="flex flex-wrap gap-2">
+          <div className={isSentenceMode ? "flex flex-col gap-2" : "flex flex-wrap gap-2"}>
             {availableWords.map((word, i) => (
               <span
                 key={`${word}-${i}`}
@@ -451,58 +483,55 @@ function TableCompletionPreview({ data }: { data: QuestionPreviewData }) {
     ? wordBank.filter((w) => w && !Object.values(answers).includes(w))
     : [];
 
-  const renderTableContent = (html: string) => {
-    const parts = html.split(/(\[\d+\])/g);
-    return parts.map((part, index) => {
-      const match = part.match(/^\[(\d+)\]$/);
-      if (match) {
-        const num = parseInt(match[1]);
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  const getTableHtml = (html: string) => {
+    // Sanitize first, then replace [N] with interactive elements (preserving table structure)
+    let processed = stripBlockTags(sanitizeHtml(html));
+
+    processed = processed.replace(/\[(\d+)\]/g, (_, numStr) => {
+      const num = parseInt(numStr);
+      if (isDragMode) {
         const placed = answers[num];
-
-        if (isDragMode) {
-          return (
-            <span key={index} className="inline-flex items-center mx-0.5 align-middle">
-              <span
-                className={`inline-flex items-center justify-center min-w-[120px] h-8 border-2 rounded px-2 text-sm transition-colors ${
-                  placed
-                    ? "bg-green-50 border-green-400 text-green-800 cursor-pointer"
-                    : draggedWord
-                      ? "border-dashed border-primary bg-primary/5"
-                      : "border-slate-300 bg-white text-slate-400"
-                }`}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => handleDrop(num)}
-                onDoubleClick={() => placed && clearAnswer(num)}
-                title={placed ? "더블클릭하여 제거" : ""}
-              >
-                {placed || num}
-              </span>
-            </span>
-          );
+        if (placed) {
+          return `<span data-blank="${num}" style="display:inline-flex;align-items:center;justify-content:center;min-width:120px;height:32px;border:2px solid #4ade80;border-radius:4px;padding:0 8px;font-size:14px;background:#f0fdf4;color:#166534;cursor:pointer" title="더블클릭하여 제거">${esc(placed)}</span>`;
         }
-
-        return (
-          <span key={index} className="inline-flex items-center gap-1 mx-0.5">
-            <input
-              type="text"
-              className="w-20 h-7 border-b-2 border-primary bg-transparent px-1 text-sm text-center focus:outline-none focus:border-blue-500"
-              value={answers[num] || ""}
-              onChange={(e) => setAnswers((prev) => ({ ...prev, [num]: e.target.value }))}
-              placeholder={`(${num})`}
-            />
-          </span>
-        );
+        const border = draggedWord ? "2px dashed #3b82f6" : "2px solid #cbd5e1";
+        const bg = draggedWord ? "rgba(59,130,246,0.05)" : "white";
+        return `<span data-blank="${num}" style="display:inline-flex;align-items:center;justify-content:center;min-width:120px;height:32px;border:${border};border-radius:4px;padding:0 8px;font-size:14px;background:${bg};color:#94a3b8">${num}</span>`;
       }
-      return <span key={index} dangerouslySetInnerHTML={{ __html: sanitizeHtml(part) }} />;
+      // Typing mode: uncontrolled input
+      return `<input type="text" data-blank="${num}" style="width:80px;height:28px;border:none;border-bottom:2px solid #3b82f6;background:transparent;padding:0 4px;font-size:14px;text-align:center;outline:none" placeholder="(${num})" />`;
     });
+
+    return processed;
   };
 
   return (
     <div className="bg-white rounded-lg border p-6 space-y-4">
       {contentTitle && <h2 className="text-lg font-bold border-b pb-3">{contentTitle}</h2>}
-      <div className="leading-relaxed [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-slate-300 [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-slate-300 [&_th]:px-3 [&_th]:py-2 [&_th]:bg-slate-100 [&_th]:font-semibold">
-        {renderTableContent(data.content || "")}
-      </div>
+      <div
+        className="leading-relaxed [&_table]:border-collapse [&_table]:w-full [&_table]:table-fixed [&_td]:border [&_td]:border-slate-300 [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-slate-300 [&_th]:px-3 [&_th]:py-2 [&_th]:bg-slate-100 [&_th]:font-semibold"
+        dangerouslySetInnerHTML={{ __html: getTableHtml(data.content || "") }}
+        onDragOver={(e) => {
+          const target = (e.target as HTMLElement).closest("[data-blank]");
+          if (target && !target.getAttribute("title")) e.preventDefault();
+        }}
+        onDrop={(e) => {
+          const target = (e.target as HTMLElement).closest("[data-blank]");
+          if (target && draggedWord) {
+            const num = parseInt(target.getAttribute("data-blank")!);
+            handleDrop(num);
+          }
+        }}
+        onDoubleClick={(e) => {
+          const target = (e.target as HTMLElement).closest("[data-blank]");
+          if (target) {
+            const num = parseInt(target.getAttribute("data-blank")!);
+            if (answers[num]) clearAnswer(num);
+          }
+        }}
+      />
       {isDragMode && wordBank.length > 0 && (
         <div className="pt-4 border-t">
           <p className="text-sm font-medium mb-2">Word Bank</p>
@@ -563,7 +592,7 @@ function MatchingPreview({ data }: { data: QuestionPreviewData }) {
     : options.filter((opt) => !usedOptions.has(opt.text || ""));
 
   const renderContentWithSlots = () => {
-    const html = sanitizeHtml(data.content || "");
+    const html = stripBlockTags(sanitizeHtml(data.content || ""));
     const parts = html.split(/(\[\d+\])/g);
     return parts.map((part, index) => {
       const slotMatch = part.match(/^\[(\d+)\]$/);
@@ -595,14 +624,14 @@ function MatchingPreview({ data }: { data: QuestionPreviewData }) {
   };
 
   return (
-    <div className="grid grid-cols-[1fr_340px] gap-6">
-      <div className="bg-white rounded-lg border p-6">
+    <div className="grid grid-cols-2 gap-6">
+      <div className="bg-white rounded-lg border p-6 max-h-[600px] overflow-y-auto">
         {contentTitle && <h2 className="text-lg font-bold mb-4">{contentTitle}</h2>}
         <div className="prose prose-sm max-w-none [&_p]:my-1 [&_strong]:font-bold leading-relaxed">
           {renderContentWithSlots()}
         </div>
       </div>
-      <div className="bg-white rounded-lg border p-4 h-fit">
+      <div className="bg-white rounded-lg border p-4 h-fit sticky top-0">
         <h3 className="font-semibold mb-1">List of Headings</h3>
         <p className="text-xs text-muted-foreground mb-4">Drag headings to the numbered slots.</p>
         {allowDuplicate && (
@@ -729,7 +758,7 @@ function MapLabelingPreview({ data }: { data: QuestionPreviewData }) {
     <div className="space-y-4">
       {contentTitle && <h2 className="text-lg font-bold">{contentTitle}</h2>}
       {passage && passage.trim() && (
-        <p className="text-sm text-muted-foreground leading-relaxed">{passage}</p>
+        <div className="text-sm text-muted-foreground leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeHtml(passage) }} />
       )}
       <div className="grid grid-cols-2 gap-6">
         {/* 왼쪽: 이미지 */}
@@ -837,13 +866,13 @@ function EssayPreview({ data }: { data: QuestionPreviewData }) {
         <div className="flex-1 p-4 flex flex-col bg-slate-100">
           <textarea
             rows={12}
-            placeholder="답안을 입력하세요..."
+            spellCheck={false}
             className="flex-1 w-full border border-blue-400 rounded p-3 text-sm resize-none bg-white"
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
           <div className="mt-2 text-sm text-right">
-            <span className={minWords > 0 ? (meetsMinimum ? "text-green-600 font-medium" : "text-red-500 font-medium") : "text-muted-foreground"}>
+            <span className="text-foreground">
               Word Count: {wordCount}
             </span>
           </div>
@@ -881,7 +910,7 @@ function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
           {bandRange && <span className="text-xs text-gray-500">{bandRange}</span>}
         </div>
         <div className="bg-white rounded-lg border p-6">
-          <p className="text-lg">{data.content || "(질문 입력)"}</p>
+          <p className="text-lg" dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content || "(질문 입력)") }} />
         </div>
         <RecordingArea />
       </div>
@@ -951,7 +980,7 @@ function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
           </div>
         )}
         <div className="bg-white rounded-lg border p-6">
-          <p className="text-lg">{data.content || "(질문 입력)"}</p>
+          <p className="text-lg" dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content || "(질문 입력)") }} />
         </div>
         <RecordingArea />
       </div>
@@ -961,7 +990,7 @@ function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
   // Fallback
   return (
     <div className="bg-white rounded-lg border p-6">
-      <p>{data.content}</p>
+      <p dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content || "") }} />
     </div>
   );
 }
@@ -1000,9 +1029,8 @@ export interface QuestionTabLike {
   contentHtml: string;
   blanks: { id: string; number: number; answer: string; alternatives: string[] }[];
   wordBank: string[];
+  blankMode: "word" | "sentence";
   fillBlankDragAllowDuplicate: boolean;
-  fillBlankItems: string[];
-  fillBlankInputStyle: "editor" | "items";
   // Table
   tableInputMode: "typing" | "drag";
   // Flowchart
@@ -1068,15 +1096,12 @@ export function tabToPreviewData(
   } else if (fmt === "fill_blank_typing") {
     content = tab.contentHtml;
     options_data.title = tab.contentTitle;
-    options_data.input_style = tab.fillBlankInputStyle;
-    options_data.items = tab.fillBlankItems;
   } else if (fmt === "fill_blank_drag") {
     content = tab.contentHtml;
     options_data.title = tab.contentTitle;
     options_data.word_bank = tab.wordBank;
+    options_data.blank_mode = tab.blankMode;
     options_data.allowDuplicate = tab.fillBlankDragAllowDuplicate;
-    options_data.input_style = tab.fillBlankInputStyle;
-    options_data.items = tab.fillBlankItems;
   } else if (fmt === "table_completion") {
     content = tab.contentHtml;
     options_data.title = tab.contentTitle;

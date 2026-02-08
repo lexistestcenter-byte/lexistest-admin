@@ -284,18 +284,6 @@ export function FlowchartEditor({
 
   return (
     <div className="space-y-6">
-      {/* ─── Instructions (문제 설명) ─────────────────────────────── */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">문제 설명 (지시문)</Label>
-        <Textarea
-          value={instructions}
-          onChange={(e) => setInstructions(e.target.value)}
-          placeholder="예: Complete the flowchart below. Choose NO MORE THAN TWO WORDS from the passage for each answer."
-          className="min-h-[60px] text-sm"
-          rows={2}
-        />
-      </div>
-
       {/* ─── Flowchart Visual Canvas ─────────────────────────────── */}
       <div className="border rounded-xl bg-slate-50/50 p-6 space-y-0">
         {/* Title */}

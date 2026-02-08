@@ -383,7 +383,7 @@ export default function CouponsPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="code">쿠폰 코드 *</Label>
+              <Label htmlFor="code">쿠폰 코드 <span className="text-red-500">*</span></Label>
               <Input
                 id="code"
                 placeholder="PREMIUM-2026-001"
@@ -394,7 +394,7 @@ export default function CouponsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="name">쿠폰 이름 *</Label>
+              <Label htmlFor="name">쿠폰 이름 <span className="text-red-500">*</span></Label>
               <Input
                 id="name"
                 placeholder="프리미엄 패키지 쿠폰"

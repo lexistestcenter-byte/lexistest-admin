@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RequiredLabel } from "@/components/ui/required-label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -46,9 +45,14 @@ import {
   AlertCircle,
   Bold,
   Italic,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  List,
 } from "lucide-react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import TextAlign from "@tiptap/extension-text-align";
 import { Table } from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
@@ -172,8 +176,6 @@ interface QuestionTab {
   wordBank: string[];
   blankMode: "word" | "sentence";
   fillBlankDragAllowDuplicate: boolean;
-  fillBlankItems: string[];
-  fillBlankInputStyle: "editor" | "items";
 
   // Table Completion
   tableInputMode: "typing" | "drag";
@@ -263,8 +265,6 @@ const createDefaultTab = (): QuestionTab => ({
   wordBank: [],
   blankMode: "word",
   fillBlankDragAllowDuplicate: false,
-  fillBlankItems: [""],
-  fillBlankInputStyle: "items",
 
   tableInputMode: "typing",
 
@@ -508,9 +508,31 @@ export default function NewQuestionPage() {
 
   // Word Bank
   const addWord = () => updateCurrentTab("wordBank", [...currentTab.wordBank, ""]);
+  const cleanWord = (s: string) => s.trim();
   const updateWord = (index: number, value: string) => {
+    const allowSpaces = currentTab.format === "table_completion";
+    // 쉼표가 있으면 분리해서 각각 개별 단어로 추가
+    const parts = value.split(",").map(cleanWord).filter(Boolean);
+    if (parts.length > 1) {
+      const valid = allowSpaces ? parts : parts.filter(p => !/\s/.test(p));
+      const invalid = allowSpaces ? [] : parts.filter(p => /\s/.test(p));
+      if (invalid.length > 0) toast.warning(`공백이 포함된 단어는 추가할 수 없습니다: ${invalid.join(", ")}`);
+      if (valid.length > 0) {
+        const newBank = [...currentTab.wordBank];
+        newBank[index] = valid[0];
+        const extra = valid.slice(1).filter(w => !newBank.includes(w));
+        updateCurrentTab("wordBank", [...newBank, ...extra]);
+      }
+      return;
+    }
+    // 단일 단어: trim + 공백 검증
+    const cleaned = cleanWord(value);
+    if (!allowSpaces && cleaned && /\s/.test(cleaned)) {
+      toast.warning("공백이 포함된 단어는 추가할 수 없습니다. 단일 단어만 입력해주세요.");
+      return;
+    }
     const newBank = [...currentTab.wordBank];
-    newBank[index] = value;
+    newBank[index] = cleaned;
     updateCurrentTab("wordBank", newBank);
   };
   const removeWord = (index: number) => updateCurrentTab("wordBank", currentTab.wordBank.filter((_, i) => i !== index));
@@ -572,13 +594,28 @@ export default function NewQuestionPage() {
 
     // 매칭 검증
     if (format === "matching") {
+      if (!tab.contentHtml.trim()) {
+        return { valid: false, message: `탭 ${index + 1}: 지문을 입력하세요.` };
+      }
       const emptyOptions = tab.matchingOptions.filter(o => !o.text.trim());
       if (emptyOptions.length > 0) {
-        return { valid: false, message: `탭 ${index + 1}: 모든 보기를 입력하세요.` };
+        const labels = emptyOptions.map(o => o.label).join(", ");
+        return { valid: false, message: `탭 ${index + 1}: 제목 ${labels}의 텍스트를 입력하세요.` };
       }
-      const emptyItems = tab.matchingItems.filter(i => !i.statement.trim() || !i.correctLabel);
-      if (emptyItems.length > 0) {
-        return { valid: false, message: `탭 ${index + 1}: 모든 문항과 정답을 입력하세요.` };
+      // 지문에서 섹션 번호 파싱
+      const sectionText = tab.contentHtml.replace(/<[^>]*>/g, "");
+      const sectionNums: number[] = [];
+      const sectionRe = /\[(\d+)\]/g;
+      let sm;
+      while ((sm = sectionRe.exec(sectionText)) !== null) sectionNums.push(parseInt(sm[1]));
+      const uniqueSections = [...new Set(sectionNums)];
+      if (uniqueSections.length === 0) {
+        return { valid: false, message: `탭 ${index + 1}: 지문에 섹션 마커 [1], [2] 등을 추가하세요.` };
+      }
+      const assignedSections = new Set(tab.matchingItems.map(i => i.number));
+      const unassigned = uniqueSections.filter(n => !assignedSections.has(n));
+      if (unassigned.length > 0) {
+        return { valid: false, message: `탭 ${index + 1}: 섹션 [${unassigned.join("], [")}]에 정답 제목을 지정하세요.` };
       }
     }
 
@@ -753,8 +790,6 @@ export default function NewQuestionPage() {
             title: tab.contentTitle || undefined,
             separateNumbers: tab.separateNumbers,
             blank_mode: tab.blankMode,
-            input_style: tab.fillBlankInputStyle,
-            ...(tab.fillBlankInputStyle === "items" ? { items: tab.fillBlankItems } : {}),
             ...(tab.format === "fill_blank_drag" ? { word_bank: tab.wordBank, allow_duplicate: tab.fillBlankDragAllowDuplicate } : {}),
           };
           answerData = {
@@ -1012,10 +1047,10 @@ export default function NewQuestionPage() {
                 key={tab.id}
                 onClick={() => setActiveTabIndex(index)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${index === activeTabIndex
-                    ? "bg-primary text-white"
-                    : tab.hasError
-                      ? "bg-red-100 text-red-700"
-                      : "bg-slate-100 hover:bg-slate-200"
+                  ? "bg-primary text-white"
+                  : tab.hasError
+                    ? "bg-red-100 text-red-700"
+                    : "bg-slate-100 hover:bg-slate-200"
                   }`}
               >
                 {tab.hasError && <AlertCircle className="h-4 w-4" />}
@@ -1128,10 +1163,10 @@ export default function NewQuestionPage() {
           <div
             key={tab.id}
             className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer ${index === activeTabIndex
-                ? "bg-primary text-white"
-                : tab.hasError
-                  ? "bg-red-100 text-red-700"
-                  : "bg-slate-100 hover:bg-slate-200"
+              ? "bg-primary text-white"
+              : tab.hasError
+                ? "bg-red-100 text-red-700"
+                : "bg-slate-100 hover:bg-slate-200"
               }`}
             onClick={() => setActiveTabIndex(index)}
           >
@@ -1198,15 +1233,6 @@ export default function NewQuestionPage() {
                       accept="audio"
                       deferred
                       onFileReady={(file) => updateCurrentTab("audioFile", file)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">스크립트 (선택)</Label>
-                    <Textarea
-                      className="text-xs min-h-[80px]"
-                      value={currentTab.audioTranscript}
-                      onChange={(e) => updateCurrentTab("audioTranscript", e.target.value)}
-                      placeholder="오디오 스크립트를 입력하세요..."
                     />
                   </div>
                 </div>
@@ -1344,10 +1370,6 @@ export default function NewQuestionPage() {
                 setBlanks={(v) => updateCurrentTab("blanks", v)}
                 blankMode={currentTab.blankMode}
                 setBlankMode={(v) => updateCurrentTab("blankMode", v)}
-                items={currentTab.fillBlankItems}
-                setItems={(v) => updateCurrentTab("fillBlankItems", v)}
-                inputStyle={currentTab.fillBlankInputStyle}
-                setInputStyle={(v) => updateCurrentTab("fillBlankInputStyle", v)}
               />
             )}
 
@@ -1366,10 +1388,6 @@ export default function NewQuestionPage() {
                 setBlankMode={(v) => updateCurrentTab("blankMode", v)}
                 allowDuplicate={currentTab.fillBlankDragAllowDuplicate}
                 setAllowDuplicate={(v) => updateCurrentTab("fillBlankDragAllowDuplicate", v)}
-                items={currentTab.fillBlankItems}
-                setItems={(v) => updateCurrentTab("fillBlankItems", v)}
-                inputStyle={currentTab.fillBlankInputStyle}
-                setInputStyle={(v) => updateCurrentTab("fillBlankInputStyle", v)}
               />
             )}
 
@@ -1500,21 +1518,21 @@ export default function NewQuestionPage() {
               "fill_blank_typing", "fill_blank_drag",
               "flowchart", "table_completion", "map_labeling",
             ].includes(currentTab.format) && (
-              <div className="flex items-center justify-between p-3 bg-blue-50/50 rounded-lg border border-blue-200 mt-6">
-                <div>
-                  <p className="text-sm font-medium">별도 문항 번호 부여</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {currentTab.separateNumbers
-                      ? "각 항목이 별도 문항 번호를 차지합니다 (예: Questions 5–8)"
-                      : "하나의 문항으로 처리됩니다 (예: Question 5)"}
-                  </p>
+                <div className="flex items-center justify-between p-3 bg-blue-50/50 rounded-lg border border-blue-200 mt-6">
+                  <div>
+                    <p className="text-sm font-medium">별도 문항 번호 부여</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {currentTab.separateNumbers
+                        ? "각 항목이 별도 문항 번호를 차지합니다 (예: Questions 5–8)"
+                        : "하나의 문항으로 처리됩니다 (예: Question 5)"}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={currentTab.separateNumbers}
+                    onCheckedChange={(v) => updateCurrentTab("separateNumbers", v)}
+                  />
                 </div>
-                <Switch
-                  checked={currentTab.separateNumbers}
-                  onCheckedChange={(v) => updateCurrentTab("separateNumbers", v)}
-                />
-              </div>
-            )}
+              )}
           </div>
         </div>
       </div>
@@ -1640,19 +1658,19 @@ function MCQEditor({
 
       {/* 문제 */}
       <div className="space-y-2">
-        <Label>문제 *</Label>
-        <Textarea
+        <Label>문제 <span className="text-red-500">*</span></Label>
+        <RichTextEditor
           value={question}
-          onChange={(e) => setQuestion(e.target.value)}
+          onChange={setQuestion}
           placeholder="문제를 입력하세요"
-          rows={3}
+          minHeight="80px"
         />
       </div>
 
       {/* 선택지 */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label>선택지 *</Label>
+          <Label>선택지 <span className="text-red-500">*</span></Label>
           <Button variant="outline" size="sm" onClick={addOption}>
             <Plus className="h-4 w-4 mr-1" />
             선택지 추가
@@ -1663,8 +1681,8 @@ function MCQEditor({
             <button
               onClick={() => toggleCorrect(option.id)}
               className={`w-10 h-10 rounded-lg border-2 flex items-center justify-center font-bold transition-colors ${option.isCorrect
-                  ? "bg-green-500 border-green-500 text-white"
-                  : "border-slate-300 hover:border-primary"
+                ? "bg-green-500 border-green-500 text-white"
+                : "border-slate-300 hover:border-primary"
                 }`}
             >
               {option.label}
@@ -1710,11 +1728,11 @@ function TFNGEditor({
     <div className="space-y-6">
       <div className="space-y-2">
         <RequiredLabel required>문항 제목</RequiredLabel>
-        <Textarea
+        <RichTextEditor
           value={statement}
-          onChange={(e) => setStatement(e.target.value)}
+          onChange={setStatement}
           placeholder="예: The number of students increased significantly in 2020."
-          rows={3}
+          minHeight="80px"
         />
       </div>
 
@@ -1726,8 +1744,8 @@ function TFNGEditor({
               key={opt}
               onClick={() => setAnswer(opt)}
               className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all border-2 ${answer === opt
-                  ? "bg-primary text-white border-primary"
-                  : "bg-slate-50 hover:bg-slate-100 border-slate-200"
+                ? "bg-primary text-white border-primary"
+                : "bg-slate-50 hover:bg-slate-100 border-slate-200"
                 }`}
             >
               {opt === "true" ? "TRUE" : opt === "false" ? "FALSE" : "NOT GIVEN"}
@@ -1772,7 +1790,7 @@ function MatchingEditor({
   })();
 
   const editor = useEditor({
-    extensions: [StarterKit.configure({ heading: false, bulletList: false, orderedList: false, listItem: false, blockquote: false, codeBlock: false, code: false, horizontalRule: false })],
+    extensions: [StarterKit.configure({ heading: false, bulletList: false, orderedList: false, listItem: false, blockquote: false, codeBlock: false, code: false, horizontalRule: false }), TextAlign.configure({ types: ["heading", "paragraph"] })],
     content,
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
@@ -1841,13 +1859,16 @@ function MatchingEditor({
       {/* ── 지문 입력 ── */}
       <div className="border rounded-lg p-4 space-y-4">
         <div className="space-y-2">
-          <Label>지문 제목</Label>
+          <Label>문제 제목</Label>
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: The Physics of Traffic Behavior" className="text-lg font-medium" />
         </div>
         <div className="space-y-2">
-          <Label>지문 내용 *</Label>
+          <Label>문제 내용 <span className="text-red-500">*</span></Label>
           <p className="text-xs text-muted-foreground">
             섹션 시작 위치에서 <strong>우클릭</strong> → 섹션 마커 삽입 / 직접 <code className="bg-slate-100 px-1 rounded">[번호]</code> 입력도 가능
+          </p>
+          <p className="text-xs text-muted-foreground">
+            문제 내용은 왼쪽에 표시 됩니다.
           </p>
           <div className="relative">
             <div className="border rounded-md overflow-hidden" onContextMenu={handleContextMenu}>
@@ -1860,6 +1881,19 @@ function MatchingEditor({
                   onClick={() => editor?.chain().focus().toggleItalic().run()}
                   className={`h-8 w-8 p-0 ${editor?.isActive("italic") ? "bg-slate-200" : ""}`}
                 ><Italic className="h-4 w-4" /></Button>
+                <div className="w-px h-5 bg-slate-200 mx-1" />
+                <Button type="button" variant="ghost" size="sm"
+                  onClick={() => editor?.chain().focus().setTextAlign("left").run()}
+                  className={`h-8 w-8 p-0 ${editor?.isActive({ textAlign: "left" }) ? "bg-slate-200" : ""}`}
+                ><AlignLeft className="h-4 w-4" /></Button>
+                <Button type="button" variant="ghost" size="sm"
+                  onClick={() => editor?.chain().focus().setTextAlign("center").run()}
+                  className={`h-8 w-8 p-0 ${editor?.isActive({ textAlign: "center" }) ? "bg-slate-200" : ""}`}
+                ><AlignCenter className="h-4 w-4" /></Button>
+                <Button type="button" variant="ghost" size="sm"
+                  onClick={() => editor?.chain().focus().setTextAlign("right").run()}
+                  className={`h-8 w-8 p-0 ${editor?.isActive({ textAlign: "right" }) ? "bg-slate-200" : ""}`}
+                ><AlignRight className="h-4 w-4" /></Button>
               </div>
               <EditorContent editor={editor} className="bg-white" />
             </div>
@@ -1882,8 +1916,9 @@ function MatchingEditor({
       <div className="border rounded-lg p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <Label>제목 목록 (List of Headings) *</Label>
+            <Label>제목 목록 (List of Headings) <span className="text-red-500">*</span></Label>
             <p className="text-xs text-muted-foreground mt-0.5">정답 제목과 오답(함정) 제목을 모두 추가하세요.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">제목 목록은 오른쪽에 표시되는 내용 입니다.</p>
           </div>
           <Button variant="outline" size="sm" onClick={addOption}>
             <Plus className="h-4 w-4 mr-1" />
@@ -1942,53 +1977,25 @@ function MatchingEditor({
 // 빈칸채우기 에디터
 // =============================================================================
 function FillBlankEditor({
-  title, setTitle, content, setContent, blanks, setBlanks, blankMode, setBlankMode, items, setItems,
-  inputStyle, setInputStyle,
+  title, setTitle, content, setContent, blanks, setBlanks, blankMode, setBlankMode,
 }: {
   title: string; setTitle: (v: string) => void;
   content: string; setContent: (v: string) => void;
   blanks: Blank[]; setBlanks: (v: Blank[]) => void;
   blankMode: "word" | "sentence"; setBlankMode: (v: "word" | "sentence") => void;
-  items: string[]; setItems: (v: string[]) => void;
-  inputStyle: "editor" | "items"; setInputStyle: (v: "editor" | "items") => void;
 }) {
-  // --- Items mode state ---
-  const [itemContextMenu, setItemContextMenu] = useState<{ x: number; y: number; text: string; itemIndex: number; selStart: number; selEnd: number } | null>(null);
-  const textareaRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
-
-  // --- Editor mode state ---
   const [editorContextMenu, setEditorContextMenu] = useState<{ x: number; y: number; text: string; from: number; to: number } | null>(null);
   const pendingAnswers = useRef<Map<number, string>>(new Map());
 
   const blanksRef = useRef(blanks);
   blanksRef.current = blanks;
 
-  // --- Conversion helpers ---
-  const convertEditorToItems = (htmlContent: string): string[] => {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlContent, "text/html");
-    const elements = doc.querySelectorAll("p, li");
-    if (elements.length > 0) {
-      const parsed = Array.from(elements).map(el => el.textContent || "").filter(t => t.trim());
-      return parsed.length > 0 ? parsed : [""];
-    }
-    const text = doc.body.textContent || "";
-    const lines = text.split("\n").filter(l => l.trim());
-    return lines.length > 0 ? lines : [""];
-  };
-
-  const convertItemsToEditor = (itemsList: string[]): string => {
-    const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    return itemsList.map(i => `<p>${escapeHtml(i)}</p>`).join("");
-  };
-
-  // --- TipTap editor (only used in editor mode) ---
+  // --- TipTap editor ---
   const editor = useEditor({
-    extensions: [StarterKit.configure({ heading: false, bulletList: false, orderedList: false, listItem: false, blockquote: false, codeBlock: false, code: false, horizontalRule: false })],
-    content: inputStyle === "editor" ? content : "",
+    extensions: [StarterKit.configure({ heading: false, orderedList: false, blockquote: false, codeBlock: false, code: false, horizontalRule: false }), TextAlign.configure({ types: ["heading", "paragraph"] })],
+    content,
     immediatelyRender: false,
     onUpdate: ({ editor: ed }) => {
-      if (inputStyle !== "editor") return;
       const html = ed.getHTML();
       setContent(html);
       const text = ed.state.doc.textContent;
@@ -2028,114 +2035,11 @@ function FillBlankEditor({
   });
 
   useEffect(() => {
-    if (inputStyle === "editor" && editor && content !== editor.getHTML()) {
+    if (editor && content !== editor.getHTML()) {
       editor.commands.setContent(content);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [content, inputStyle]);
-
-  // --- Items mode: items → content sync ---
-  const syncFromItems = useCallback((newItems: string[]) => {
-    const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const html = newItems.map(i => `<p>${escapeHtml(i)}</p>`).join("");
-    setContent(html);
-
-    const allText = newItems.join("\n");
-    const foundNums: number[] = [];
-    const re = /\[(\d+)\]/g;
-    let match;
-    while ((match = re.exec(allText)) !== null) foundNums.push(parseInt(match[1]));
-
-    const seen = new Set<number>();
-    const duplicates = new Set<number>();
-    for (const n of foundNums) { if (seen.has(n)) duplicates.add(n); seen.add(n); }
-    if (duplicates.size > 0) {
-      toast.warning(`중복된 빈칸 번호가 있습니다: [${[...duplicates].join("], [")}]. 같은 번호를 여러 번 사용할 수 없습니다.`);
-    }
-
-    const uniqueNums = [...new Set(foundNums)];
-    const curr = blanksRef.current;
-    let updated = [...curr];
-    let changed = false;
-    for (const num of uniqueNums) {
-      if (!updated.some(b => b.number === num)) {
-        updated.push({ id: `b${Date.now()}-${num}`, number: num, answer: "", alternatives: [] });
-        changed = true;
-      }
-    }
-    const before = updated.length;
-    updated = updated.filter(b => uniqueNums.includes(b.number));
-    if (updated.length !== before) changed = true;
-    updated.sort((a, b) => a.number - b.number);
-    if (changed) setBlanks(updated);
-  }, [setContent, setBlanks]);
-
-  // --- Items mode handlers ---
-  const updateItem = (index: number, value: string) => {
-    const newItems = [...items];
-    newItems[index] = value;
-    setItems(newItems);
-    syncFromItems(newItems);
-  };
-
-  const addItem = () => {
-    const newItems = [...items, ""];
-    setItems(newItems);
-    syncFromItems(newItems);
-    setTimeout(() => {
-      const ref = textareaRefs.current[newItems.length - 1];
-      if (ref) ref.focus();
-    }, 0);
-  };
-
-  const removeItem = (index: number) => {
-    if (items.length <= 1) return;
-    const newItems = items.filter((_, i) => i !== index);
-    setItems(newItems);
-    syncFromItems(newItems);
-  };
-
-  const handleItemContextMenu = (e: React.MouseEvent, itemIndex: number) => {
-    const textarea = textareaRefs.current[itemIndex];
-    if (!textarea) return;
-    const { selectionStart, selectionEnd } = textarea;
-    if (selectionStart === selectionEnd) return;
-    const selectedText = items[itemIndex].substring(selectionStart, selectionEnd).trim();
-    if (!selectedText) return;
-    if (blankMode === "word") {
-      if (/\s/.test(selectedText)) {
-        e.preventDefault();
-        toast.warning("공백이 포함된 단어는 빈칸으로 만들 수 없습니다. 단어 하나만 선택해주세요.");
-        return;
-      }
-    } else {
-      if (/^\s/.test(items[itemIndex].substring(selectionStart, selectionEnd))) {
-        e.preventDefault();
-        toast.warning("첫 글자가 공백인 텍스트는 빈칸으로 만들 수 없습니다.");
-        return;
-      }
-    }
-    e.preventDefault();
-    setItemContextMenu({ x: e.clientX, y: e.clientY, text: selectedText, itemIndex, selStart: selectionStart, selEnd: selectionEnd });
-  };
-
-  const createBlankFromItemSelection = () => {
-    if (!itemContextMenu) return;
-    const { text, itemIndex, selStart, selEnd } = itemContextMenu;
-    const nums = blanks.map(b => b.number);
-    const nextNum = nums.length > 0 ? Math.max(...nums) + 1 : 1;
-    const itemText = items[itemIndex];
-    const newText = itemText.substring(0, selStart) + `[${nextNum}]` + itemText.substring(selEnd);
-    const newItems = [...items];
-    newItems[itemIndex] = newText;
-    setItems(newItems);
-    const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    setContent(newItems.map(i => `<p>${escapeHtml(i)}</p>`).join(""));
-    const newBlanks = [...blanks, { id: `b${Date.now()}-${nextNum}`, number: nextNum, answer: text, alternatives: [] as string[] }];
-    newBlanks.sort((a, b) => a.number - b.number);
-    setBlanks(newBlanks);
-    setItemContextMenu(null);
-  };
+  }, [content]);
 
   // --- Editor mode handlers ---
   const handleEditorContextMenu = (e: React.MouseEvent) => {
@@ -2174,17 +2078,10 @@ function FillBlankEditor({
   // --- Common handlers ---
   const removeBlankAndRestore = (id: string) => {
     const blank = blanks.find(b => b.id === id);
-    if (!blank) return;
-    const marker = `[${blank.number}]`;
-    if (inputStyle === "items") {
-      const newItems = items.map(item => item.replace(marker, blank.answer || ""));
-      setItems(newItems);
-      syncFromItems(newItems);
-    } else if (editor) {
-      const html = editor.getHTML();
-      const newHtml = html.replace(`[${blank.number}]`, blank.answer || "");
-      editor.commands.setContent(newHtml);
-    }
+    if (!blank || !editor) return;
+    const html = editor.getHTML();
+    const newHtml = html.replace(`[${blank.number}]`, blank.answer || "");
+    editor.commands.setContent(newHtml);
   };
 
   const updateBlankAnswer = (id: string, newAnswer: string) => {
@@ -2192,29 +2089,8 @@ function FillBlankEditor({
     setBlanks(blanks.map(b => b.id === id ? { ...b, answer: clean } : b));
   };
 
-  // --- Mode switch handler ---
-  const handleInputStyleChange = (newStyle: "editor" | "items") => {
-    if (newStyle === inputStyle) return;
-    if (newStyle === "items") {
-      // editor → items
-      const newItems = convertEditorToItems(content);
-      setItems(newItems);
-      if (content.includes("<strong>") || content.includes("<em>")) {
-        toast.info("에디터의 서식(굵게, 기울임 등)이 제거되었습니다.");
-      }
-    } else {
-      // items → editor
-      const html = convertItemsToEditor(items);
-      setContent(html);
-      if (editor) {
-        editor.commands.setContent(html);
-      }
-    }
-    setInputStyle(newStyle);
-  };
-
   return (
-    <div className="space-y-6" onClick={() => { setItemContextMenu(null); setEditorContextMenu(null); }}>
+    <div className="space-y-6" onClick={() => setEditorContextMenu(null)}>
       <div className="space-y-2">
         <Label>제목 (선택)</Label>
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="지문 제목" />
@@ -2226,9 +2102,7 @@ function FillBlankEditor({
           checked={blankMode === "sentence"}
           onCheckedChange={(checked) => {
             const newMode = checked ? "sentence" : "word";
-            const hasContent = inputStyle === "items" ? items.some(i => i.trim()) : content.trim();
-            if (hasContent || blanks.length > 0) {
-              if (inputStyle === "items") { setItems([""]); }
+            if (content.trim() || blanks.length > 0) {
               setContent("");
               setBlanks([]);
               if (editor) editor.commands.setContent("");
@@ -2240,100 +2114,56 @@ function FillBlankEditor({
         <span className={`text-sm font-medium ${blankMode === "sentence" ? "text-primary" : "text-muted-foreground"}`}>문장형</span>
       </div>
 
-      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border">
-        <span className={`text-sm font-medium ${inputStyle === "editor" ? "text-primary" : "text-muted-foreground"}`}>에디터</span>
-        <Switch
-          checked={inputStyle === "items"}
-          onCheckedChange={(checked) => handleInputStyleChange(checked ? "items" : "editor")}
-        />
-        <span className={`text-sm font-medium ${inputStyle === "items" ? "text-primary" : "text-muted-foreground"}`}>항목</span>
+      <div className="space-y-2">
+        <Label>문제 <span className="text-red-500">*</span></Label>
+        <p className="text-xs text-muted-foreground">
+          단어를 드래그로 선택 후 <strong>우클릭</strong> → 빈칸 만들기 / 직접 <code className="bg-slate-100 px-1 rounded">[번호]</code> 입력도 가능
+        </p>
+        <div className="relative">
+          <div className="border rounded-md overflow-hidden" onContextMenu={handleEditorContextMenu}>
+            <div className="flex items-center gap-1 px-2 py-1.5 border-b bg-slate-50">
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().toggleBold().run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive("bold") ? "bg-slate-200" : ""}`}
+              ><Bold className="h-4 w-4" /></Button>
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().toggleItalic().run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive("italic") ? "bg-slate-200" : ""}`}
+              ><Italic className="h-4 w-4" /></Button>
+              <div className="w-px h-5 bg-slate-200 mx-1" />
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().toggleBulletList().run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive("bulletList") ? "bg-slate-200" : ""}`}
+              ><List className="h-4 w-4" /></Button>
+              <div className="w-px h-5 bg-slate-200 mx-1" />
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().setTextAlign("left").run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive({ textAlign: "left" }) ? "bg-slate-200" : ""}`}
+              ><AlignLeft className="h-4 w-4" /></Button>
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().setTextAlign("center").run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive({ textAlign: "center" }) ? "bg-slate-200" : ""}`}
+              ><AlignCenter className="h-4 w-4" /></Button>
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().setTextAlign("right").run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive({ textAlign: "right" }) ? "bg-slate-200" : ""}`}
+              ><AlignRight className="h-4 w-4" /></Button>
+            </div>
+            <EditorContent editor={editor} className="bg-white" />
+          </div>
+          {editorContextMenu && (
+            <div className="fixed z-50 bg-white border rounded-lg shadow-lg py-1 min-w-[160px]"
+              style={{ left: editorContextMenu.x, top: editorContextMenu.y }}
+              onClick={(e) => e.stopPropagation()}>
+              <button className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
+                onClick={createBlankFromEditorSelection}>
+                <Plus className="h-4 w-4" />
+                빈칸 만들기: &ldquo;{editorContextMenu.text.length > 20 ? editorContextMenu.text.slice(0, 20) + "…" : editorContextMenu.text}&rdquo;
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-
-      {inputStyle === "items" ? (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label>항목 목록 ({items.length}개) *</Label>
-            <p className="text-xs text-muted-foreground">
-              텍스트 선택 후 <strong>우클릭</strong> → 빈칸 만들기 / 직접 <code className="bg-slate-100 px-1 rounded">[번호]</code> 입력도 가능
-            </p>
-          </div>
-          <div className="relative">
-            <div className="border rounded-lg divide-y">
-              {items.map((item, index) => (
-                <div key={index} className="flex items-start gap-2 px-3 py-2">
-                  <span className="mt-2 text-xs text-muted-foreground font-mono w-6 text-right shrink-0">{index + 1}</span>
-                  <Textarea
-                    ref={(el) => { textareaRefs.current[index] = el; }}
-                    value={item}
-                    onChange={(e) => updateItem(index, e.target.value)}
-                    onContextMenu={(e) => handleItemContextMenu(e, index)}
-                    placeholder={`항목 ${index + 1} 텍스트 입력...`}
-                    className="flex-1 min-h-[40px] text-sm resize-none"
-                    rows={1}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0 mt-0.5"
-                    onClick={() => removeItem(index)}
-                    disabled={items.length <= 1}
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-            <Button type="button" variant="outline" size="sm" className="mt-2" onClick={addItem}>
-              <Plus className="h-4 w-4 mr-1" /> 항목 추가
-            </Button>
-            {itemContextMenu && (
-              <div className="fixed z-50 bg-white border rounded-lg shadow-lg py-1 min-w-[160px]"
-                style={{ left: itemContextMenu.x, top: itemContextMenu.y }}
-                onClick={(e) => e.stopPropagation()}>
-                <button className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
-                  onClick={createBlankFromItemSelection}>
-                  <Plus className="h-4 w-4" />
-                  빈칸 만들기: &ldquo;{itemContextMenu.text.length > 20 ? itemContextMenu.text.slice(0, 20) + "…" : itemContextMenu.text}&rdquo;
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          <Label>지문 *</Label>
-          <p className="text-xs text-muted-foreground">
-            단어를 드래그로 선택 후 <strong>우클릭</strong> → 빈칸 만들기 / 직접 <code className="bg-slate-100 px-1 rounded">[번호]</code> 입력도 가능
-          </p>
-          <div className="relative">
-            <div className="border rounded-md overflow-hidden" onContextMenu={handleEditorContextMenu}>
-              <div className="flex items-center gap-1 px-2 py-1.5 border-b bg-slate-50">
-                <Button type="button" variant="ghost" size="sm"
-                  onClick={() => editor?.chain().focus().toggleBold().run()}
-                  className={`h-8 w-8 p-0 ${editor?.isActive("bold") ? "bg-slate-200" : ""}`}
-                ><Bold className="h-4 w-4" /></Button>
-                <Button type="button" variant="ghost" size="sm"
-                  onClick={() => editor?.chain().focus().toggleItalic().run()}
-                  className={`h-8 w-8 p-0 ${editor?.isActive("italic") ? "bg-slate-200" : ""}`}
-                ><Italic className="h-4 w-4" /></Button>
-              </div>
-              <EditorContent editor={editor} className="bg-white" />
-            </div>
-            {editorContextMenu && (
-              <div className="fixed z-50 bg-white border rounded-lg shadow-lg py-1 min-w-[160px]"
-                style={{ left: editorContextMenu.x, top: editorContextMenu.y }}
-                onClick={(e) => e.stopPropagation()}>
-                <button className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
-                  onClick={createBlankFromEditorSelection}>
-                  <Plus className="h-4 w-4" />
-                  빈칸 만들기: &ldquo;{editorContextMenu.text.length > 20 ? editorContextMenu.text.slice(0, 20) + "…" : editorContextMenu.text}&rdquo;
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {blanks.length > 0 && (
         <div className="space-y-3">
@@ -2364,7 +2194,6 @@ function FillBlankEditor({
 // =============================================================================
 function FillBlankDragEditor({
   title, setTitle, content, setContent, blanks, setBlanks, wordBank, setWordBank, blankMode, setBlankMode, allowDuplicate, setAllowDuplicate,
-  items, setItems, inputStyle, setInputStyle,
 }: {
   title: string; setTitle: (v: string) => void;
   content: string; setContent: (v: string) => void;
@@ -2372,16 +2201,9 @@ function FillBlankDragEditor({
   wordBank: string[]; setWordBank: (v: string[]) => void;
   blankMode: "word" | "sentence"; setBlankMode: (v: "word" | "sentence") => void;
   allowDuplicate: boolean; setAllowDuplicate: (v: boolean) => void;
-  items: string[]; setItems: (v: string[]) => void;
-  inputStyle: "editor" | "items"; setInputStyle: (v: "editor" | "items") => void;
 }) {
-  // --- Editor mode state ---
   const [editorContextMenu, setEditorContextMenu] = useState<{ x: number; y: number; text: string; from: number; to: number } | null>(null);
   const pendingAnswers = useRef<Map<number, string>>(new Map());
-
-  // --- Items mode state ---
-  const [itemContextMenu, setItemContextMenu] = useState<{ x: number; y: number; text: string; itemIndex: number; selStart: number; selEnd: number } | null>(null);
-  const textareaRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
 
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
@@ -2390,32 +2212,12 @@ function FillBlankDragEditor({
   blanksRef.current = blanks;
   wordBankRef.current = wordBank;
 
-  // --- Conversion helpers ---
-  const convertEditorToItems = (htmlContent: string): string[] => {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlContent, "text/html");
-    const elements = doc.querySelectorAll("p, li");
-    if (elements.length > 0) {
-      const parsed = Array.from(elements).map(el => el.textContent || "").filter(t => t.trim());
-      return parsed.length > 0 ? parsed : [""];
-    }
-    const text = doc.body.textContent || "";
-    const lines = text.split("\n").filter(l => l.trim());
-    return lines.length > 0 ? lines : [""];
-  };
-
-  const convertItemsToEditor = (itemsList: string[]): string => {
-    const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    return itemsList.map(i => `<p>${escapeHtml(i)}</p>`).join("");
-  };
-
   // --- TipTap editor ---
   const editor = useEditor({
-    extensions: [StarterKit.configure({ heading: false, bulletList: false, orderedList: false, listItem: false, blockquote: false, codeBlock: false, code: false, horizontalRule: false })],
-    content: inputStyle === "editor" ? content : "",
+    extensions: [StarterKit.configure({ heading: false, orderedList: false, blockquote: false, codeBlock: false, code: false, horizontalRule: false }), TextAlign.configure({ types: ["heading", "paragraph"] })],
+    content,
     immediatelyRender: false,
     onUpdate: ({ editor: ed }) => {
-      if (inputStyle !== "editor") return;
       const html = ed.getHTML();
       setContent(html);
       const text = ed.state.doc.textContent;
@@ -2461,121 +2263,11 @@ function FillBlankDragEditor({
   });
 
   useEffect(() => {
-    if (inputStyle === "editor" && editor && content !== editor.getHTML()) {
+    if (editor && content !== editor.getHTML()) {
       editor.commands.setContent(content);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [content, inputStyle]);
-
-  // --- Items mode: items → content sync ---
-  const syncFromItems = useCallback((newItems: string[]) => {
-    const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const html = newItems.map(i => `<p>${escapeHtml(i)}</p>`).join("");
-    setContent(html);
-
-    const allText = newItems.join("\n");
-    const foundNums: number[] = [];
-    const re = /\[(\d+)\]/g;
-    let match;
-    while ((match = re.exec(allText)) !== null) foundNums.push(parseInt(match[1]));
-
-    const seen = new Set<number>();
-    const duplicates = new Set<number>();
-    for (const n of foundNums) { if (seen.has(n)) duplicates.add(n); seen.add(n); }
-    if (duplicates.size > 0) {
-      toast.warning(`중복된 빈칸 번호가 있습니다: [${[...duplicates].join("], [")}]. 같은 번호를 여러 번 사용할 수 없습니다.`);
-    }
-
-    const uniqueNums = [...new Set(foundNums)];
-    const curr = blanksRef.current;
-    let updated = [...curr];
-    let changed = false;
-    for (const num of uniqueNums) {
-      if (!updated.some(b => b.number === num)) {
-        updated.push({ id: `b${Date.now()}-${num}`, number: num, answer: "", alternatives: [] });
-        changed = true;
-      }
-    }
-    const before = updated.length;
-    const removed = updated.filter(b => !uniqueNums.includes(b.number));
-    updated = updated.filter(b => uniqueNums.includes(b.number));
-    if (updated.length !== before) {
-      changed = true;
-      const remainingAnswers = new Set(updated.map(b => b.answer).filter(Boolean));
-      const toRemove = removed.map(b => b.answer).filter(a => a && !remainingAnswers.has(a));
-      if (toRemove.length > 0) setWordBank(wordBankRef.current.filter(w => !toRemove.includes(w)));
-    }
-    updated.sort((a, b) => a.number - b.number);
-    if (changed) setBlanks(updated);
-  }, [setContent, setBlanks, setWordBank]);
-
-  // --- Items mode handlers ---
-  const updateItem = (index: number, value: string) => {
-    const newItems = [...items];
-    newItems[index] = value;
-    setItems(newItems);
-    syncFromItems(newItems);
-  };
-
-  const addItem = () => {
-    const newItems = [...items, ""];
-    setItems(newItems);
-    syncFromItems(newItems);
-    setTimeout(() => {
-      const ref = textareaRefs.current[newItems.length - 1];
-      if (ref) ref.focus();
-    }, 0);
-  };
-
-  const removeItem = (index: number) => {
-    if (items.length <= 1) return;
-    const newItems = items.filter((_, i) => i !== index);
-    setItems(newItems);
-    syncFromItems(newItems);
-  };
-
-  const handleItemContextMenu = (e: React.MouseEvent, itemIndex: number) => {
-    const textarea = textareaRefs.current[itemIndex];
-    if (!textarea) return;
-    const { selectionStart, selectionEnd } = textarea;
-    if (selectionStart === selectionEnd) return;
-    const selectedText = items[itemIndex].substring(selectionStart, selectionEnd).trim();
-    if (!selectedText) return;
-    if (blankMode === "word") {
-      if (/\s/.test(selectedText)) {
-        e.preventDefault();
-        toast.warning("공백이 포함된 단어는 빈칸으로 만들 수 없습니다. 단어 하나만 선택해주세요.");
-        return;
-      }
-    } else {
-      if (/^\s/.test(items[itemIndex].substring(selectionStart, selectionEnd))) {
-        e.preventDefault();
-        toast.warning("첫 글자가 공백인 텍스트는 빈칸으로 만들 수 없습니다.");
-        return;
-      }
-    }
-    e.preventDefault();
-    setItemContextMenu({ x: e.clientX, y: e.clientY, text: selectedText, itemIndex, selStart: selectionStart, selEnd: selectionEnd });
-  };
-
-  const createBlankFromItemSelection = () => {
-    if (!itemContextMenu) return;
-    const { text, itemIndex, selStart, selEnd } = itemContextMenu;
-    const nums = blanks.map(b => b.number);
-    const nextNum = nums.length > 0 ? Math.max(...nums) + 1 : 1;
-    const itemText = items[itemIndex];
-    const newText = itemText.substring(0, selStart) + `[${nextNum}]` + itemText.substring(selEnd);
-    const newItems = [...items];
-    newItems[itemIndex] = newText;
-    setItems(newItems);
-    const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    setContent(newItems.map(i => `<p>${escapeHtml(i)}</p>`).join(""));
-    const newBlanks = [...blanks, { id: `b${Date.now()}-${nextNum}`, number: nextNum, answer: text, alternatives: [] as string[] }];
-    newBlanks.sort((a, b) => a.number - b.number);
-    setBlanks(newBlanks);
-    if (!wordBank.includes(text)) setWordBank([...wordBank, text]);
-    setItemContextMenu(null);
-  };
+  }, [content]);
 
   // --- Editor mode handlers ---
   const handleEditorContextMenu = (e: React.MouseEvent) => {
@@ -2608,24 +2300,18 @@ function FillBlankDragEditor({
     const nextNum = nums.length > 0 ? Math.max(...nums) + 1 : 1;
     pendingAnswers.current.set(nextNum, text);
     editor.chain().focus().deleteRange({ from, to }).insertContent(`[${nextNum}]`).run();
-    if (!wordBank.includes(text)) setWordBank([...wordBank, text]);
+    const trimmed = text.trim();
+    if (trimmed && !trimmed.includes(" ") && !wordBank.includes(trimmed)) setWordBank([...wordBank, trimmed]);
     setEditorContextMenu(null);
   };
 
   // --- Common handlers ---
   const removeBlankAndRestore = (id: string) => {
     const blank = blanks.find(b => b.id === id);
-    if (!blank) return;
-    const marker = `[${blank.number}]`;
-    if (inputStyle === "items") {
-      const newItems = items.map(item => item.replace(marker, blank.answer || ""));
-      setItems(newItems);
-      syncFromItems(newItems);
-    } else if (editor) {
-      const html = editor.getHTML();
-      const newHtml = html.replace(`[${blank.number}]`, blank.answer || "");
-      editor.commands.setContent(newHtml);
-    }
+    if (!blank || !editor) return;
+    const html = editor.getHTML();
+    const newHtml = html.replace(`[${blank.number}]`, blank.answer || "");
+    editor.commands.setContent(newHtml);
   };
 
   const updateBlankAnswer = (id: string, newAnswer: string) => {
@@ -2634,38 +2320,21 @@ function FillBlankDragEditor({
     if (!blank) return;
     const oldAnswer = blank.answer;
     setBlanks(blanks.map(b => b.id === id ? { ...b, answer: clean } : b));
+    const wbWord = clean.trim();
+    const validWbWord = wbWord && !wbWord.includes(" ");
     if (oldAnswer && oldAnswer !== clean) {
       const stillUsed = blanks.some(b => b.id !== id && b.answer === oldAnswer);
       let wb = [...wordBankRef.current];
       if (!stillUsed) wb = wb.filter(w => w !== oldAnswer);
-      if (clean && !wb.includes(clean)) wb.push(clean);
+      if (validWbWord && !wb.includes(wbWord)) wb.push(wbWord);
       setWordBank(wb);
-    } else if (clean && !wordBankRef.current.includes(clean)) {
-      setWordBank([...wordBankRef.current, clean]);
+    } else if (validWbWord && !wordBankRef.current.includes(wbWord)) {
+      setWordBank([...wordBankRef.current, wbWord]);
     }
-  };
-
-  // --- Mode switch handler ---
-  const handleInputStyleChange = (newStyle: "editor" | "items") => {
-    if (newStyle === inputStyle) return;
-    if (newStyle === "items") {
-      const newItems = convertEditorToItems(content);
-      setItems(newItems);
-      if (content.includes("<strong>") || content.includes("<em>")) {
-        toast.info("에디터의 서식(굵게, 기울임 등)이 제거되었습니다.");
-      }
-    } else {
-      const html = convertItemsToEditor(items);
-      setContent(html);
-      if (editor) {
-        editor.commands.setContent(html);
-      }
-    }
-    setInputStyle(newStyle);
   };
 
   return (
-    <div className="space-y-6" onClick={() => { setEditorContextMenu(null); setItemContextMenu(null); }}>
+    <div className="space-y-6" onClick={() => setEditorContextMenu(null)}>
       <div className="space-y-2">
         <Label>제목 (선택)</Label>
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="지문 제목" />
@@ -2677,9 +2346,7 @@ function FillBlankDragEditor({
           checked={blankMode === "sentence"}
           onCheckedChange={(checked) => {
             const newMode = checked ? "sentence" : "word";
-            const hasContent = inputStyle === "items" ? items.some(i => i.trim()) : content.trim();
-            if (hasContent || blanks.length > 0) {
-              if (inputStyle === "items") { setItems([""]); }
+            if (content.trim() || blanks.length > 0) {
               setContent("");
               setBlanks([]);
               setWordBank([]);
@@ -2696,100 +2363,56 @@ function FillBlankDragEditor({
         </div>
       </div>
 
-      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border">
-        <span className={`text-sm font-medium ${inputStyle === "editor" ? "text-primary" : "text-muted-foreground"}`}>에디터</span>
-        <Switch
-          checked={inputStyle === "items"}
-          onCheckedChange={(checked) => handleInputStyleChange(checked ? "items" : "editor")}
-        />
-        <span className={`text-sm font-medium ${inputStyle === "items" ? "text-primary" : "text-muted-foreground"}`}>항목</span>
+      <div className="space-y-2">
+        <Label>문제 <span className="text-red-500">*</span></Label>
+        <p className="text-xs text-muted-foreground">
+          단어를 드래그로 선택 후 <strong>우클릭</strong> → 빈칸 만들기 / 직접 <code className="bg-slate-100 px-1 rounded">[번호]</code> 입력도 가능
+        </p>
+        <div className="relative">
+          <div className="border rounded-md overflow-hidden" onContextMenu={handleEditorContextMenu}>
+            <div className="flex items-center gap-1 px-2 py-1.5 border-b bg-slate-50">
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().toggleBold().run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive("bold") ? "bg-slate-200" : ""}`}
+              ><Bold className="h-4 w-4" /></Button>
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().toggleItalic().run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive("italic") ? "bg-slate-200" : ""}`}
+              ><Italic className="h-4 w-4" /></Button>
+              <div className="w-px h-5 bg-slate-200 mx-1" />
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().toggleBulletList().run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive("bulletList") ? "bg-slate-200" : ""}`}
+              ><List className="h-4 w-4" /></Button>
+              <div className="w-px h-5 bg-slate-200 mx-1" />
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().setTextAlign("left").run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive({ textAlign: "left" }) ? "bg-slate-200" : ""}`}
+              ><AlignLeft className="h-4 w-4" /></Button>
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().setTextAlign("center").run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive({ textAlign: "center" }) ? "bg-slate-200" : ""}`}
+              ><AlignCenter className="h-4 w-4" /></Button>
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().setTextAlign("right").run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive({ textAlign: "right" }) ? "bg-slate-200" : ""}`}
+              ><AlignRight className="h-4 w-4" /></Button>
+            </div>
+            <EditorContent editor={editor} className="bg-white" />
+          </div>
+          {editorContextMenu && (
+            <div className="fixed z-50 bg-white border rounded-lg shadow-lg py-1 min-w-[160px]"
+              style={{ left: editorContextMenu.x, top: editorContextMenu.y }}
+              onClick={(e) => e.stopPropagation()}>
+              <button className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
+                onClick={createBlankFromEditorSelection}>
+                <Plus className="h-4 w-4" />
+                빈칸 만들기: &ldquo;{editorContextMenu.text.length > 20 ? editorContextMenu.text.slice(0, 20) + "…" : editorContextMenu.text}&rdquo;
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-
-      {inputStyle === "items" ? (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label>항목 목록 ({items.length}개) *</Label>
-            <p className="text-xs text-muted-foreground">
-              텍스트 선택 후 <strong>우클릭</strong> → 빈칸 만들기 / 직접 <code className="bg-slate-100 px-1 rounded">[번호]</code> 입력도 가능
-            </p>
-          </div>
-          <div className="relative">
-            <div className="border rounded-lg divide-y">
-              {items.map((item, index) => (
-                <div key={index} className="flex items-start gap-2 px-3 py-2">
-                  <span className="mt-2 text-xs text-muted-foreground font-mono w-6 text-right shrink-0">{index + 1}</span>
-                  <Textarea
-                    ref={(el) => { textareaRefs.current[index] = el; }}
-                    value={item}
-                    onChange={(e) => updateItem(index, e.target.value)}
-                    onContextMenu={(e) => handleItemContextMenu(e, index)}
-                    placeholder={`항목 ${index + 1} 텍스트 입력...`}
-                    className="flex-1 min-h-[40px] text-sm resize-none"
-                    rows={1}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0 mt-0.5"
-                    onClick={() => removeItem(index)}
-                    disabled={items.length <= 1}
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-            <Button type="button" variant="outline" size="sm" className="mt-2" onClick={addItem}>
-              <Plus className="h-4 w-4 mr-1" /> 항목 추가
-            </Button>
-            {itemContextMenu && (
-              <div className="fixed z-50 bg-white border rounded-lg shadow-lg py-1 min-w-[160px]"
-                style={{ left: itemContextMenu.x, top: itemContextMenu.y }}
-                onClick={(e) => e.stopPropagation()}>
-                <button className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
-                  onClick={createBlankFromItemSelection}>
-                  <Plus className="h-4 w-4" />
-                  빈칸 만들기: &ldquo;{itemContextMenu.text.length > 20 ? itemContextMenu.text.slice(0, 20) + "…" : itemContextMenu.text}&rdquo;
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          <Label>지문 *</Label>
-          <p className="text-xs text-muted-foreground">
-            단어를 드래그로 선택 후 <strong>우클릭</strong> → 빈칸 만들기 / 직접 <code className="bg-slate-100 px-1 rounded">[번호]</code> 입력도 가능
-          </p>
-          <div className="relative">
-            <div className="border rounded-md overflow-hidden" onContextMenu={handleEditorContextMenu}>
-              <div className="flex items-center gap-1 px-2 py-1.5 border-b bg-slate-50">
-                <Button type="button" variant="ghost" size="sm"
-                  onClick={() => editor?.chain().focus().toggleBold().run()}
-                  className={`h-8 w-8 p-0 ${editor?.isActive("bold") ? "bg-slate-200" : ""}`}
-                ><Bold className="h-4 w-4" /></Button>
-                <Button type="button" variant="ghost" size="sm"
-                  onClick={() => editor?.chain().focus().toggleItalic().run()}
-                  className={`h-8 w-8 p-0 ${editor?.isActive("italic") ? "bg-slate-200" : ""}`}
-                ><Italic className="h-4 w-4" /></Button>
-              </div>
-              <EditorContent editor={editor} className="bg-white" />
-            </div>
-            {editorContextMenu && (
-              <div className="fixed z-50 bg-white border rounded-lg shadow-lg py-1 min-w-[160px]"
-                style={{ left: editorContextMenu.x, top: editorContextMenu.y }}
-                onClick={(e) => e.stopPropagation()}>
-                <button className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
-                  onClick={createBlankFromEditorSelection}>
-                  <Plus className="h-4 w-4" />
-                  빈칸 만들기: &ldquo;{editorContextMenu.text.length > 20 ? editorContextMenu.text.slice(0, 20) + "…" : editorContextMenu.text}&rdquo;
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {blanks.length > 0 && (
         <div className="space-y-3">
@@ -2818,7 +2441,7 @@ function FillBlankDragEditor({
             <Label className="text-xs text-muted-foreground">Word Bank 미리보기</Label>
             <span className="text-[10px] text-muted-foreground">(드래그하여 순서 변경)</span>
           </div>
-          <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-lg border border-dashed">
+          <div className={`${blankMode === "sentence" ? "flex flex-col" : "flex flex-wrap"} gap-2 p-3 bg-slate-50 rounded-lg border border-dashed`}>
             {wordBank.map((word, i) => {
               const isAnswer = blanks.some(b => b.answer === word);
               return (
@@ -2866,6 +2489,7 @@ function TableCompletionEditor({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: false, bulletList: false, orderedList: false, listItem: false, blockquote: false, codeBlock: false, code: false, horizontalRule: false }),
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
       Table.configure({ resizable: true }),
       TableRow,
       TableCell,
@@ -2915,7 +2539,7 @@ function TableCompletionEditor({
     },
     editorProps: {
       attributes: {
-        class: "prose prose-sm max-w-none focus:outline-none min-h-[200px] px-3 py-2 [&_p]:my-1 [&_strong]:font-bold [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-slate-300 [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-slate-300 [&_th]:px-3 [&_th]:py-2 [&_th]:bg-slate-100 [&_th]:font-semibold",
+        class: "prose prose-sm max-w-none focus:outline-none min-h-[200px] px-3 py-2 [&_p]:my-1 [&_strong]:font-bold [&_table]:border-collapse [&_table]:w-full [&_table]:table-fixed [&_td]:border [&_td]:border-slate-300 [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-slate-300 [&_th]:px-3 [&_th]:py-2 [&_th]:bg-slate-100 [&_th]:font-semibold",
       },
     },
   });
@@ -2957,7 +2581,8 @@ function TableCompletionEditor({
     const nextNum = nums.length > 0 ? Math.max(...nums) + 1 : 1;
     pendingAnswers.current.set(nextNum, text);
     editor.chain().focus().deleteRange({ from, to }).insertContent(`[${nextNum}]`).run();
-    if (inputMode === "drag" && !wordBank.includes(text)) setWordBank([...wordBank, text]);
+    const trimmed = text.trim();
+    if (inputMode === "drag" && trimmed && !wordBank.includes(trimmed)) setWordBank([...wordBank, trimmed]);
     setContextMenu(null);
   };
 
@@ -2976,16 +2601,30 @@ function TableCompletionEditor({
     const oldAnswer = blank.answer;
     setBlanks(blanks.map(b => b.id === id ? { ...b, answer: clean } : b));
     if (inputMode === "drag") {
+      const wbWord = clean.trim();
+      const validWbWord = !!wbWord;
       if (oldAnswer && oldAnswer !== clean) {
         const stillUsed = blanks.some(b => b.id !== id && b.answer === oldAnswer);
         let wb = [...wordBankRef.current];
         if (!stillUsed) wb = wb.filter(w => w !== oldAnswer);
-        if (clean && !wb.includes(clean)) wb.push(clean);
+        if (validWbWord && !wb.includes(wbWord)) wb.push(wbWord);
         setWordBank(wb);
-      } else if (clean && !wordBankRef.current.includes(clean)) {
-        setWordBank([...wordBankRef.current, clean]);
+      } else if (validWbWord && !wordBankRef.current.includes(wbWord)) {
+        setWordBank([...wordBankRef.current, wbWord]);
       }
     }
+  };
+
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const [trapInput, setTrapInput] = useState("");
+
+  const addTrapWord = () => {
+    const w = trapInput.trim();
+    if (!w) return;
+    if (wordBank.includes(w)) { toast.warning("이미 존재하는 단어입니다."); return; }
+    setWordBank([...wordBank, w]);
+    setTrapInput("");
   };
 
   return (
@@ -3037,7 +2676,7 @@ function TableCompletionEditor({
 
       {/* 에디터 */}
       <div className="space-y-2">
-        <Label>테이블 지문 *</Label>
+        <Label>테이블 지문 <span className="text-red-500">*</span></Label>
         <p className="text-xs text-muted-foreground">
           텍스트를 드래그로 선택 후 <strong>우클릭</strong> → 빈칸 만들기 / 직접 <code className="bg-slate-100 px-1 rounded">[번호]</code> 입력도 가능
         </p>
@@ -3052,6 +2691,19 @@ function TableCompletionEditor({
                 onClick={() => editor?.chain().focus().toggleItalic().run()}
                 className={`h-8 w-8 p-0 ${editor?.isActive("italic") ? "bg-slate-200" : ""}`}
               ><Italic className="h-4 w-4" /></Button>
+              <div className="w-px h-6 bg-slate-300 mx-1" />
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().setTextAlign("left").run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive({ textAlign: "left" }) ? "bg-slate-200" : ""}`}
+              ><AlignLeft className="h-4 w-4" /></Button>
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().setTextAlign("center").run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive({ textAlign: "center" }) ? "bg-slate-200" : ""}`}
+              ><AlignCenter className="h-4 w-4" /></Button>
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => editor?.chain().focus().setTextAlign("right").run()}
+                className={`h-8 w-8 p-0 ${editor?.isActive({ textAlign: "right" }) ? "bg-slate-200" : ""}`}
+              ><AlignRight className="h-4 w-4" /></Button>
               <div className="w-px h-6 bg-slate-300 mx-1" />
               <Button type="button" variant="ghost" size="sm"
                 onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
@@ -3129,6 +2781,62 @@ function TableCompletionEditor({
           </div>
         </div>
       )}
+
+      {/* Word Bank (drag 모드일 때) */}
+      {inputMode === "drag" && (
+        <div className="space-y-3">
+          <Label className="text-sm">Word Bank</Label>
+
+          {/* 함정 단어 추가 */}
+          <div className="flex gap-2">
+            <Input
+              className="h-8 text-sm flex-1"
+              value={trapInput}
+              onChange={(e) => setTrapInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTrapWord(); } }}
+              placeholder="함정 단어 입력 후 Enter 또는 추가 클릭"
+            />
+            <Button variant="outline" size="sm" className="h-8 text-xs px-3" onClick={addTrapWord}>
+              <Plus className="h-3 w-3 mr-1" />추가
+            </Button>
+          </div>
+
+          {/* Word Bank 미리보기 (드래그 순서 변경) */}
+          {wordBank.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground">Word Bank 미리보기</Label>
+                <span className="text-[10px] text-muted-foreground">(드래그하여 순서 변경)</span>
+              </div>
+              <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-lg border border-dashed">
+                {wordBank.map((word, i) => {
+                  const isAnswer = blanks.some(b => b.answer === word);
+                  return (
+                    <span key={`${i}-${word}`} draggable
+                      onDragStart={() => setDragIdx(i)}
+                      onDragOver={(e) => { e.preventDefault(); setDragOverIdx(i); }}
+                      onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+                      onDrop={() => {
+                        if (dragIdx === null || dragIdx === i) return;
+                        const r = [...wordBank]; const [mv] = r.splice(dragIdx, 1); r.splice(i, 0, mv);
+                        setWordBank(r); setDragIdx(null); setDragOverIdx(null);
+                      }}
+                      className={`group px-3 py-1 rounded-md text-sm border cursor-grab active:cursor-grabbing select-none transition-all ${dragIdx === i ? "opacity-40 scale-95" : ""} ${dragOverIdx === i && dragIdx !== i ? "ring-2 ring-primary ring-offset-1" : ""} ${isAnswer ? "bg-primary/10 text-primary border-primary/20" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
+                      {word}
+                      {!isAnswer && (
+                        <button className="ml-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => { e.stopPropagation(); setWordBank(wordBank.filter((_, idx) => idx !== i)); }}>
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -3171,7 +2879,7 @@ function WritingEditor({
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>제목 *</Label>
+          <Label>제목 <span className="text-red-500">*</span></Label>
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -3180,7 +2888,7 @@ function WritingEditor({
         </div>
 
         <div className="space-y-2">
-          <Label>최소 단어 수 *</Label>
+          <Label>최소 단어 수 <span className="text-red-500">*</span></Label>
           <Input
             type="text"
             inputMode="numeric"
@@ -3211,7 +2919,7 @@ function WritingEditor({
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>작문 주제 *</Label>
+          <Label>작문 주제 <span className="text-red-500">*</span></Label>
           <p className="text-xs text-muted-foreground">Ctrl+B: 굵게</p>
         </div>
         <RichTextEditor
@@ -3292,11 +3000,11 @@ function SpeakingPart1Editor({
       {/* 질문 */}
       <div className="space-y-2">
         <RequiredLabel>질문</RequiredLabel>
-        <Textarea
+        <RichTextEditor
           value={question}
-          onChange={(e) => setQuestion(e.target.value)}
+          onChange={setQuestion}
           placeholder="예: What do you do in your free time?"
-          rows={3}
+          minHeight="80px"
         />
       </div>
 
@@ -3372,11 +3080,11 @@ function SpeakingPart2Editor({
 
       <div className="space-y-2">
         <RequiredLabel>큐카드 주제</RequiredLabel>
-        <Textarea
+        <RichTextEditor
           value={topic}
-          onChange={(e) => setTopic(e.target.value)}
+          onChange={setTopic}
           placeholder="예: Describe a book that you have recently read."
-          rows={2}
+          minHeight="60px"
         />
       </div>
 
@@ -3526,11 +3234,11 @@ function SpeakingPart3Editor({
       {/* 질문 */}
       <div className="space-y-2">
         <RequiredLabel>질문</RequiredLabel>
-        <Textarea
+        <RichTextEditor
           value={question}
-          onChange={(e) => setQuestion(e.target.value)}
+          onChange={setQuestion}
           placeholder="예: Why do you think some people prefer reading books rather than watching movies?"
-          rows={3}
+          minHeight="80px"
         />
       </div>
 
@@ -3646,11 +3354,11 @@ function MapLabelingEditor({
         </div>
         <div className="space-y-2">
           <Label>지문 (선택)</Label>
-          <Textarea
+          <RichTextEditor
             value={passage}
-            onChange={(e) => setPassage(e.target.value)}
+            onChange={setPassage}
             placeholder="지도에 대한 설명 텍스트 (선택사항)"
-            className="min-h-[60px]"
+            minHeight="60px"
           />
         </div>
       </div>
