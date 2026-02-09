@@ -63,14 +63,14 @@ export function QuestionDetailPreview({ question }: QuestionDetailPreviewProps) 
     <div className="mt-2 p-3 bg-white border rounded-lg text-sm space-y-2">
       {question.instructions && (
         <div
-          className="text-xs text-gray-500 italic bg-gray-50 p-2 rounded prose prose-xs max-w-none [&_p]:my-0.5"
+          className="text-xs text-gray-500 italic bg-gray-50 p-2 rounded prose prose-xs max-w-none [&_p]:my-2 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(question.instructions) }}
         />
       )}
 
       {question.content && (
         <div
-          className="text-gray-700 leading-relaxed text-xs prose prose-xs max-w-none [&_p]:my-0.5"
+          className="text-gray-700 leading-relaxed text-xs prose prose-xs max-w-none [&_p]:my-2 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(question.content) }}
         />
       )}

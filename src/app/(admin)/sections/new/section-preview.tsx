@@ -582,7 +582,7 @@ export function SectionPreview({
           <p className="text-sm text-gray-500">매칭 데이터가 없습니다.</p>
           {item.question.content && (
             <div
-              className="text-sm prose prose-sm max-w-none [&_p]:my-1"
+              className="text-sm prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.question.content) }}
             />
           )}
@@ -908,7 +908,7 @@ export function SectionPreview({
         ) : null}
         {item.question.content ? (
           <div
-            className="text-sm leading-relaxed prose prose-sm max-w-none [&_p]:my-2 [&_strong]:font-bold"
+            className="text-sm leading-relaxed prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em] [&_strong]:font-bold"
             dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.question.content) }}
           />
         ) : null}
@@ -1008,7 +1008,7 @@ export function SectionPreview({
           {/* Question */}
           {q.content && (
             <div
-              className="text-[15px] leading-relaxed prose prose-sm max-w-none [&_p]:my-1"
+              className="text-[15px] leading-relaxed prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(q.content) }}
             />
           )}
@@ -1142,7 +1142,7 @@ export function SectionPreview({
           {/* Question */}
           {q.content && (
             <div
-              className="text-[15px] leading-relaxed p-4 bg-violet-50/50 border border-violet-100 rounded-lg prose prose-sm max-w-none [&_p]:my-1"
+              className="text-[15px] leading-relaxed p-4 bg-violet-50/50 border border-violet-100 rounded-lg prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(q.content) }}
             />
           )}
@@ -1165,7 +1165,7 @@ export function SectionPreview({
       <div className="space-y-4">
         {q.content && (
           <div
-            className="text-sm leading-relaxed prose prose-sm max-w-none [&_p]:my-1"
+            className="text-sm leading-relaxed prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
             dangerouslySetInnerHTML={{ __html: sanitizeHtml(q.content) }}
           />
         )}

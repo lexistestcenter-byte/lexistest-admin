@@ -106,13 +106,13 @@ export function QuestionPreviewDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {isLoading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : question ? (
-            <div className="p-8 bg-slate-100 min-h-full">
+            <div className="p-8 bg-slate-100 h-full flex flex-col">
               {/* Audio */}
               {question.audio_url && (
                 <audio src={getCdnUrl(question.audio_url)} autoPlay />
@@ -120,16 +120,16 @@ export function QuestionPreviewDialog({
 
               {/* Instructions */}
               {question.instructions && (
-                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg shrink-0">
                   <div
-                    className="font-medium text-blue-900 prose prose-sm max-w-none [&_p]:my-1"
+                    className="font-medium text-blue-900 prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
                     dangerouslySetInnerHTML={{ __html: sanitizeHtml(question.instructions) }}
                   />
                 </div>
               )}
 
               {/* Question content */}
-              <QuestionPreview data={apiToPreviewData(question)} />
+              <QuestionPreview data={apiToPreviewData(question)} className="flex-1 min-h-0" />
             </div>
           ) : (
             <div className="text-center py-16 text-muted-foreground text-sm">

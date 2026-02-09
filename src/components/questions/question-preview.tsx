@@ -44,7 +44,7 @@ export function QuestionPreview({
   const fmt = data.question_format;
 
   return (
-    <div className={className}>
+    <div className={cn("flex flex-col", className)}>
       {fmt === "mcq_single" || fmt === "mcq_multiple" || fmt === "mcq" ? (
         <MCQPreview data={data} />
       ) : fmt === "true_false_ng" ? (
@@ -336,7 +336,7 @@ function FillBlankTypingPreview({ data }: { data: QuestionPreviewData }) {
           ))}
         </ul>
       ) : (
-        <div className="leading-relaxed prose prose-sm max-w-none [&_p]:my-1 [&_strong]:font-bold">
+        <div className="leading-relaxed prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em] [&_strong]:font-bold">
           {renderWithInputs(data.content || "")}
         </div>
       )}
@@ -627,7 +627,7 @@ function MatchingPreview({ data }: { data: QuestionPreviewData }) {
     <div className="grid grid-cols-2 gap-6">
       <div className="bg-white rounded-lg border p-6 max-h-[600px] overflow-y-auto">
         {contentTitle && <h2 className="text-lg font-bold mb-4">{contentTitle}</h2>}
-        <div className="prose prose-sm max-w-none [&_p]:my-1 [&_strong]:font-bold leading-relaxed">
+        <div className="prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em] [&_strong]:font-bold leading-relaxed">
           {renderContentWithSlots()}
         </div>
       </div>
@@ -842,16 +842,16 @@ function EssayPreview({ data }: { data: QuestionPreviewData }) {
   const meetsMinimum = minWords > 0 ? wordCount >= minWords : true;
 
   return (
-    <div className="bg-white rounded-lg overflow-hidden border">
-      <div className="px-4 py-3 border-b bg-slate-50">
+    <div className="bg-white rounded-lg overflow-hidden border flex flex-col flex-1 min-h-0">
+      <div className="px-4 py-3 border-b bg-slate-50 shrink-0">
         <h2 className="font-bold text-lg">{contentTitle}</h2>
         {condition && <p className="text-sm text-muted-foreground mt-1">{condition}</p>}
       </div>
-      <div className="flex">
-        <div className="flex-1 p-4 bg-[#d8dce8]">
+      <div className="flex flex-1 min-h-0">
+        <div className="flex-1 p-4 bg-[#d8dce8] overflow-y-auto">
           {data.content ? (
             <div
-              className="prose prose-sm max-w-none text-sm [&_p]:my-1 [&_strong]:font-bold"
+              className="prose prose-sm max-w-none text-sm [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em] [&_strong]:font-bold"
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content) }}
             />
           ) : (
@@ -863,15 +863,14 @@ function EssayPreview({ data }: { data: QuestionPreviewData }) {
             </div>
           )}
         </div>
-        <div className="flex-1 p-4 flex flex-col bg-slate-100">
+        <div className="flex-1 p-4 flex flex-col">
           <textarea
-            rows={12}
             spellCheck={false}
             className="flex-1 w-full border border-blue-400 rounded p-3 text-sm resize-none bg-white"
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
-          <div className="mt-2 text-sm text-right">
+          <div className="mt-2 text-sm text-right shrink-0">
             <span className="text-foreground">
               Word Count: {wordCount}
             </span>
