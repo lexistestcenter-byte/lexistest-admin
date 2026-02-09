@@ -210,7 +210,7 @@ function SortableGroupItemRow({
         <Badge variant="outline" className="text-[10px] px-1.5 py-0">
           {formatLabels[info.question_format] || info.question_format}
         </Badge>
-        <span className="flex-1 text-xs text-muted-foreground">
+        <span className="flex-1 text-xs text-muted-foreground truncate min-w-0">
           {stripHtml(info.title || info.content)}
         </span>
         <Button
@@ -547,17 +547,14 @@ export default function SectionEditPage({
     }
   };
 
-  const handleUpdateGroup = async (
+  const handleUpdateGroup = (
     groupId: string,
     data: Record<string, unknown>
   ) => {
-    try {
-      const { error } = await api.put(`/api/sections/${id}/groups/${groupId}`, data);
-      if (error) throw new Error(error);
-    } catch (error) {
-      console.error("Error updating group:", error);
-      toast.error("그룹 정보 저장에 실패했습니다.");
-    }
+    // Update local state only — persisted on save
+    setQuestionGroups((prev) =>
+      prev.map((g) => (g.id === groupId ? { ...g, ...data } as typeof g : g))
+    );
   };
 
   const handleRemoveGroup = (groupId: string) => {
@@ -749,6 +746,9 @@ export default function SectionEditPage({
           group_id: group.id,
           display_order: gi,
           question_number_start: groupStart,
+          content_block_id: group.content_block_id || null,
+          title: group.title || null,
+          instructions: group.instructions || null,
           items,
         };
       });
@@ -1649,7 +1649,7 @@ function EditGroupCard({
           )}
         </button>
         <span className="text-sm font-semibold flex-1">
-          {group.title || autoTitle}
+          {autoTitle}
         </span>
         <Badge variant="outline" className="text-[10px]">
           {group.numberedItems.length}문제

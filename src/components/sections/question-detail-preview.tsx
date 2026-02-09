@@ -30,7 +30,7 @@ function renderBlankPlaceholders(text: string): React.ReactNode {
         </span>
       );
     }
-    return <span key={i}>{part}</span>;
+    return <span key={i} dangerouslySetInnerHTML={{ __html: sanitizeHtml(part) }} />;
   });
 }
 
@@ -236,7 +236,7 @@ export function QuestionDetailPreview({ question }: QuestionDetailPreviewProps) 
                 <span>{opt.text}</span>
                 {opt.isCorrect && (
                   <Badge className="ml-auto text-[9px] bg-green-100 text-green-700 border-green-300">
-                    정답
+                    Correct
                   </Badge>
                 )}
               </div>
@@ -251,15 +251,15 @@ export function QuestionDetailPreview({ question }: QuestionDetailPreviewProps) 
             tfngItems.map((item) => (
               <div
                 key={item.number}
-                className="text-xs text-gray-600 p-1"
+                className="text-xs text-gray-600 p-1 flex gap-1"
               >
-                <span className="font-bold mr-1">{item.number}.</span>
-                {item.statement}
+                <span className="font-bold shrink-0">{item.number}.</span>
+                <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(String(item.statement)) }} />
               </div>
             ))
           ) : (
             <div className="text-xs text-gray-500">
-              답: {tfngAnswer}
+              Answer: {tfngAnswer}
             </div>
           )}
         </div>
@@ -270,7 +270,7 @@ export function QuestionDetailPreview({ question }: QuestionDetailPreviewProps) 
         <div className="space-y-2">
           {matchOptions.length > 0 && (
             <div className="text-xs space-y-0.5">
-              <span className="font-semibold text-gray-500">보기:</span>
+              <span className="font-semibold text-gray-500">Options:</span>
               {matchOptions.map((opt) => (
                 <div key={opt.label} className="flex gap-1 pl-2">
                   <span className="font-bold text-blue-600">{opt.label}</span>
@@ -281,11 +281,11 @@ export function QuestionDetailPreview({ question }: QuestionDetailPreviewProps) 
           )}
           {matchItems.length > 0 && (
             <div className="text-xs space-y-0.5">
-              <span className="font-semibold text-gray-500">항목:</span>
+              <span className="font-semibold text-gray-500">Items:</span>
               {matchItems.map((item) => (
-                <div key={item.number} className="pl-2 text-gray-600">
-                  <span className="font-bold mr-1">{item.number}.</span>
-                  {item.statement}
+                <div key={item.number} className="pl-2 text-gray-600 flex gap-1">
+                  <span className="font-bold shrink-0">{item.number}.</span>
+                  <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(String(item.statement)) }} />
                 </div>
               ))}
             </div>
@@ -316,7 +316,7 @@ export function QuestionDetailPreview({ question }: QuestionDetailPreviewProps) 
         fmt === "table_completion") &&
         blanks.length > 0 && (
           <div className="text-xs space-y-0.5">
-            <span className="font-semibold text-gray-500">정답:</span>
+            <span className="font-semibold text-gray-500">Answers:</span>
             {blanks.map((b) => (
               <div key={b.number} className="pl-2 text-green-700">
                 [{b.number}] {b.answer}
@@ -327,7 +327,7 @@ export function QuestionDetailPreview({ question }: QuestionDetailPreviewProps) 
 
       {/* 에세이 조건 */}
       {fmt === "essay" && essayCondition && (
-        <div className="text-xs text-gray-500">조건: {essayCondition}</div>
+        <div className="text-xs text-gray-500">Condition: {essayCondition}</div>
       )}
     </div>
   );

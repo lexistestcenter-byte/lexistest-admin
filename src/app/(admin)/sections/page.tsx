@@ -418,6 +418,7 @@ export default function SectionsPage() {
         title={previewSection?.title || ""}
         timeLimit={previewSection?.time_limit_minutes?.toString() || ""}
         isPractice={previewSection?.is_practice || false}
+        isLoading={isLoadingPreview}
         contentBlocks={isLoadingPreview ? [] : previewData.contentBlocks}
         questionGroups={isLoadingPreview ? [] : previewData.questionGroups}
         questions={isLoadingPreview ? [] : previewData.questions}

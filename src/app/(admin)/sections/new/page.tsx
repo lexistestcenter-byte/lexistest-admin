@@ -1203,7 +1203,7 @@ export default function NewSectionPage() {
                               )}
                             </button>
                             <span className="text-sm font-semibold flex-1">
-                              {group.title || autoTitle || `Set ${idx + 1}`}
+                              {autoTitle || `Set ${idx + 1}`}
                             </span>
                             <Badge variant="outline" className="text-[10px]">
                               {group.questions.length}문제

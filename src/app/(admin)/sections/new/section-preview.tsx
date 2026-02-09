@@ -14,11 +14,12 @@ import {
   X,
   Clock,
   Mic,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCdnUrl } from "@/lib/cdn";
 import { formatLabels } from "@/components/sections/constants";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtml, stripHtml } from "@/lib/utils/sanitize";
 
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -80,11 +81,27 @@ interface SectionPreviewProps {
   title: string;
   timeLimit: string;
   isPractice: boolean;
+  isLoading?: boolean;
   instructionTitle?: string;
   instructionHtml?: string;
   contentBlocks: ContentBlockPreview[];
   questionGroups: QuestionGroupPreview[];
   questions: PreviewQuestion[];
+}
+
+// ─── Helpers ────────────────────────────────────────────────────
+
+/** Detect heading matching: format "heading_matching" OR "matching" with empty item statements + [N] markers */
+function isHeadingMatchingQuestion(q: PreviewQuestion): boolean {
+  if (q.question_format === "heading_matching") return true;
+  if (q.question_format !== "matching") return false;
+  const od = q.options_data || {};
+  const items = Array.isArray(od.items) ? (od.items as { statement?: string }[]) : [];
+  return (
+    items.length > 0 &&
+    items.every((entry) => !entry.statement || String(entry.statement).trim() === "") &&
+    /\[\d+\]/.test(q.content || "")
+  );
 }
 
 // ─── Main Component ──────────────────────────────────────────────
@@ -95,6 +112,7 @@ export function SectionPreview({
   sectionType,
   title,
   timeLimit,
+  isLoading,
   instructionTitle,
   instructionHtml,
   contentBlocks,
@@ -387,7 +405,7 @@ export function SectionPreview({
     if (itemsList.length === 0) {
       return (
         <div className="space-y-2">
-          <p className="text-sm text-gray-500">T/F/NG 문제 데이터를 불러올 수 없습니다.</p>
+          <p className="text-sm text-gray-500">No T/F/NG data available.</p>
           {item.question.content && (
             <p className="text-sm">{item.question.content}</p>
           )}
@@ -464,7 +482,7 @@ export function SectionPreview({
   const renderFillBlankTyping = (item: QuestionItem) => {
     const od = item.question.options_data || {};
     const content = String(od.content || item.question.content || "");
-    if (!content) return <p className="text-sm text-gray-500">콘텐츠가 없습니다.</p>;
+    if (!content) return <p className="text-sm text-gray-500">No content available.</p>;
 
     const parts = content.split(/\[(\d+)\]/);
     return (
@@ -506,7 +524,7 @@ export function SectionPreview({
       : Array.isArray(od.wordBank)
         ? (od.wordBank as string[])
         : [];
-    if (!content) return <p className="text-sm text-gray-500">콘텐츠가 없습니다.</p>;
+    if (!content) return <p className="text-sm text-gray-500">No content available.</p>;
 
     const parts = content.split(/\[(\d+)\]/);
     return (
@@ -587,7 +605,7 @@ export function SectionPreview({
     if (options.length === 0 && matchItems.length === 0) {
       return (
         <div className="space-y-2">
-          <p className="text-sm text-gray-500">매칭 데이터가 없습니다.</p>
+          <p className="text-sm text-gray-500">No matching data available.</p>
           {item.question.content && (
             <div
               className="text-sm prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
@@ -639,6 +657,47 @@ export function SectionPreview({
       if (activeMatchSlot === num) setActiveMatchSlot(null);
     };
 
+    const isHeadingMatching = isHeadingMatchingQuestion(item.question);
+
+    if (isHeadingMatching) {
+      // Right panel only: heading list (draggable) + question number assignments
+      // Left panel (passage + drop zones) is rendered by renderHeadingMatchingPassage()
+      return (
+        <div className="space-y-4">
+          {/* Draggable heading list */}
+          <div className="bg-slate-50 border rounded-lg p-4">
+            <p className="text-xs font-semibold text-slate-500 mb-3 uppercase tracking-wide">List of Headings</p>
+            <div className="space-y-1.5">
+              {options.map((opt) => {
+                const isUsed = !allowDuplicate && assignedLabels.has(opt.label);
+                return (
+                  <div
+                    key={opt.label}
+                    draggable={!isUsed}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("text/plain", opt.label);
+                      e.dataTransfer.effectAllowed = "move";
+                    }}
+                    className={cn(
+                      "flex items-start gap-2 px-3 py-2 text-sm rounded transition-colors select-none",
+                      isUsed
+                        ? "text-gray-400 line-through opacity-50"
+                        : "cursor-grab active:cursor-grabbing hover:bg-blue-50 hover:text-blue-600 border border-transparent hover:border-blue-200"
+                    )}
+                  >
+                    <span className="font-bold text-gray-500 shrink-0 min-w-[24px]">{opt.label}</span>
+                    <span className="font-medium underline decoration-1 underline-offset-2">{String(opt.text)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+        </div>
+      );
+    }
+
+    // Default matching layout (pills + match items)
     return (
       <div className="space-y-4">
         {matchTitleText ? (
@@ -653,7 +712,7 @@ export function SectionPreview({
         {/* Options Pool — clickable pills */}
         {options.length > 0 && (
           <div className="p-3 bg-slate-50 border rounded-lg">
-            <p className="text-xs font-semibold text-slate-500 mb-2">보기 (Options)</p>
+            <p className="text-xs font-semibold text-slate-500 mb-2">Options</p>
             <div className="flex flex-wrap gap-1.5">
               {options.map((opt) => {
                 const isUsed = !allowDuplicate && assignedLabels.has(opt.label);
@@ -716,7 +775,7 @@ export function SectionPreview({
                       )}
                       onClick={() => handleSlotClick(num)}
                     >
-                      — 선택 —
+                      — Select —
                     </button>
                   )}
                 </div>
@@ -748,7 +807,7 @@ export function SectionPreview({
       : [];
 
     if (nodes.length === 0) {
-      return <p className="text-sm text-gray-500">플로우차트 데이터가 없습니다.</p>;
+      return <p className="text-sm text-gray-500">No flowchart data available.</p>;
     }
 
     const rows = new Map<number, typeof nodes>();
@@ -820,7 +879,7 @@ export function SectionPreview({
     if (!imageUrl && mapItems.length === 0) {
       return (
         <div className="space-y-2">
-          <p className="text-sm text-gray-500">지도 라벨링 데이터가 없습니다.</p>
+          <p className="text-sm text-gray-500">No map labeling data available.</p>
         </div>
       );
     }
@@ -853,7 +912,7 @@ export function SectionPreview({
                 }}
               />
             ) : (
-              <p className="text-sm text-gray-400">이미지 없음</p>
+              <p className="text-sm text-gray-400">No image</p>
             )}
           </div>
 
@@ -863,7 +922,7 @@ export function SectionPreview({
               <thead className="bg-slate-100">
                 <tr>
                   <th className="px-2 py-1.5 text-left font-medium">#</th>
-                  <th className="px-2 py-1.5 text-left font-medium">항목</th>
+                  <th className="px-2 py-1.5 text-left font-medium">Item</th>
                   {labels.map((label) => (
                     <th key={label} className="px-2 py-1.5 text-center font-medium w-8">{label}</th>
                   ))}
@@ -936,7 +995,7 @@ export function SectionPreview({
           <span>Words: {wordCount}</span>
           {minWords && (
             <span className={wordCount < minWords ? "text-red-500" : "text-green-600"}>
-              최소 {minWords}단어
+              Min. {minWords} words
             </span>
           )}
         </div>
@@ -1024,7 +1083,7 @@ export function SectionPreview({
           {/* Recording placeholder */}
           <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
             <Mic className="h-8 w-8 text-gray-300 mb-2" />
-            <p className="text-sm text-gray-400 mb-2">녹음 영역 (미리보기)</p>
+            <p className="text-sm text-gray-400 mb-2">Recording area (Preview)</p>
             <Button variant="outline" size="sm" disabled>
               <Mic className="mr-2 h-4 w-4" />
               Start Recording
@@ -1098,14 +1157,14 @@ export function SectionPreview({
 
             {/* Card footer - timing info */}
             <div className="px-4 py-2 bg-amber-50 border-t border-amber-200 text-xs text-amber-700">
-              준비 시간: 1분 | 발표 시간: 1-2분
+              Preparation: 1 min | Speaking: 1-2 min
             </div>
           </div>
 
           {/* Recording placeholder */}
           <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
             <Mic className="h-8 w-8 text-gray-300 mb-2" />
-            <p className="text-sm text-gray-400 mb-2">녹음 영역 (미리보기)</p>
+            <p className="text-sm text-gray-400 mb-2">Recording area (Preview)</p>
             <Button variant="outline" size="sm" disabled>
               <Mic className="mr-2 h-4 w-4" />
               Start Recording
@@ -1143,7 +1202,7 @@ export function SectionPreview({
           {/* Related Part 2 reference */}
           {q.related_part2_id && (
             <div className="text-xs text-gray-500 bg-gray-50 rounded px-3 py-2">
-              연결된 Part 2: <span className="font-mono">{q.related_part2_id}</span>
+              Related Part 2: <span className="font-mono">{q.related_part2_id}</span>
             </div>
           )}
 
@@ -1158,7 +1217,7 @@ export function SectionPreview({
           {/* Recording placeholder */}
           <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
             <Mic className="h-8 w-8 text-gray-300 mb-2" />
-            <p className="text-sm text-gray-400 mb-2">녹음 영역 (미리보기)</p>
+            <p className="text-sm text-gray-400 mb-2">Recording area (Preview)</p>
             <Button variant="outline" size="sm" disabled>
               <Mic className="mr-2 h-4 w-4" />
               Start Recording
@@ -1179,7 +1238,7 @@ export function SectionPreview({
         )}
         <div className="flex flex-col items-center justify-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
           <Mic className="h-10 w-10 text-gray-300 mb-3" />
-          <p className="text-sm text-gray-400 mb-3">녹음 영역 (미리보기)</p>
+          <p className="text-sm text-gray-400 mb-3">Recording area (Preview)</p>
           <Button variant="outline" size="sm" disabled>
             <Mic className="mr-2 h-4 w-4" />
             Start Recording
@@ -1208,7 +1267,7 @@ export function SectionPreview({
     if (fmt === "essay_task1" || fmt === "essay_task2" || fmt === "essay")
       return renderEssay(item);
     if (fmt.startsWith("speaking_")) return renderSpeaking(item);
-    return <p className="text-sm text-gray-500">지원하지 않는 문제 형태: {fmt}</p>;
+    return <p className="text-sm text-gray-500">Unsupported format: {fmt}</p>;
   };
 
   // ─── Text Formatting Helper ─────────────────────────────────────
@@ -1227,7 +1286,7 @@ export function SectionPreview({
 
   const getCollapsedLabel = (item: QuestionItem): string => {
     const q = item.question;
-    if (q.title) return q.title;
+    if (q.title) return stripHtml(q.title);
 
     const fmt = q.question_format;
     const od = q.options_data || {};
@@ -1236,7 +1295,7 @@ export function SectionPreview({
     if (fmt === "flowchart") {
       try {
         const parsed = JSON.parse(q.content);
-        if (parsed?.title) return parsed.title;
+        if (parsed?.title) return stripHtml(parsed.title);
       } catch {
         // not JSON
       }
@@ -1248,18 +1307,18 @@ export function SectionPreview({
       ["fill_blank_typing", "fill_blank_drag", "table_completion"].includes(fmt)
     ) {
       const odTitle = String(od.title || "");
-      if (odTitle) return odTitle;
-      const cleaned = (q.content || "").replace(/\[\d+\]/g, "___");
+      if (odTitle) return stripHtml(odTitle);
+      const cleaned = stripHtml(q.content || "").replace(/\[\d+\]/g, "___");
       return cleaned || "—";
     }
 
     // Matching: show item count
     if (fmt === "matching" || fmt === "heading_matching") {
       const items = Array.isArray(od.items) ? od.items : [];
-      return `매칭 (${items.length}항목)`;
+      return `Matching (${items.length} items)`;
     }
 
-    return q.content || "—";
+    return stripHtml(q.content || "") || "—";
   };
 
   // ─── Panels ────────────────────────────────────────────────────
@@ -1268,7 +1327,7 @@ export function SectionPreview({
     if (items.length === 0) {
       return (
         <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-          선택된 문제가 없습니다.
+          No questions selected.
         </div>
       );
     }
@@ -1393,7 +1452,7 @@ export function SectionPreview({
                   dangerouslySetInnerHTML={{ __html: sanitizeHtml(activeBlock.passage_content) }}
                 />
               ) : (
-                <p className="text-sm text-gray-400 italic">지문이 입력되지 않았습니다.</p>
+                <p className="text-sm text-gray-400 italic">No passage content entered.</p>
               )}
               {activeBlock.passage_footnotes ? (
                 <div
@@ -1455,7 +1514,7 @@ export function SectionPreview({
                   dangerouslySetInnerHTML={{ __html: sanitizeHtml(firstBlock.passage_content) }}
                 />
               ) : (
-                <p className="text-sm text-gray-400 italic">지문이 입력되지 않았습니다.</p>
+                <p className="text-sm text-gray-400 italic">No passage content entered.</p>
               )}
             </div>
           </div>
@@ -1463,7 +1522,13 @@ export function SectionPreview({
       }
     }
 
-    return null;
+    return (
+      <div className="h-full overflow-y-auto p-4">
+        <div className="bg-white rounded-lg border p-6">
+          <p className="text-sm text-gray-400 italic">No passage content entered.</p>
+        </div>
+      </div>
+    );
   };
 
   const renderNavigator = () => {
@@ -1518,17 +1583,78 @@ export function SectionPreview({
     );
   };
 
+  // ─── Heading Matching Left Panel ─────────────────────────────────
+
+  const renderHeadingMatchingPassage = (item: QuestionItem) => {
+    const passageHtml = item.question.content || "";
+    const od = item.question.options_data || {};
+    const hmOptions = Array.isArray(od.options)
+      ? (od.options as { label: string; text: string }[])
+      : [];
+
+    const handleHmDrop = (num: number, e: React.DragEvent) => {
+      e.preventDefault();
+      const label = e.dataTransfer.getData("text/plain");
+      if (label && hmOptions.some((o) => o.label === label)) {
+        setAnswer(num, label);
+      }
+    };
+
+    const parts = passageHtml.split(/\[(\d+)\]/);
+
+    return (
+      <div className="h-full overflow-y-auto p-4">
+        <div className="bg-white rounded-lg border p-6">
+          <div className="text-sm leading-[1.8] text-gray-700 prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]">
+            {parts.map((part, i) => {
+              if (i % 2 === 0) {
+                return <span key={i} dangerouslySetInnerHTML={{ __html: sanitizeHtml(part) }} />;
+              }
+              const blankNum = parseInt(part, 10);
+              const num = item.startNum + blankNum - 1;
+              const assignedLabel = answers[num] || "";
+              const assignedOpt = assignedLabel ? hmOptions.find((o) => o.label === assignedLabel) : null;
+              return (
+                <span
+                  key={i}
+                  className="inline-flex items-center mx-1 align-baseline"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => handleHmDrop(num, e)}
+                >
+                  <span className="text-xs font-bold text-blue-600 mr-1">{num}</span>
+                  {assignedOpt ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 border border-blue-300 text-sm text-blue-700 cursor-pointer" onClick={() => setAnswer(num, "")}>
+                      <span className="font-bold">{assignedOpt.label}</span>
+                      <X className="h-3 w-3 ml-0.5" />
+                    </span>
+                  ) : (
+                    <span className="inline-block min-w-[60px] border-2 border-dashed border-gray-300 rounded px-2 py-0.5 text-center text-sm text-gray-400">
+                      ____
+                    </span>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // ─── Layout ────────────────────────────────────────────────────
 
   const blockHasPassageData = (b: ContentBlockPreview) =>
-    b.content_type === "passage" || !!(b.passage_title || b.passage_content);
-  const hasPassageContent =
-    (activeBlock && blockHasPassageData(activeBlock)) ||
-    (!activeBlock && contentBlocks.some(blockHasPassageData));
+    !!(b.passage_title || b.passage_content);
+  // Check ANY content block for passage data (not just active block)
+  const hasPassageContent = contentBlocks.some(blockHasPassageData);
   const hasAudioContent =
     activeBlock?.content_type === "audio" ||
     (!activeBlock && contentBlocks.some((b) => b.content_type === "audio"));
-  const showLeftPanel = hasPassageContent;
+  // Heading matching has its own 2-column layout, so skip section-level left panel
+  const activeIsHeadingMatching = activeItem
+    ? isHeadingMatchingQuestion(activeItem.question)
+    : false;
+  const showLeftPanel = true;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1536,7 +1662,7 @@ export function SectionPreview({
         {/* Top bar */}
         <div className="flex items-center justify-between px-4 py-2.5 bg-slate-700 text-white shrink-0">
           <DialogTitle className="text-sm font-semibold truncate">
-            {title || "섹션 미리보기"}
+            {title || "Section Preview"}
           </DialogTitle>
           <div className="flex items-center gap-3 shrink-0">
             {timeLimit ? (
@@ -1563,7 +1689,12 @@ export function SectionPreview({
 
         {/* Content */}
         <div className="flex-1 bg-slate-200 overflow-hidden flex flex-col min-h-0">
-          {showInstructionPage ? (
+          {isLoading ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+              <p className="text-sm text-slate-500">Loading preview data...</p>
+            </div>
+          ) : showInstructionPage ? (
             <div className="flex-1 overflow-y-auto flex items-start justify-center p-8">
               <div className="bg-white rounded-lg border shadow-sm max-w-2xl w-full p-8 space-y-4">
                 {instructionTitle && (
@@ -1581,7 +1712,7 @@ export function SectionPreview({
                     className="px-6 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors text-sm font-medium"
                     onClick={() => setShowInstructionPage(false)}
                   >
-                    시작하기
+                    Start
                   </button>
                 </div>
               </div>
@@ -1598,7 +1729,9 @@ export function SectionPreview({
               >
                 {showLeftPanel && (
                   <div className="col-span-1 border-r border-slate-300 bg-slate-100 overflow-hidden">
-                    {renderContentPanel()}
+                    {activeIsHeadingMatching && activeItem
+                      ? renderHeadingMatchingPassage(activeItem)
+                      : renderContentPanel()}
                   </div>
                 )}
                 <div
