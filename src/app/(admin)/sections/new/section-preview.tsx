@@ -1441,8 +1441,8 @@ export function SectionPreview({
     if (activeBlock) {
       if (activeBlock.content_type === "passage") {
         return (
-          <div className="h-full overflow-y-auto p-4">
-            <div className="bg-white rounded-lg border p-6">
+          <div className="p-4 min-h-full flex flex-col">
+            <div className="bg-white rounded-lg border p-6 flex-1">
               {activeBlock.passage_title ? (
                 <h2 className="text-lg font-bold mb-4">{activeBlock.passage_title}</h2>
               ) : null}
@@ -1473,8 +1473,8 @@ export function SectionPreview({
               <audio src={getCdnUrl(activeBlock.audio_url)} autoPlay />
             )}
             {hasPassage && (
-              <div className="h-full overflow-y-auto p-4">
-                <div className="bg-white rounded-lg border p-6">
+              <div className="p-4 min-h-full flex flex-col">
+                <div className="bg-white rounded-lg border p-6 flex-1">
                   {activeBlock.passage_title ? (
                     <h2 className="text-lg font-bold mb-4">{activeBlock.passage_title}</h2>
                   ) : null}
@@ -1503,8 +1503,8 @@ export function SectionPreview({
       const firstBlock = contentBlocks[0];
       if (firstBlock.content_type === "passage") {
         return (
-          <div className="h-full overflow-y-auto p-4">
-            <div className="bg-white rounded-lg border p-6">
+          <div className="p-4 min-h-full flex flex-col">
+            <div className="bg-white rounded-lg border p-6 flex-1">
               {firstBlock.passage_title ? (
                 <h2 className="text-lg font-bold mb-4">{firstBlock.passage_title}</h2>
               ) : null}
@@ -1523,8 +1523,8 @@ export function SectionPreview({
     }
 
     return (
-      <div className="h-full overflow-y-auto p-4">
-        <div className="bg-white rounded-lg border p-6">
+      <div className="p-4 min-h-full flex flex-col">
+        <div className="bg-white rounded-lg border p-6 flex-1">
           <p className="text-sm text-gray-400 italic">No passage content entered.</p>
         </div>
       </div>
@@ -1603,8 +1603,8 @@ export function SectionPreview({
     const parts = passageHtml.split(/\[(\d+)\]/);
 
     return (
-      <div className="h-full overflow-y-auto p-4">
-        <div className="bg-white rounded-lg border p-6">
+      <div className="p-4 min-h-full flex flex-col">
+        <div className="bg-white rounded-lg border p-6 flex-1">
           <div className="text-sm leading-[1.8] text-gray-700 prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]">
             {parts.map((part, i) => {
               if (i % 2 === 0) {
@@ -1728,7 +1728,7 @@ export function SectionPreview({
                 )}
               >
                 {showLeftPanel && (
-                  <div className="col-span-1 border-r border-slate-300 bg-slate-100 overflow-hidden">
+                  <div className="col-span-1 border-r border-slate-300 bg-slate-100 overflow-y-auto">
                     {activeIsHeadingMatching && activeItem
                       ? renderHeadingMatchingPassage(activeItem)
                       : renderContentPanel()}
