@@ -3,7 +3,7 @@
  * XSS, SQL Injection 방어
  */
 
-import DOMPurify from "isomorphic-dompurify";
+import sanitize from "sanitize-html";
 
 // HTML 태그 제거 (일반 텍스트 필드용)
 export function stripHtml(str: string): string {
@@ -25,21 +25,23 @@ export function escapeHtml(str: string): string {
 }
 
 // 허용된 HTML 태그만 남기고 나머지 제거 (리치 텍스트 필드용)
-// DOMPurify를 사용하여 안전하게 sanitize
+// sanitize-html을 사용하여 안전하게 sanitize (jsdom 불필요)
 export function sanitizeHtml(html: string): string {
   if (!html) return "";
 
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: [
+  return sanitize(html, {
+    allowedTags: [
       "p", "br", "b", "i", "u", "strong", "em", "ul", "ol", "li",
       "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "code", "pre",
       "table", "thead", "tbody", "tr", "th", "td", "span", "div", "a",
       "img", "sub", "sup",
     ],
-    ALLOWED_ATTR: ["href", "target", "class", "style", "id", "src", "alt"],
-    FORBID_TAGS: ["script", "iframe", "object", "embed", "form", "link", "meta"],
-    FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover"],
-    ALLOW_DATA_ATTR: false,
+    allowedAttributes: {
+      "*": ["class", "style", "id"],
+      a: ["href", "target"],
+      img: ["src", "alt"],
+    },
+    disallowedTagsMode: "discard",
   });
 }
 
