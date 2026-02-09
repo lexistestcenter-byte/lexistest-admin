@@ -93,7 +93,7 @@ export function DataTable<T extends { id: string }>({
 
       {/* Table */}
       <div className="rounded-md border">
-        <Table>
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow>
               {columns.map((column) => (

@@ -245,9 +245,9 @@ export default function SectionsPage() {
       key: "section",
       header: "섹션",
       cell: (section) => (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           {section.image_url ? (
-            <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden">
+            <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden shrink-0">
               <Image
                 src={getCdnUrl(section.image_url)}
                 alt={section.title}
@@ -257,19 +257,19 @@ export default function SectionsPage() {
               />
             </div>
           ) : (
-            <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
+            <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center shrink-0">
               <FileText className="h-5 w-5 text-muted-foreground" />
             </div>
           )}
-          <div>
+          <div className="min-w-0">
             <button
               type="button"
-              className="font-medium text-left hover:text-blue-600 hover:underline transition-colors"
+              className="font-medium text-left hover:text-blue-600 hover:underline transition-colors truncate block max-w-full"
               onClick={() => openPreview(section)}
             >
               {section.title}
             </button>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground truncate">
               {section.description || "-"}
             </div>
           </div>
@@ -279,6 +279,7 @@ export default function SectionsPage() {
     {
       key: "type",
       header: "유형",
+      className: "w-[100px]",
       cell: (section) => (
         <span className={`px-2 py-1 text-xs rounded ${sectionTypeColors[section.section_type]}`}>
           {sectionTypeLabels[section.section_type]}
@@ -288,6 +289,7 @@ export default function SectionsPage() {
     {
       key: "time",
       header: "제한시간",
+      className: "w-[90px]",
       cell: (section) => (
         <span className="text-muted-foreground">
           {section.time_limit_minutes ? `${section.time_limit_minutes}분` : "-"}
@@ -297,6 +299,7 @@ export default function SectionsPage() {
     {
       key: "practice",
       header: "연습",
+      className: "w-[80px]",
       cell: (section) =>
         section.is_practice ? (
           <Badge variant="outline">연습용</Badge>
