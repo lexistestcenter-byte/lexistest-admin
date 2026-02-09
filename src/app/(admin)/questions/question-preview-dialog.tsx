@@ -106,21 +106,21 @@ export function QuestionPreviewDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           {isLoading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : question ? (
-            <div className="p-8 bg-slate-100 h-full flex flex-col">
+            <div className="flex-1 min-h-0 flex flex-col bg-slate-100">
               {/* Audio */}
               {question.audio_url && (
                 <audio src={getCdnUrl(question.audio_url)} autoPlay />
               )}
 
-              {/* Instructions */}
+              {/* Instructions (shrinkable banner) */}
               {question.instructions && (
-                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg shrink-0">
+                <div className="mx-8 mt-8 mb-2 p-4 bg-blue-50 border border-blue-200 rounded-lg shrink-0">
                   <div
                     className="font-medium text-blue-900 prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
                     dangerouslySetInnerHTML={{ __html: sanitizeHtml(question.instructions) }}
@@ -128,8 +128,10 @@ export function QuestionPreviewDialog({
                 </div>
               )}
 
-              {/* Question content */}
-              <QuestionPreview data={apiToPreviewData(question)} className="flex-1 min-h-0" />
+              {/* Question content — fills remaining space */}
+              <div className="flex-1 min-h-0 p-8 pt-4">
+                <QuestionPreview data={apiToPreviewData(question)} className="h-full" />
+              </div>
             </div>
           ) : (
             <div className="text-center py-16 text-muted-foreground text-sm">

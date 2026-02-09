@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Card,
   CardContent,
@@ -42,6 +43,7 @@ import {
   FileText,
   Headphones,
   ArrowUpDown,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api/client";
@@ -68,6 +70,8 @@ import { FileUpload } from "@/components/ui/file-upload";
 import { formatLabels } from "@/components/sections/constants";
 import { QuestionDetailPreview } from "@/components/sections/question-detail-preview";
 import { stripHtml } from "@/lib/utils/sanitize";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { CreateQuestionModal } from "@/components/sections/create-question-modal";
 
 const TOTAL_STEPS = 2;
 const STEP_LABELS = ["기본 정보", "섹션 구성"];
@@ -260,6 +264,7 @@ export default function SectionEditPage({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [timeLimit, setTimeLimit] = useState("");
+  const [isPractice, setIsPractice] = useState(false);
 
   // Instruction page
   const [instructionTitle, setInstructionTitle] = useState("");
@@ -276,9 +281,17 @@ export default function SectionEditPage({
   const [availableQuestions, setAvailableQuestions] = useState<AvailableQuestion[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showAddPanel, setShowAddPanel] = useState(false);
+  const [addDrawerGroupId, setAddDrawerGroupId] = useState<string | null>(null);
   const [selectedForAdd, setSelectedForAdd] = useState<string[]>([]);
   const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>(null);
+
+  // 문제 생성 모달
+  const [showCreateQuestion, setShowCreateQuestion] = useState(false);
+
+  // Pending deletions (deferred until save)
+  const [pendingBlockDeletes, setPendingBlockDeletes] = useState<string[]>([]);
+  const [pendingGroupDeletes, setPendingGroupDeletes] = useState<string[]>([]);
+  const [pendingItemDeletes, setPendingItemDeletes] = useState<string[]>([]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -308,6 +321,7 @@ export default function SectionEditPage({
         setTitle(data.title);
         setDescription(data.description || "");
         setTimeLimit(data.time_limit_minutes?.toString() || "");
+        setIsPractice(data.is_practice ?? false);
         setInstructionTitle(data.instruction_title || "");
         setInstructionHtml(data.instruction_html || "");
       } catch (error) {
@@ -323,14 +337,40 @@ export default function SectionEditPage({
 
   // ─── Load structure (blocks + groups) ──────────────────────
 
-  const loadStructure = useCallback(async () => {
+  const loadStructure = useCallback(async (opts?: { preservePendingDeletes?: boolean }) => {
     try {
       const { data, error } = await api.get<{ content_blocks: ContentBlock[]; question_groups: QuestionGroupData[] }>(`/api/sections/${id}/structure`);
       if (error) throw new Error(error);
-      setContentBlocks(data!.content_blocks || []);
-      setQuestionGroups(data!.question_groups || []);
-      if (data!.question_groups?.length > 0) {
-        setActiveGroupId(data!.question_groups[0].id);
+
+      let blocks = data!.content_blocks || [];
+      let groups = data!.question_groups || [];
+
+      // When reloading after add operations, filter out items pending deletion
+      if (opts?.preservePendingDeletes) {
+        setPendingBlockDeletes((pendingBlocks) => {
+          blocks = blocks.filter((b) => !pendingBlocks.includes(b.id));
+          setContentBlocks(blocks);
+          return pendingBlocks;
+        });
+        setPendingGroupDeletes((pendingGroups) => {
+          groups = groups.filter((g) => !pendingGroups.includes(g.id));
+          return pendingGroups;
+        });
+        setPendingItemDeletes((pendingItems) => {
+          groups = groups.map((g) => ({
+            ...g,
+            items: g.items.filter((i) => !pendingItems.includes(i.item_id)),
+          }));
+          setQuestionGroups(groups);
+          return pendingItems;
+        });
+      } else {
+        setContentBlocks(blocks);
+        setQuestionGroups(groups);
+      }
+
+      if (groups.length > 0) {
+        setActiveGroupId(groups[0].id);
       }
     } catch (error) {
       console.error("Error loading structure:", error);
@@ -368,11 +408,35 @@ export default function SectionEditPage({
   }, [id, section, searchQuery]);
 
   useEffect(() => {
-    if (showAddPanel && section) {
+    if (addDrawerGroupId && section) {
       const timer = setTimeout(() => loadAvailableQuestions(), 300);
       return () => clearTimeout(timer);
     }
-  }, [showAddPanel, section, loadAvailableQuestions, searchQuery]);
+  }, [addDrawerGroupId, section, loadAvailableQuestions, searchQuery]);
+
+  // 모달에서 문제 생성 완료 시
+  const handleQuestionCreated = useCallback(
+    async (questionId: string) => {
+      if (activeGroupId) {
+        try {
+          const { error } = await api.post(`/api/sections/${id}/groups/${activeGroupId}/items`, {
+            question_id: questionId,
+            display_order: 999,
+          });
+          if (error) throw new Error(error);
+          await loadStructure({ preservePendingDeletes: true });
+          toast.success("문제가 생성되어 그룹에 추가되었습니다.");
+        } catch (err) {
+          console.error("Error auto-adding question:", err);
+          toast.error("문제는 생성되었으나 그룹에 자동 추가하지 못했습니다.");
+        }
+      } else {
+        toast.success("문제가 생성되었습니다. 그룹에 추가해주세요.");
+      }
+      if (addDrawerGroupId) loadAvailableQuestions();
+    },
+    [activeGroupId, id, loadStructure, addDrawerGroupId, loadAvailableQuestions]
+  );
 
   // ─── All used question IDs ─────────────────────────────────
 
@@ -418,7 +482,7 @@ export default function SectionEditPage({
       });
       if (error) throw new Error(error);
       toast.success("콘텐츠 블록이 추가되었습니다.");
-      await loadStructure();
+      await loadStructure({ preservePendingDeletes: true });
     } catch (error) {
       console.error("Error adding content block:", error);
       toast.error("콘텐츠 블록 추가에 실패했습니다.");
@@ -441,7 +505,6 @@ export default function SectionEditPage({
         passage_content: data.passage_content ?? block.passage_content,
         passage_footnotes: data.passage_footnotes ?? block.passage_footnotes,
         audio_url: data.audio_url ?? block.audio_url,
-        audio_transcript: data.audio_transcript ?? block.audio_transcript,
       });
       if (error) throw new Error(error);
     } catch (error) {
@@ -450,18 +513,20 @@ export default function SectionEditPage({
     }
   };
 
-  const handleRemoveContentBlock = async (blockId: string) => {
-    try {
-      const { error } = await api.delete(
-        `/api/sections/${id}/content-blocks?block_id=${blockId}`
-      );
-      if (error) throw new Error(error);
-      toast.success("콘텐츠 블록이 삭제되었습니다.");
-      await loadStructure();
-    } catch (error) {
-      console.error("Error removing content block:", error);
-      toast.error("콘텐츠 블록 삭제에 실패했습니다.");
+  const handleRemoveContentBlock = (blockId: string) => {
+    // Track for deletion on save (only for server-persisted blocks)
+    if (!blockId.startsWith("temp-")) {
+      setPendingBlockDeletes((prev) => [...prev, blockId]);
     }
+    // Remove from local state
+    setContentBlocks((prev) => prev.filter((b) => b.id !== blockId));
+    // Unlink any groups referencing this block
+    setQuestionGroups((prev) =>
+      prev.map((g) =>
+        g.content_block_id === blockId ? { ...g, content_block_id: null } : g
+      )
+    );
+    toast.info("콘텐츠 블록이 제거되었습니다. 저장 시 반영됩니다.");
   };
 
   // ─── Question Group CRUD ───────────────────────────────────
@@ -475,7 +540,7 @@ export default function SectionEditPage({
       });
       if (error) throw new Error(error);
       toast.success("문제 그룹이 추가되었습니다.");
-      await loadStructure();
+      await loadStructure({ preservePendingDeletes: true });
     } catch (error) {
       console.error("Error adding group:", error);
       toast.error("그룹 추가에 실패했습니다.");
@@ -495,17 +560,17 @@ export default function SectionEditPage({
     }
   };
 
-  const handleRemoveGroup = async (groupId: string) => {
-    try {
-      const { error } = await api.delete(`/api/sections/${id}/groups/${groupId}`);
-      if (error) throw new Error(error);
-      toast.success("문제 그룹이 삭제되었습니다.");
-      await loadStructure();
-      if (showAddPanel) loadAvailableQuestions();
-    } catch (error) {
-      console.error("Error removing group:", error);
-      toast.error("그룹 삭제에 실패했습니다.");
+  const handleRemoveGroup = (groupId: string) => {
+    // Track for deletion on save (only for server-persisted groups)
+    if (!groupId.startsWith("temp-")) {
+      setPendingGroupDeletes((prev) => [...prev, groupId]);
     }
+    // Remove from local state
+    setQuestionGroups((prev) => prev.filter((g) => g.id !== groupId));
+    if (activeGroupId === groupId) {
+      setActiveGroupId(questionGroups.find((g) => g.id !== groupId)?.id || null);
+    }
+    toast.info("문제 그룹이 제거되었습니다. 저장 시 반영됩니다.");
   };
 
   // ─── Add questions to group ────────────────────────────────
@@ -535,8 +600,8 @@ export default function SectionEditPage({
 
       toast.success(`${selectedForAdd.length}개 문제가 추가되었습니다.`);
       setSelectedForAdd([]);
-      await loadStructure();
-      if (showAddPanel) loadAvailableQuestions();
+      await loadStructure({ preservePendingDeletes: true });
+      if (addDrawerGroupId) loadAvailableQuestions();
     } catch (error) {
       console.error("Error adding questions:", error);
       toast.error("문제 추가에 실패했습니다.");
@@ -545,17 +610,19 @@ export default function SectionEditPage({
 
   // ─── Remove item from group ────────────────────────────────
 
-  const handleRemoveItem = async (itemId: string) => {
-    try {
-      const { error } = await api.delete(`/api/sections/${id}/items?item_id=${itemId}`);
-      if (error) throw new Error(error);
-      toast.success("문제가 제거되었습니다.");
-      await loadStructure();
-      if (showAddPanel) loadAvailableQuestions();
-    } catch (error) {
-      console.error("Error removing item:", error);
-      toast.error("문제 제거에 실패했습니다.");
+  const handleRemoveItem = (itemId: string) => {
+    // Track for deletion on save
+    if (!itemId.startsWith("temp-")) {
+      setPendingItemDeletes((prev) => [...prev, itemId]);
     }
+    // Remove from local state
+    setQuestionGroups((prev) =>
+      prev.map((g) => ({
+        ...g,
+        items: g.items.filter((i) => i.item_id !== itemId),
+      }))
+    );
+    toast.info("문제가 제거되었습니다. 저장 시 반영됩니다.");
   };
 
   // ─── Reorder items within a group (DnD) ────────────────────
@@ -609,7 +676,7 @@ export default function SectionEditPage({
     } catch (error) {
       console.error("Error reordering:", error);
       toast.error("순서 변경에 실패했습니다.");
-      await loadStructure();
+      await loadStructure({ preservePendingDeletes: true });
     }
   };
 
@@ -630,11 +697,26 @@ export default function SectionEditPage({
 
     setIsSaving(true);
     try {
+      // 0. Process pending deletions first
+      for (const itemId of pendingItemDeletes) {
+        const { error: itemErr } = await api.delete(`/api/sections/${id}/items?item_id=${itemId}`);
+        if (itemErr) console.error("Error deleting item:", itemErr);
+      }
+      for (const groupId of pendingGroupDeletes) {
+        const { error: groupErr } = await api.delete(`/api/sections/${id}/groups/${groupId}`);
+        if (groupErr) console.error("Error deleting group:", groupErr);
+      }
+      for (const blockId of pendingBlockDeletes) {
+        const { error: blockErr } = await api.delete(`/api/sections/${id}/content-blocks?block_id=${blockId}`);
+        if (blockErr) console.error("Error deleting block:", blockErr);
+      }
+
       // 1. Update section info
       const updateData: Record<string, unknown> = {
         title,
         description: description || null,
         time_limit_minutes: timeLimit ? parseInt(timeLimit) : null,
+        is_practice: isPractice,
         instruction_title: instructionTitle || null,
         instruction_html: instructionHtml || null,
       };
@@ -675,6 +757,11 @@ export default function SectionEditPage({
         const { error: groupError } = await api.put(`/api/sections/${id}/groups`, { groups: groupsPayload });
         if (groupError) throw new Error(groupError);
       }
+
+      // Clear pending deletions
+      setPendingBlockDeletes([]);
+      setPendingGroupDeletes([]);
+      setPendingItemDeletes([]);
 
       toast.success("섹션이 저장되었습니다.");
     } catch (error) {
@@ -888,7 +975,6 @@ export default function SectionEditPage({
     passage_content: b.passage_content || undefined,
     passage_footnotes: b.passage_footnotes || undefined,
     audio_url: b.audio_url || undefined,
-    audio_transcript: b.audio_transcript || undefined,
   }));
 
   const previewQuestionGroupsData = numberedGroups.map((g) => ({
@@ -945,7 +1031,8 @@ export default function SectionEditPage({
 
       {/* ─── Step 1: 기본 정보 ─── */}
       {currentStep === 1 && (
-        <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left: 기본 정보 */}
           <Card>
             <CardHeader>
               <CardTitle>기본 정보</CardTitle>
@@ -953,11 +1040,6 @@ export default function SectionEditPage({
                 {section.section_type.charAt(0).toUpperCase() +
                   section.section_type.slice(1)}{" "}
                 섹션
-                {section.is_practice && (
-                  <Badge variant="outline" className="ml-2">
-                    연습용
-                  </Badge>
-                )}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -971,11 +1053,11 @@ export default function SectionEditPage({
               </div>
               <div className="space-y-2">
                 <Label>설명</Label>
-                <Textarea
+                <RichTextEditor
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onChange={setDescription}
                   placeholder="섹션 설명..."
-                  rows={3}
+                  minHeight="80px"
                 />
               </div>
               <div className="space-y-2">
@@ -997,34 +1079,50 @@ export default function SectionEditPage({
             </CardContent>
           </Card>
 
-          {/* Instruction Page */}
-          <Card>
-            <CardHeader>
-              <CardTitle>안내 페이지</CardTitle>
-              <CardDescription>
-                섹션 시작 전 표시될 안내 내용입니다. (선택)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>안내 제목</Label>
-                <Input
-                  value={instructionTitle}
-                  onChange={(e) => setInstructionTitle(e.target.value)}
-                  placeholder="예: Reading Test Instructions"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>안내 내용</Label>
-                <Textarea
-                  value={instructionHtml}
-                  onChange={(e) => setInstructionHtml(e.target.value)}
-                  placeholder="시험 안내 내용..."
-                  rows={4}
-                />
-              </div>
-            </CardContent>
-          </Card>
+          {/* Right: 연습 섹션 + 안내 페이지 */}
+          <div className="space-y-6">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>연습 섹션</Label>
+                    <p className="text-xs text-muted-foreground">
+                      연습용 섹션으로 표시됩니다.
+                    </p>
+                  </div>
+                  <Switch checked={isPractice} onCheckedChange={setIsPractice} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>안내 페이지</CardTitle>
+                <CardDescription>
+                  섹션 시작 전 표시될 안내 내용입니다. (선택)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>안내 제목</Label>
+                  <Input
+                    value={instructionTitle}
+                    onChange={(e) => setInstructionTitle(e.target.value)}
+                    placeholder="예: Reading Test Instructions"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>안내 내용</Label>
+                  <RichTextEditor
+                    value={instructionHtml}
+                    onChange={setInstructionHtml}
+                    placeholder="시험 안내 내용..."
+                    minHeight="120px"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
 
@@ -1100,20 +1198,10 @@ export default function SectionEditPage({
                     그룹별로 문제를 구성합니다.
                   </CardDescription>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant={showAddPanel ? "secondary" : "outline"}
-                    size="sm"
-                    onClick={() => setShowAddPanel(!showAddPanel)}
-                  >
-                    <Plus className="mr-1 h-4 w-4" />
-                    {showAddPanel ? "닫기" : "문제 추가"}
-                  </Button>
-                  <Button size="sm" onClick={handleAddGroup}>
-                    <FolderPlus className="mr-1 h-4 w-4" />
-                    그룹 추가
-                  </Button>
-                </div>
+                <Button size="sm" onClick={handleAddGroup}>
+                  <FolderPlus className="mr-1 h-4 w-4" />
+                  그룹 추가
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -1133,6 +1221,7 @@ export default function SectionEditPage({
                         key={group.id}
                         group={group}
                         isActive={isActive}
+                        isAddingQuestions={addDrawerGroupId === group.id}
                         autoTitle={autoTitle}
                         contentBlocks={contentBlocks}
                         sensors={sensors}
@@ -1141,6 +1230,10 @@ export default function SectionEditPage({
                         onRemove={handleRemoveGroup}
                         onRemoveItem={handleRemoveItem}
                         onItemDragEnd={handleItemDragEnd(group.id)}
+                        onAddQuestions={() => {
+                          setAddDrawerGroupId(addDrawerGroupId === group.id ? null : group.id);
+                          setActiveGroupId(group.id);
+                        }}
                       />
                     );
                   })}
@@ -1157,133 +1250,147 @@ export default function SectionEditPage({
             </CardContent>
           </Card>
 
-          {/* Add Questions Panel */}
-          {showAddPanel && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">문제 추가</CardTitle>
-                <CardDescription>
-                  {section.section_type.charAt(0).toUpperCase() +
-                    section.section_type.slice(1)}{" "}
-                  유형
-                  {section.is_practice ? " (연습문제만)" : " (실전문제만)"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="문제 코드, 제목, 내용으로 검색..."
-                    className="pl-9"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-
-                <div className="border rounded-lg max-h-[500px] overflow-y-auto divide-y">
-                  {isLoadingQuestions ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : availableQuestions.length > 0 ? (
-                    availableQuestions.map((q) => {
-                      const isChecked = selectedForAdd.includes(q.id);
-                      const isExpanded = expandedQuestionId === q.id;
-                      return (
-                        <div
-                          key={q.id}
-                          className={cn(
-                            "transition-colors",
-                            isChecked && "bg-primary/5"
-                          )}
-                        >
-                          <div className="flex items-center gap-2 p-2.5">
-                            <Checkbox
-                              checked={isChecked}
-                              onCheckedChange={() =>
-                                setSelectedForAdd((prev) =>
-                                  prev.includes(q.id)
-                                    ? prev.filter((i) => i !== q.id)
-                                    : [...prev, q.id]
-                                )
-                              }
-                            />
-                            <button
-                              type="button"
-                              className="flex-1 flex items-center gap-2 text-left min-w-0"
-                              onClick={() =>
-                                setExpandedQuestionId(isExpanded ? null : q.id)
-                              }
-                            >
-                              <span className="text-xs font-mono text-muted-foreground shrink-0">
-                                {q.question_code}
-                              </span>
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] shrink-0"
-                              >
-                                {formatLabels[q.question_format] ||
-                                  q.question_format}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground shrink-0">
-                                {q.item_count}문항
-                              </span>
-                              <span className="text-xs text-muted-foreground flex-1">
-                                {stripHtml(q.title || q.content)}
-                              </span>
-                              {isExpanded ? (
-                                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                              ) : (
-                                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                              )}
-                            </button>
-                          </div>
-                          {isExpanded && (
-                            <div className="px-2.5 pb-2.5">
-                              <QuestionDetailPreview
-                                question={{
-                                  question_format: q.question_format,
-                                  content: q.content,
-                                  instructions: q.instructions,
-                                  options_data: q.options_data,
-                                  answer_data: q.answer_data,
-                                }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground text-sm">
-                      추가 가능한 문제가 없습니다.
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <p className="text-xs text-muted-foreground">
-                    {availableQuestions.length}개 사용 가능
-                  </p>
-                  {selectedForAdd.length > 0 && activeGroupId && (
-                    <Button size="sm" onClick={handleAddQuestionsToGroup}>
-                      <Plus className="mr-1 h-4 w-4" />
-                      {selectedForAdd.length}개 추가
-                    </Button>
-                  )}
-                </div>
-
-                {selectedForAdd.length > 0 && !activeGroupId && (
-                  <p className="text-xs text-amber-600 text-center">
-                    먼저 위에서 그룹을 선택하세요.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
       )}
+
+      {/* Question Add Drawer */}
+      <div
+        className={cn(
+          "fixed left-0 top-0 h-full w-[420px] bg-white border-r shadow-xl z-40 flex flex-col transition-transform duration-300 ease-in-out",
+          addDrawerGroupId ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
+          <div>
+            <h3 className="text-sm font-semibold">문제 추가</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {section.section_type.charAt(0).toUpperCase() +
+                section.section_type.slice(1)}{" "}
+              유형
+              {isPractice ? " (연습문제만)" : " (실전문제만)"}
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setAddDrawerGroupId(null)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="p-4 border-b">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="문제 코드, 제목, 내용으로 검색..."
+              className="pl-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto divide-y">
+          {isLoadingQuestions ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : availableQuestions.length > 0 ? (
+            availableQuestions.map((q) => {
+              const isChecked = selectedForAdd.includes(q.id);
+              const isQExpanded = expandedQuestionId === q.id;
+              return (
+                <div
+                  key={q.id}
+                  className={cn(
+                    "transition-colors",
+                    isChecked && "bg-primary/5"
+                  )}
+                >
+                  <div className="flex items-center gap-2 p-2.5">
+                    <Checkbox
+                      checked={isChecked}
+                      onCheckedChange={() =>
+                        setSelectedForAdd((prev) =>
+                          prev.includes(q.id)
+                            ? prev.filter((i) => i !== q.id)
+                            : [...prev, q.id]
+                        )
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="flex-1 flex items-center gap-2 text-left min-w-0"
+                      onClick={() => setExpandedQuestionId(isQExpanded ? null : q.id)}
+                    >
+                      <span className="text-xs font-mono text-muted-foreground shrink-0">{q.question_code}</span>
+                      <Badge variant="outline" className="text-[10px] shrink-0">
+                        {formatLabels[q.question_format] || q.question_format}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground shrink-0">{q.item_count}문항</span>
+                      <span className="text-xs text-muted-foreground flex-1 truncate">
+                        {stripHtml(q.title || q.content)}
+                      </span>
+                      {isQExpanded ? (
+                        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      )}
+                    </button>
+                  </div>
+                  {isQExpanded && (
+                    <div className="px-2.5 pb-2.5">
+                      <QuestionDetailPreview
+                        question={{
+                          question_format: q.question_format,
+                          content: q.content,
+                          instructions: q.instructions,
+                          options_data: q.options_data,
+                          answer_data: q.answer_data,
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <div className="text-center py-12 text-muted-foreground text-sm">
+              추가 가능한 문제가 없습니다.
+            </div>
+          )}
+        </div>
+
+        <div className="p-3 border-t bg-muted/20 space-y-2">
+          <div className="flex justify-between items-center">
+            <p className="text-xs text-muted-foreground">{availableQuestions.length}개 사용 가능</p>
+            {selectedForAdd.length > 0 && addDrawerGroupId && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  handleAddQuestionsToGroup();
+                  setAddDrawerGroupId(null);
+                }}
+              >
+                <Plus className="mr-1 h-4 w-4" />
+                {selectedForAdd.length}개 추가
+              </Button>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => setShowCreateQuestion(prev => !prev)}
+          >
+            <Plus className="mr-1 h-4 w-4" />
+            새 문제 만들기
+          </Button>
+        </div>
+      </div>
 
       {/* Preview */}
       <SectionPreview
@@ -1292,10 +1399,20 @@ export default function SectionEditPage({
         sectionType={section.section_type}
         title={title}
         timeLimit={timeLimit}
-        isPractice={section.is_practice}
+        isPractice={isPractice}
+        instructionTitle={instructionTitle}
+        instructionHtml={instructionHtml}
         contentBlocks={previewContentBlocks}
         questionGroups={previewQuestionGroupsData}
         questions={previewQuestions}
+      />
+
+      {/* 문제 생성 모달 */}
+      <CreateQuestionModal
+        open={showCreateQuestion}
+        onOpenChange={setShowCreateQuestion}
+        sectionType={section.section_type}
+        onCreated={handleQuestionCreated}
       />
 
     </div>
@@ -1322,12 +1439,11 @@ function ContentBlockEditor({
   const [localContent, setLocalContent] = useState(block.passage_content || "");
   const [localFootnotes, setLocalFootnotes] = useState(block.passage_footnotes || "");
   const [localAudioUrl, setLocalAudioUrl] = useState(block.audio_url || "");
-  const [localTranscript, setLocalTranscript] = useState(block.audio_transcript || "");
 
   const label =
     block.content_type === "passage"
       ? block.passage_title || `Passage ${index + 1}`
-      : `Audio ${index + 1}`;
+      : block.passage_title || `Audio ${index + 1}`;
 
   // Debounced save
   useEffect(() => {
@@ -1341,13 +1457,15 @@ function ContentBlockEditor({
       } else {
         onUpdate(block.id, {
           audio_url: localAudioUrl || null,
-          audio_transcript: localTranscript || null,
+          passage_title: localTitle || null,
+          passage_content: localContent || null,
+          passage_footnotes: localFootnotes || null,
         } as Partial<ContentBlock>);
       }
     }, 1000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localTitle, localContent, localFootnotes, localAudioUrl, localTranscript]);
+  }, [localTitle, localContent, localFootnotes, localAudioUrl]);
 
   return (
     <div className="border rounded-lg bg-white">
@@ -1389,20 +1507,20 @@ function ContentBlockEditor({
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">지문 내용</Label>
-                <Textarea
+                <RichTextEditor
                   placeholder="지문 내용을 입력하세요..."
-                  rows={8}
+                  minHeight="200px"
                   value={localContent}
-                  onChange={(e) => setLocalContent(e.target.value)}
+                  onChange={(val) => setLocalContent(val)}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">각주 (선택)</Label>
-                <Textarea
+                <RichTextEditor
                   placeholder="예: *calorie: a measure of the energy value of food"
-                  rows={2}
+                  minHeight="80px"
                   value={localFootnotes}
-                  onChange={(e) => setLocalFootnotes(e.target.value)}
+                  onChange={(val) => setLocalFootnotes(val)}
                 />
               </div>
             </>
@@ -1419,12 +1537,29 @@ function ContentBlockEditor({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">스크립트</Label>
-                <Textarea
-                  placeholder="오디오 스크립트를 입력하세요..."
-                  rows={4}
-                  value={localTranscript}
-                  onChange={(e) => setLocalTranscript(e.target.value)}
+                <Label className="text-xs">지문 제목</Label>
+                <Input
+                  placeholder="예: The History of Glass"
+                  value={localTitle}
+                  onChange={(e) => setLocalTitle(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">지문 내용</Label>
+                <RichTextEditor
+                  placeholder="지문 내용을 입력하세요..."
+                  minHeight="200px"
+                  value={localContent}
+                  onChange={(val) => setLocalContent(val)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">각주 (선택)</Label>
+                <RichTextEditor
+                  placeholder="예: *calorie: a measure of the energy value of food"
+                  minHeight="80px"
+                  value={localFootnotes}
+                  onChange={(val) => setLocalFootnotes(val)}
                 />
               </div>
             </>
@@ -1440,6 +1575,7 @@ function ContentBlockEditor({
 function EditGroupCard({
   group,
   isActive,
+  isAddingQuestions,
   autoTitle,
   contentBlocks,
   sensors,
@@ -1448,6 +1584,7 @@ function EditGroupCard({
   onRemove,
   onRemoveItem,
   onItemDragEnd,
+  onAddQuestions,
 }: {
   group: {
     id: string;
@@ -1459,6 +1596,7 @@ function EditGroupCard({
     groupEndNum: number;
   };
   isActive: boolean;
+  isAddingQuestions: boolean;
   autoTitle: string;
   contentBlocks: ContentBlock[];
   sensors: ReturnType<typeof useSensors>;
@@ -1467,6 +1605,7 @@ function EditGroupCard({
   onRemove: (id: string) => void;
   onRemoveItem: (itemId: string) => void;
   onItemDragEnd: (event: DragEndEvent) => void;
+  onAddQuestions: () => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   const [localTitle, setLocalTitle] = useState(group.title || "");
@@ -1515,6 +1654,18 @@ function EditGroupCard({
         <Badge variant="outline" className="text-[10px]">
           {group.numberedItems.length}문제
         </Badge>
+        <Button
+          variant={isAddingQuestions ? "secondary" : "outline"}
+          size="sm"
+          className="h-7 text-xs"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAddQuestions();
+          }}
+        >
+          <Plus className="mr-1 h-3 w-3" />
+          문제 추가
+        </Button>
         <Button
           variant="ghost"
           size="icon"
@@ -1573,12 +1724,11 @@ function EditGroupCard({
           {/* Instructions */}
           <div className="space-y-1">
             <Label className="text-xs">지시문</Label>
-            <Textarea
-              className="text-xs"
-              rows={2}
+            <RichTextEditor
               placeholder="예: Choose the correct letter A, B, C or D."
+              minHeight="80px"
               value={localInstructions}
-              onChange={(e) => setLocalInstructions(e.target.value)}
+              onChange={(val) => setLocalInstructions(val)}
             />
           </div>
 
@@ -1613,7 +1763,7 @@ function EditGroupCard({
             </DndContext>
           ) : (
             <div className="text-center py-4 text-muted-foreground text-xs border border-dashed rounded">
-              아래 &quot;문제 추가&quot; 패널에서 문제를 선택 후 추가하세요.
+              위 &quot;문제 추가&quot; 버튼을 클릭하여 문제를 추가하세요.
             </div>
           )}
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +40,7 @@ import {
   FolderPlus,
   ChevronDown,
   ChevronRight,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -68,6 +69,8 @@ import { FileUpload, uploadFile } from "@/components/ui/file-upload";
 import { formatLabels, typeColors } from "@/components/sections/constants";
 import { QuestionDetailPreview } from "@/components/sections/question-detail-preview";
 import { stripHtml } from "@/lib/utils/sanitize";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { CreateQuestionModal } from "@/components/sections/create-question-modal";
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -228,7 +231,8 @@ export default function NewSectionPage() {
   const [selectedForAdd, setSelectedForAdd] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>(null);
-  const instructionsRef = useRef<HTMLTextAreaElement>(null);
+  // 문제 생성 모달
+  const [showCreateQuestion, setShowCreateQuestion] = useState(false);
 
   // ─── Content Block helpers ─────────────────────────────────
 
@@ -477,6 +481,25 @@ export default function NewSectionPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // 모달에서 문제 생성 완료 시
+  const handleQuestionCreated = useCallback(
+    async (questionId: string) => {
+      // 현재 활성 그룹에 자동 추가
+      if (activeGroupId) {
+        setQuestionGroups((prev) =>
+          prev.map((g) => {
+            if (g.id !== activeGroupId) return g;
+            if (g.questions.includes(questionId)) return g;
+            return { ...g, questions: [...g.questions, questionId] };
+          })
+        );
+      }
+      // 문제 목록 새로고침
+      await loadAvailableQuestions();
+    },
+    [activeGroupId, loadAvailableQuestions]
+  );
+
   // ─── Step validation ───────────────────────────────────────
 
   const validateStep = (step: number): boolean => {
@@ -551,7 +574,6 @@ export default function NewSectionPage() {
           passage_footnotes: block.passage_footnotes || null,
           // deferred 파일이 있으면 URL 제외 (blob URL이므로)
           audio_url: hasPendingFile ? null : (block.audio_url || null),
-          audio_transcript: block.audio_transcript || null,
         });
         if (!blockError && result) {
           blockIdMap[block.id] = result.block_id;
@@ -770,7 +792,8 @@ export default function NewSectionPage() {
   // ─── Step 1: 기본 정보 ────────────────────────────────────
 
   const renderStep1 = () => (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Left: 기본 정보 */}
       <Card>
         <CardHeader>
           <CardTitle>기본 정보</CardTitle>
@@ -784,9 +807,25 @@ export default function NewSectionPage() {
             <Select
               value={sectionType}
               onValueChange={(v) => {
-                setSectionType(v);
-                setContentBlocks([]);
-                setQuestionGroups([]);
+                const hasQuestions = questionGroups.some((g) => g.questions.length > 0);
+                if (hasQuestions && v !== sectionType) {
+                  toast.warning("섹션 유형을 변경하면 추가된 문제 목록이 초기화됩니다. 계속하시겠습니까?", {
+                    actionButtonStyle: { backgroundColor: "hsl(0 84% 60%)", color: "white" },
+                    action: {
+                      label: "변경",
+                      onClick: () => {
+                        setSectionType(v);
+                        setContentBlocks([]);
+                        setQuestionGroups([]);
+                      },
+                    },
+                    cancel: { label: "취소", onClick: () => {} },
+                  });
+                } else {
+                  setSectionType(v);
+                  setContentBlocks([]);
+                  setQuestionGroups([]);
+                }
               }}
             >
               <SelectTrigger>
@@ -814,11 +853,11 @@ export default function NewSectionPage() {
 
           <div className="space-y-2">
             <Label>설명</Label>
-            <Textarea
+            <RichTextEditor
               placeholder="섹션에 대한 설명을 입력하세요..."
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
+              onChange={setDescription}
+              minHeight="80px"
             />
           </div>
 
@@ -838,482 +877,618 @@ export default function NewSectionPage() {
               }}
             />
           </div>
+        </CardContent>
+      </Card>
 
-          <div className="flex items-center justify-between pt-2">
-            <div className="space-y-0.5">
-              <Label>연습 섹션</Label>
-              <p className="text-xs text-muted-foreground">
-                연습용 섹션으로 표시됩니다.
-              </p>
+      {/* Right: 연습 섹션 + 안내 페이지 */}
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>연습 섹션</Label>
+                <p className="text-xs text-muted-foreground">
+                  연습용 섹션으로 표시됩니다.
+                </p>
+              </div>
+              <Switch checked={isPractice} onCheckedChange={setIsPractice} />
             </div>
-            <Switch checked={isPractice} onCheckedChange={setIsPractice} />
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>안내 페이지</CardTitle>
-          <CardDescription>
-            섹션 시작 전 표시될 안내 내용입니다. (선택)
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>안내 페이지 제목</Label>
-            <Input
-              placeholder="예: Reading Test Instructions"
-              value={instructionTitle}
-              onChange={(e) => setInstructionTitle(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>안내 페이지 내용</Label>
-            <Textarea
-              placeholder="시험 시작 전 표시될 안내 내용..."
-              rows={4}
-              value={instructionHtml}
-              onChange={(e) => setInstructionHtml(e.target.value)}
-            />
-          </div>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>안내 페이지</CardTitle>
+            <CardDescription>
+              섹션 시작 전 표시될 안내 내용입니다. (선택)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>안내 페이지 제목</Label>
+              <Input
+                placeholder="예: Reading Test Instructions"
+                value={instructionTitle}
+                onChange={(e) => setInstructionTitle(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>안내 페이지 내용</Label>
+              <RichTextEditor
+                placeholder="시험 시작 전 표시될 안내 내용..."
+                value={instructionHtml}
+                onChange={setInstructionHtml}
+                minHeight="120px"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 
-  // ─── Step 2: 세트 기반 섹션 구성 ───────────────────────────
+  // ─── Step 2 state ─────────────────────────────────────────────
+  const [addDrawerGroupId, setAddDrawerGroupId] = useState<string | null>(null);
+  const [collapsedBlocks, setCollapsedBlocks] = useState<Set<string>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const toggleBlockCollapse = (blockId: string) => {
+    setCollapsedBlocks((prev) => {
+      const next = new Set(prev);
+      if (next.has(blockId)) next.delete(blockId); else next.add(blockId);
+      return next;
+    });
+  };
+
+  const toggleGroupExpand = (groupId: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId); else next.add(groupId);
+      return next;
+    });
+  };
+
+  // Auto-expand newly added groups
+  useEffect(() => {
+    if (activeGroupId && !expandedGroups.has(activeGroupId)) {
+      setExpandedGroups((prev) => new Set(prev).add(activeGroupId));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGroupId]);
+
+  // ─── Step 2: 섹션 구성 (2-column layout matching edit page) ──
 
   const renderStep2 = () => {
-    const activeGroup = questionGroups.find((g) => g.id === activeGroupId);
-    const activeContentBlock = activeGroup?.content_block_id
-      ? contentBlocks.find((b) => b.id === activeGroup.content_block_id) || null
-      : null;
     const needsContent = sectionType === "reading" || sectionType === "listening";
 
     return (
       <div className="space-y-4">
-        {/* Tab bar */}
-        <div className="flex items-center border-b">
-          {questionGroups.map((group, idx) => {
-            const gNum = groupNumbering[group.id];
-            const isActive = activeGroupId === group.id;
-            const autoTitle = generateGroupTitle(group);
-            const tabLabel = group.title || autoTitle || `Set ${idx + 1}`;
-
-            return (
-              <div key={group.id} className="flex items-center">
-                <button
-                  type="button"
-                  className={cn(
-                    "px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
-                    isActive
-                      ? "border-primary text-primary bg-background"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  )}
-                  onClick={() => setActiveGroupId(group.id)}
-                >
-                  {tabLabel}
-                </button>
-                {questionGroups.length > 1 && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 -ml-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeSet(group.id);
-                    }}
-                  >
-                    <Trash2 className="h-3 w-3 text-muted-foreground" />
-                  </Button>
-                )}
-              </div>
-            );
-          })}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-2 text-muted-foreground"
-            onClick={addSet}
-          >
-            <Plus className="mr-1 h-3.5 w-3.5" />
-            세트 추가
-          </Button>
-        </div>
-
-        {/* Active tab content */}
-        {activeGroup ? (
-          <div className="space-y-4">
-            {/* Content block editing (reading/listening) */}
-            {needsContent && activeContentBlock && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* ─── Left Column: Content Blocks ─── */}
+          <div className="space-y-6">
+            {needsContent && (
               <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    {sectionType === "reading" ? (
-                      <FileText className="h-4 w-4 text-emerald-500" />
-                    ) : (
-                      <Headphones className="h-4 w-4 text-sky-500" />
-                    )}
-                    <CardTitle className="text-base">
-                      {sectionType === "reading" ? "지문" : "오디오"}
-                    </CardTitle>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {sectionType === "reading" ? (
+                        <FileText className="h-5 w-5 text-emerald-500" />
+                      ) : (
+                        <Headphones className="h-5 w-5 text-sky-500" />
+                      )}
+                      <div>
+                        <CardTitle>콘텐츠 블록 ({contentBlocks.length})</CardTitle>
+                        <CardDescription>
+                          여러 콘텐츠를 추가하여 문제 그룹별로 연결합니다.
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <Button size="sm" onClick={addContentBlock}>
+                      <Plus className="mr-1 h-4 w-4" />
+                      {sectionType === "reading" ? "지문 추가" : "오디오 추가"}
+                    </Button>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  {activeContentBlock.content_type === "passage" ? (
-                    <>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">지문 제목</Label>
-                        <Input
-                          placeholder="예: The History of Glass"
-                          value={activeContentBlock.passage_title}
-                          onChange={(e) =>
-                            updateContentBlock(activeContentBlock.id, {
-                              passage_title: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">지문 내용</Label>
-                        <Textarea
-                          placeholder="지문 내용을 입력하세요..."
-                          rows={8}
-                          value={activeContentBlock.passage_content}
-                          onChange={(e) =>
-                            updateContentBlock(activeContentBlock.id, {
-                              passage_content: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">각주 (선택)</Label>
-                        <Textarea
-                          placeholder="예: *calorie: a measure of the energy value of food"
-                          rows={2}
-                          value={activeContentBlock.passage_footnotes}
-                          onChange={(e) =>
-                            updateContentBlock(activeContentBlock.id, {
-                              passage_footnotes: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                    </>
+                <CardContent>
+                  {contentBlocks.length > 0 ? (
+                    <div className="space-y-3">
+                      {contentBlocks.map((block, idx) => {
+                        const isCollapsed = collapsedBlocks.has(block.id);
+                        const label =
+                          block.content_type === "passage"
+                            ? block.passage_title || `Passage ${idx + 1}`
+                            : block.passage_title || `Audio ${idx + 1}`;
+
+                        return (
+                          <div key={block.id} className="border rounded-lg bg-white">
+                            <div className="flex items-center gap-2 p-3 border-b">
+                              <button type="button" onClick={() => toggleBlockCollapse(block.id)} className="p-0.5">
+                                {isCollapsed ? (
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                )}
+                              </button>
+                              {block.content_type === "passage" ? (
+                                <FileText className="h-4 w-4 text-emerald-500" />
+                              ) : (
+                                <Headphones className="h-4 w-4 text-sky-500" />
+                              )}
+                              <span className="text-sm font-medium flex-1">{label}</span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => removeContentBlock(block.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+
+                            {!isCollapsed && (
+                              <div className="p-4 space-y-3">
+                                {block.content_type === "passage" ? (
+                                  <>
+                                    <div className="space-y-1.5">
+                                      <Label className="text-xs">지문 제목</Label>
+                                      <Input
+                                        placeholder="예: The History of Glass"
+                                        value={block.passage_title}
+                                        onChange={(e) =>
+                                          updateContentBlock(block.id, {
+                                            passage_title: e.target.value,
+                                          })
+                                        }
+                                      />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      <Label className="text-xs">지문 내용</Label>
+                                      <RichTextEditor
+                                        placeholder="지문 내용을 입력하세요..."
+                                        minHeight="200px"
+                                        value={block.passage_content}
+                                        onChange={(val) =>
+                                          updateContentBlock(block.id, {
+                                            passage_content: val,
+                                          })
+                                        }
+                                      />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      <Label className="text-xs">각주 (선택)</Label>
+                                      <RichTextEditor
+                                        placeholder="예: *calorie: a measure of the energy value of food"
+                                        minHeight="80px"
+                                        value={block.passage_footnotes}
+                                        onChange={(val) =>
+                                          updateContentBlock(block.id, {
+                                            passage_footnotes: val,
+                                          })
+                                        }
+                                      />
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="space-y-1.5">
+                                      <Label className="text-xs">오디오 파일</Label>
+                                      <FileUpload
+                                        value={block.audio_url}
+                                        onChange={(url) =>
+                                          updateContentBlock(block.id, {
+                                            audio_url: url,
+                                          })
+                                        }
+                                        accept="audio"
+                                        placeholder="오디오 파일 업로드"
+                                        deferred
+                                        onFileReady={(file) =>
+                                          updateContentBlock(block.id, {
+                                            audioFile: file,
+                                          })
+                                        }
+                                      />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      <Label className="text-xs">지문 제목</Label>
+                                      <Input
+                                        placeholder="예: The History of Glass"
+                                        value={block.passage_title}
+                                        onChange={(e) =>
+                                          updateContentBlock(block.id, {
+                                            passage_title: e.target.value,
+                                          })
+                                        }
+                                      />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      <Label className="text-xs">지문 내용</Label>
+                                      <RichTextEditor
+                                        placeholder="지문 내용을 입력하세요..."
+                                        minHeight="200px"
+                                        value={block.passage_content}
+                                        onChange={(val) =>
+                                          updateContentBlock(block.id, {
+                                            passage_content: val,
+                                          })
+                                        }
+                                      />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      <Label className="text-xs">각주 (선택)</Label>
+                                      <RichTextEditor
+                                        placeholder="예: *calorie: a measure of the energy value of food"
+                                        minHeight="80px"
+                                        value={block.passage_footnotes}
+                                        onChange={(val) =>
+                                          updateContentBlock(block.id, {
+                                            passage_footnotes: val,
+                                          })
+                                        }
+                                      />
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   ) : (
-                    <>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">오디오 파일</Label>
-                        <FileUpload
-                          value={activeContentBlock.audio_url}
-                          onChange={(url) =>
-                            updateContentBlock(activeContentBlock.id, {
-                              audio_url: url,
-                            })
-                          }
-                          accept="audio"
-                          placeholder="오디오 파일 업로드"
-                          deferred
-                          onFileReady={(file) =>
-                            updateContentBlock(activeContentBlock.id, {
-                              audioFile: file,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">스크립트</Label>
-                        <Textarea
-                          placeholder="오디오 스크립트를 입력하세요..."
-                          rows={4}
-                          value={activeContentBlock.audio_transcript}
-                          onChange={(e) =>
-                            updateContentBlock(activeContentBlock.id, {
-                              audio_transcript: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                    </>
+                    <div className="text-center py-8 text-muted-foreground text-sm">
+                      콘텐츠 블록이 없습니다.
+                    </div>
                   )}
                 </CardContent>
               </Card>
             )}
 
-            {/* Group settings */}
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <Label className="text-xs">그룹 제목 (자동 생성 — 직접 입력 시 오버라이드, 예: &quot;Questions 1–5&quot;)</Label>
-                <Input
-                  className="h-8 text-xs"
-                  placeholder={generateGroupTitle(activeGroup) || "문제 추가 시 자동 생성"}
-                  value={activeGroup.title}
-                  onChange={(e) =>
-                    updateQuestionGroup(activeGroup.id, { title: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">지시문 (선택)</Label>
-                <div className="border rounded-md overflow-hidden focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20">
-                  <div className="flex items-center gap-0.5 px-2 py-1 bg-muted/50 border-b">
-                    <button
-                      type="button"
-                      className="h-7 w-7 flex items-center justify-center rounded text-sm font-bold transition-colors hover:bg-muted"
-                      title="볼드 (텍스트 선택 후 클릭)"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        const textarea = instructionsRef.current;
-                        if (!textarea) return;
-                        const start = textarea.selectionStart;
-                        const end = textarea.selectionEnd;
-                        const text = activeGroup.instructions;
+          </div>
 
-                        if (start === end) {
-                          // No selection: insert empty bold markers
-                          const newText = text.slice(0, start) + "****" + text.slice(end);
-                          updateQuestionGroup(activeGroup.id, { instructions: newText });
-                          requestAnimationFrame(() => {
-                            textarea.selectionStart = textarea.selectionEnd = start + 2;
-                            textarea.focus();
-                          });
-                          return;
-                        }
-
-                        const selected = text.slice(start, end);
-                        const hasBoldBefore = start >= 2 && text.slice(start - 2, start) === "**";
-                        const hasBoldAfter = text.slice(end, end + 2) === "**";
-
-                        if (hasBoldBefore && hasBoldAfter) {
-                          // Remove bold
-                          const newText = text.slice(0, start - 2) + selected + text.slice(end + 2);
-                          updateQuestionGroup(activeGroup.id, { instructions: newText });
-                          requestAnimationFrame(() => {
-                            textarea.selectionStart = start - 2;
-                            textarea.selectionEnd = end - 2;
-                            textarea.focus();
-                          });
-                        } else {
-                          // Add bold
-                          const newText = text.slice(0, start) + "**" + selected + "**" + text.slice(end);
-                          updateQuestionGroup(activeGroup.id, { instructions: newText });
-                          requestAnimationFrame(() => {
-                            textarea.selectionStart = start + 2;
-                            textarea.selectionEnd = end + 2;
-                            textarea.focus();
-                          });
-                        }
-                      }}
-                    >
-                      B
-                    </button>
+          {/* ─── Right Column: Question Groups ─── */}
+          <div className="space-y-6">
+            {/* Question Groups */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>
+                      문제 그룹{" "}
+                      <span className="text-muted-foreground font-normal text-sm">
+                        ({questionGroups.length}그룹, {totalItemCount}문항)
+                      </span>
+                    </CardTitle>
+                    <CardDescription>
+                      그룹별로 문제를 구성합니다.
+                    </CardDescription>
                   </div>
-                  <Textarea
-                    ref={instructionsRef}
-                    className="border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 text-sm min-h-[80px] resize-y"
-                    placeholder="예: Choose the correct letter, A, B, C or D."
-                    value={activeGroup.instructions}
-                    onChange={(e) =>
-                      updateQuestionGroup(activeGroup.id, {
-                        instructions: e.target.value,
-                      })
-                    }
-                  />
+                  <Button size="sm" onClick={addSet}>
+                    <FolderPlus className="mr-1 h-4 w-4" />
+                    세트 추가
+                  </Button>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  텍스트를 선택 후 <strong>B</strong> 버튼으로 볼드 처리할 수 있습니다.
-                </p>
-              </div>
-            </div>
+              </CardHeader>
+              <CardContent>
+                {questionGroups.length > 0 ? (
+                  <div className="space-y-3">
+                    {questionGroups.map((group, idx) => {
+                      const isActive = activeGroupId === group.id;
+                      const isExpanded = expandedGroups.has(group.id);
+                      const autoTitle = generateGroupTitle(group);
+                      const gNum = groupNumbering[group.id];
 
-            {/* Question selection + list */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Left: Available questions */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">문제 선택</CardTitle>
-                  <CardDescription>
-                    문제를 클릭하면 상세 내용을 확인할 수 있습니다.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="문제 검색..."
-                      className="pl-9"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="border rounded-lg max-h-[400px] overflow-y-auto divide-y">
-                    {isLoadingQuestions ? (
-                      <div className="flex items-center justify-center py-8">
-                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : availableQuestions.length > 0 ? (
-                      availableQuestions.map((q) => {
-                        const isUsed = allUsedQuestionIds.has(q.id);
-                        const isChecked = selectedForAdd.includes(q.id);
-                        const isExpanded = expandedQuestionId === q.id;
-
-                        return (
-                          <div
-                            key={q.id}
-                            className={cn(
-                              "transition-colors",
-                              isUsed && "opacity-40 bg-muted/30",
-                              isChecked && !isUsed && "bg-primary/5"
-                            )}
-                          >
-                            <div className="flex items-center gap-2 p-2.5">
-                              <Checkbox
-                                checked={isChecked}
-                                disabled={isUsed}
-                                onCheckedChange={() => {
-                                  if (isUsed) return;
-                                  setSelectedForAdd((prev) =>
-                                    prev.includes(q.id)
-                                      ? prev.filter((xid) => xid !== q.id)
-                                      : [...prev, q.id]
-                                  );
-                                }}
-                              />
-                              <button
-                                type="button"
-                                className="flex-1 flex items-center gap-2 text-left min-w-0"
-                                onClick={() =>
-                                  setExpandedQuestionId(isExpanded ? null : q.id)
-                                }
-                              >
-                                <span className="text-xs font-mono text-muted-foreground shrink-0">
-                                  {q.question_code}
-                                </span>
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] shrink-0"
-                                >
-                                  {formatLabels[q.question_format] ||
-                                    q.question_format}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground shrink-0">
-                                  {q.item_count}문항
-                                </span>
-                                <span className="text-xs text-muted-foreground flex-1">
-                                  {stripHtml(q.title || q.content)}
-                                </span>
-                                {isExpanded ? (
-                                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                ) : (
-                                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                )}
-                              </button>
-                              {isUsed && (
-                                <Badge
-                                  variant="secondary"
-                                  className="text-[9px] shrink-0"
-                                >
-                                  추가됨
-                                </Badge>
+                      return (
+                        <div
+                          key={group.id}
+                          className={cn(
+                            "border rounded-lg transition-colors",
+                            isActive ? "border-primary shadow-sm" : "border-border"
+                          )}
+                          onClick={() => setActiveGroupId(group.id)}
+                        >
+                          <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-t-lg">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleGroupExpand(group.id);
+                              }}
+                              className="p-0.5"
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
                               )}
-                            </div>
-                            {isExpanded && (
-                              <div className="px-2.5 pb-2.5">
-                                <QuestionDetailPreview question={q} />
-                              </div>
+                            </button>
+                            <span className="text-sm font-semibold flex-1">
+                              {group.title || autoTitle || `Set ${idx + 1}`}
+                            </span>
+                            <Badge variant="outline" className="text-[10px]">
+                              {group.questions.length}문제
+                            </Badge>
+                            <Button
+                              variant={addDrawerGroupId === group.id ? "secondary" : "outline"}
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAddDrawerGroupId(addDrawerGroupId === group.id ? null : group.id);
+                                setActiveGroupId(group.id);
+                              }}
+                            >
+                              <Plus className="mr-1 h-3 w-3" />
+                              문제 추가
+                            </Button>
+                            {questionGroups.length > 1 && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeSet(group.id);
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
                             )}
                           </div>
-                        );
-                      })
-                    ) : (
-                      <div className="text-center py-8 text-muted-foreground text-sm">
-                        해당 유형의 문제가 없습니다.
+
+                          {isExpanded && (
+                            <div className="p-3 space-y-3" onClick={(e) => e.stopPropagation()}>
+                              {/* Content block selector */}
+                              {contentBlocks.length > 0 && (
+                                <div className="space-y-1">
+                                  <Label className="text-xs">콘텐츠 블록</Label>
+                                  <Select
+                                    value={group.content_block_id || "none"}
+                                    onValueChange={(v) =>
+                                      updateQuestionGroup(group.id, {
+                                        content_block_id: v === "none" ? null : v,
+                                      })
+                                    }
+                                  >
+                                    <SelectTrigger className="h-8 text-xs">
+                                      <SelectValue placeholder="콘텐츠 선택..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="none">없음</SelectItem>
+                                      {contentBlocks.map((b, bi) => (
+                                        <SelectItem key={b.id} value={b.id}>
+                                          {b.content_type === "passage"
+                                            ? b.passage_title || `Passage ${bi + 1}`
+                                            : `Audio ${bi + 1}`}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
+
+                              {/* Group title */}
+                              <div className="space-y-1">
+                                <Label className="text-xs">그룹 제목 (자동 생성 — 직접 입력 시 오버라이드, 예: &quot;Questions 1–5&quot;)</Label>
+                                <Input
+                                  className="h-8 text-xs"
+                                  placeholder={autoTitle || "문제 추가 시 자동 생성"}
+                                  value={group.title}
+                                  onChange={(e) =>
+                                    updateQuestionGroup(group.id, { title: e.target.value })
+                                  }
+                                />
+                              </div>
+
+                              {/* Instructions */}
+                              <div className="space-y-1">
+                                <Label className="text-xs">지시문</Label>
+                                <RichTextEditor
+                                  placeholder="예: Choose the correct letter A, B, C or D."
+                                  minHeight="80px"
+                                  value={group.instructions}
+                                  onChange={(val) =>
+                                    updateQuestionGroup(group.id, {
+                                      instructions: val,
+                                    })
+                                  }
+                                />
+                              </div>
+
+                              {/* Items */}
+                              {group.questions.length > 0 ? (
+                                <DndContext
+                                  sensors={sensors}
+                                  collisionDetection={closestCenter}
+                                  onDragEnd={handleItemDragEnd(group.id)}
+                                >
+                                  <SortableContext
+                                    items={group.questions}
+                                    strategy={verticalListSortingStrategy}
+                                  >
+                                    <div className="space-y-1">
+                                      {group.questions.map((qId) => {
+                                        const q = availableQuestions.find(
+                                          (aq) => aq.id === qId
+                                        );
+                                        if (!q) return null;
+                                        const numInfo = numberingMap[qId];
+                                        return (
+                                          <SortableQuestionInGroup
+                                            key={qId}
+                                            id={qId}
+                                            numberLabel={numInfo?.label || "—"}
+                                            question={q}
+                                            onRemove={() =>
+                                              removeQuestionFromGroup(group.id, qId)
+                                            }
+                                          />
+                                        );
+                                      })}
+                                    </div>
+                                  </SortableContext>
+                                </DndContext>
+                              ) : (
+                                <div className="text-center py-4 text-muted-foreground text-xs border border-dashed rounded">
+                                  위 &quot;문제 추가&quot; 버튼을 클릭하여 문제를 추가하세요.
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <FolderPlus className="h-8 w-8 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">세트가 없습니다.</p>
+                    <Button size="sm" onClick={addSet} className="mt-3">
+                      <Plus className="mr-1 h-4 w-4" />
+                      첫 번째 세트 추가
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+          </div>
+        </div>
+
+        {/* Question Add Drawer */}
+        <div
+          className={cn(
+            "fixed left-0 top-0 h-full w-[420px] bg-white border-r shadow-xl z-40 flex flex-col transition-transform duration-300 ease-in-out",
+            addDrawerGroupId ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
+            <div>
+              <h3 className="text-sm font-semibold">문제 추가</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {sectionType.charAt(0).toUpperCase() + sectionType.slice(1)} 유형
+                {isPractice ? " (연습문제만)" : " (실전문제만)"}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setAddDrawerGroupId(null)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="p-4 border-b">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="문제 코드, 제목, 내용으로 검색..."
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto divide-y">
+            {isLoadingQuestions ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : availableQuestions.length > 0 ? (
+              availableQuestions.map((q) => {
+                const isUsed = allUsedQuestionIds.has(q.id);
+                const isChecked = selectedForAdd.includes(q.id);
+                const isQExpanded = expandedQuestionId === q.id;
+                return (
+                  <div
+                    key={q.id}
+                    className={cn(
+                      "transition-colors",
+                      isUsed && "opacity-40 bg-muted/30",
+                      isChecked && !isUsed && "bg-primary/5"
+                    )}
+                  >
+                    <div className="flex items-center gap-2 p-2.5">
+                      <Checkbox
+                        checked={isChecked}
+                        disabled={isUsed}
+                        onCheckedChange={() => {
+                          if (isUsed) return;
+                          setSelectedForAdd((prev) =>
+                            prev.includes(q.id)
+                              ? prev.filter((xid) => xid !== q.id)
+                              : [...prev, q.id]
+                          );
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="flex-1 flex items-center gap-2 text-left min-w-0"
+                        onClick={() => setExpandedQuestionId(isQExpanded ? null : q.id)}
+                      >
+                        <span className="text-xs font-mono text-muted-foreground shrink-0">{q.question_code}</span>
+                        <Badge variant="outline" className="text-[10px] shrink-0">
+                          {formatLabels[q.question_format] || q.question_format}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground shrink-0">{q.item_count}문항</span>
+                        <span className="text-xs text-muted-foreground flex-1 truncate">
+                          {stripHtml(q.title || q.content)}
+                        </span>
+                        {isQExpanded ? (
+                          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        ) : (
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        )}
+                      </button>
+                      {isUsed && (
+                        <Badge variant="secondary" className="text-[9px] shrink-0">추가됨</Badge>
+                      )}
+                    </div>
+                    {isQExpanded && (
+                      <div className="px-2.5 pb-2.5">
+                        <QuestionDetailPreview question={q} />
                       </div>
                     )}
                   </div>
-
-                  <div className="flex justify-between items-center text-xs text-muted-foreground">
-                    <span>{availableQuestions.length}개 문제</span>
-                    <span>{selectedForAdd.length}개 선택됨</span>
-                  </div>
-
-                  {selectedForAdd.length > 0 && (
-                    <Button
-                      size="sm"
-                      className="w-full"
-                      onClick={() => addQuestionsToGroup(activeGroup.id)}
-                    >
-                      <Plus className="mr-1 h-4 w-4" />
-                      선택한 {selectedForAdd.length}개 추가
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Right: Questions in this set */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">
-                    문제 목록
-                    <span className="text-muted-foreground font-normal text-sm ml-2">
-                      ({activeGroup.questions.length}문제)
-                    </span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {activeGroup.questions.length > 0 ? (
-                    <DndContext
-                      sensors={sensors}
-                      collisionDetection={closestCenter}
-                      onDragEnd={handleItemDragEnd(activeGroup.id)}
-                    >
-                      <SortableContext
-                        items={activeGroup.questions}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        <div className="space-y-1">
-                          {activeGroup.questions.map((qId) => {
-                            const q = availableQuestions.find(
-                              (aq) => aq.id === qId
-                            );
-                            if (!q) return null;
-                            const numInfo = numberingMap[qId];
-                            return (
-                              <SortableQuestionInGroup
-                                key={qId}
-                                id={qId}
-                                numberLabel={numInfo?.label || "—"}
-                                question={q}
-                                onRemove={() =>
-                                  removeQuestionFromGroup(activeGroup.id, qId)
-                                }
-                              />
-                            );
-                          })}
-                        </div>
-                      </SortableContext>
-                    </DndContext>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground text-xs border border-dashed rounded">
-                      왼쪽에서 문제를 선택 후 추가하세요.
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-12 text-muted-foreground text-sm">
+                추가 가능한 문제가 없습니다.
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="text-center py-12 text-muted-foreground">
-            <FolderPlus className="h-8 w-8 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">세트가 없습니다.</p>
-            <Button size="sm" onClick={addSet} className="mt-3">
+
+          <div className="p-3 border-t bg-muted/20 space-y-2">
+            <div className="flex justify-between items-center">
+              <p className="text-xs text-muted-foreground">{availableQuestions.length}개 사용 가능</p>
+              {selectedForAdd.length > 0 && addDrawerGroupId && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    addQuestionsToGroup(addDrawerGroupId);
+                    setAddDrawerGroupId(null);
+                  }}
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  {selectedForAdd.length}개 추가
+                </Button>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => setShowCreateQuestion(prev => !prev)}
+            >
               <Plus className="mr-1 h-4 w-4" />
-              첫 번째 세트 추가
+              새 문제 만들기
             </Button>
           </div>
-        )}
+        </div>
 
         {/* Summary */}
         <Card className="border-primary/20 bg-primary/5">
@@ -1404,7 +1579,6 @@ export default function NewSectionPage() {
     passage_content: b.passage_content,
     passage_footnotes: b.passage_footnotes,
     audio_url: b.audio_url,
-    audio_transcript: b.audio_transcript,
   }));
 
   const previewQuestionGroupsData = questionGroups.map((g) => {
@@ -1462,10 +1636,22 @@ export default function NewSectionPage() {
         title={title}
         timeLimit={timeLimit}
         isPractice={isPractice}
+        instructionTitle={instructionTitle}
+        instructionHtml={instructionHtml}
         contentBlocks={previewContentBlocks}
         questionGroups={previewQuestionGroupsData}
         questions={previewQuestions}
       />
+
+      {/* 문제 생성 모달 */}
+      {sectionType && (
+        <CreateQuestionModal
+          open={showCreateQuestion}
+          onOpenChange={setShowCreateQuestion}
+          sectionType={sectionType}
+          onCreated={handleQuestionCreated}
+        />
+      )}
     </div>
   );
 }

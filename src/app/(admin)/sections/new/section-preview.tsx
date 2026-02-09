@@ -80,6 +80,8 @@ interface SectionPreviewProps {
   title: string;
   timeLimit: string;
   isPractice: boolean;
+  instructionTitle?: string;
+  instructionHtml?: string;
   contentBlocks: ContentBlockPreview[];
   questionGroups: QuestionGroupPreview[];
   questions: PreviewQuestion[];
@@ -93,6 +95,8 @@ export function SectionPreview({
   sectionType,
   title,
   timeLimit,
+  instructionTitle,
+  instructionHtml,
   contentBlocks,
   questionGroups,
   questions,
@@ -100,14 +104,18 @@ export function SectionPreview({
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [activeNum, setActiveNum] = useState(1);
   const [activeMatchSlot, setActiveMatchSlot] = useState<number | null>(null);
+  const [showInstructionPage, setShowInstructionPage] = useState(false);
+
+  const hasInstructionPage = !!(instructionTitle || instructionHtml);
 
   useEffect(() => {
     if (open) {
       setAnswers({});
       setActiveNum(1);
       setActiveMatchSlot(null);
+      setShowInstructionPage(hasInstructionPage);
     }
-  }, [open]);
+  }, [open, hasInstructionPage]);
 
   // Build question detail map
   const questionMap = useMemo(
@@ -1327,7 +1335,7 @@ export function SectionPreview({
         )}
 
         {/* Questions in this group */}
-        <div className="flex-1 overflow-hidden px-5 py-4 space-y-2">
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2">
           {activeGroupItems.map((item) => {
             const isItemActive =
               activeNum >= item.startNum && activeNum <= item.endNum;
@@ -1380,25 +1388,53 @@ export function SectionPreview({
                 <h2 className="text-lg font-bold mb-4">{activeBlock.passage_title}</h2>
               ) : null}
               {activeBlock.passage_content ? (
-                <div className="text-sm leading-[1.8] whitespace-pre-wrap text-gray-700">
-                  {activeBlock.passage_content}
-                </div>
+                <div
+                  className="text-sm leading-[1.8] text-gray-700 prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(activeBlock.passage_content) }}
+                />
               ) : (
                 <p className="text-sm text-gray-400 italic">지문이 입력되지 않았습니다.</p>
               )}
               {activeBlock.passage_footnotes ? (
-                <div className="mt-4 pt-3 border-t text-xs text-gray-500 italic whitespace-pre-wrap">
-                  {activeBlock.passage_footnotes}
-                </div>
+                <div
+                  className="mt-4 pt-3 border-t text-xs text-gray-500 italic prose prose-xs max-w-none [&_p]:my-1"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(activeBlock.passage_footnotes) }}
+                />
               ) : null}
             </div>
           </div>
         );
       }
 
-      if (activeBlock.content_type === "audio" && activeBlock.audio_url) {
+      if (activeBlock.content_type === "audio") {
+        const hasPassage = activeBlock.passage_title || activeBlock.passage_content;
         return (
-          <audio src={getCdnUrl(activeBlock.audio_url || "")} autoPlay />
+          <>
+            {activeBlock.audio_url && (
+              <audio src={getCdnUrl(activeBlock.audio_url)} autoPlay />
+            )}
+            {hasPassage && (
+              <div className="h-full overflow-y-auto p-4">
+                <div className="bg-white rounded-lg border p-6">
+                  {activeBlock.passage_title ? (
+                    <h2 className="text-lg font-bold mb-4">{activeBlock.passage_title}</h2>
+                  ) : null}
+                  {activeBlock.passage_content ? (
+                    <div
+                      className="text-sm leading-[1.8] text-gray-700 prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(activeBlock.passage_content) }}
+                    />
+                  ) : null}
+                  {activeBlock.passage_footnotes ? (
+                    <div
+                      className="mt-4 pt-3 border-t text-xs text-gray-500 italic prose prose-xs max-w-none [&_p]:my-1"
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(activeBlock.passage_footnotes) }}
+                    />
+                  ) : null}
+                </div>
+              </div>
+            )}
+          </>
         );
       }
     }
@@ -1414,9 +1450,10 @@ export function SectionPreview({
                 <h2 className="text-lg font-bold mb-4">{firstBlock.passage_title}</h2>
               ) : null}
               {firstBlock.passage_content ? (
-                <div className="text-sm leading-[1.8] whitespace-pre-wrap text-gray-700">
-                  {firstBlock.passage_content}
-                </div>
+                <div
+                  className="text-sm leading-[1.8] text-gray-700 prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(firstBlock.passage_content) }}
+                />
               ) : (
                 <p className="text-sm text-gray-400 italic">지문이 입력되지 않았습니다.</p>
               )}
@@ -1483,9 +1520,11 @@ export function SectionPreview({
 
   // ─── Layout ────────────────────────────────────────────────────
 
+  const blockHasPassageData = (b: ContentBlockPreview) =>
+    b.content_type === "passage" || !!(b.passage_title || b.passage_content);
   const hasPassageContent =
-    activeBlock?.content_type === "passage" ||
-    (!activeBlock && contentBlocks.some((b) => b.content_type === "passage"));
+    (activeBlock && blockHasPassageData(activeBlock)) ||
+    (!activeBlock && contentBlocks.some(blockHasPassageData));
   const hasAudioContent =
     activeBlock?.content_type === "audio" ||
     (!activeBlock && contentBlocks.some((b) => b.content_type === "audio"));
@@ -1524,32 +1563,59 @@ export function SectionPreview({
 
         {/* Content */}
         <div className="flex-1 bg-slate-200 overflow-hidden flex flex-col min-h-0">
-          {hasAudioContent && renderContentPanel()}
-
-          <div
-            className={cn(
-              "flex-1 overflow-hidden min-h-0",
-              showLeftPanel ? "grid grid-cols-2" : "flex"
-            )}
-          >
-            {showLeftPanel && (
-              <div className="col-span-1 border-r border-slate-300 bg-slate-100 overflow-hidden">
-                {renderContentPanel()}
+          {showInstructionPage ? (
+            <div className="flex-1 overflow-y-auto flex items-start justify-center p-8">
+              <div className="bg-white rounded-lg border shadow-sm max-w-2xl w-full p-8 space-y-4">
+                {instructionTitle && (
+                  <h2 className="text-xl font-bold text-center">{instructionTitle}</h2>
+                )}
+                {instructionHtml && (
+                  <div
+                    className="prose prose-sm max-w-none [&_p]:my-2 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(instructionHtml) }}
+                  />
+                )}
+                <div className="flex justify-center pt-4">
+                  <button
+                    type="button"
+                    className="px-6 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors text-sm font-medium"
+                    onClick={() => setShowInstructionPage(false)}
+                  >
+                    시작하기
+                  </button>
+                </div>
               </div>
-            )}
-            <div
-              className={cn(
-                "overflow-hidden bg-slate-100",
-                showLeftPanel ? "col-span-1" : "flex-1"
-              )}
-            >
-              {renderQuestionPanel()}
             </div>
-          </div>
+          ) : (
+            <>
+              {hasAudioContent && !showLeftPanel && renderContentPanel()}
+
+              <div
+                className={cn(
+                  "flex-1 overflow-hidden min-h-0",
+                  showLeftPanel ? "grid grid-cols-2" : "flex"
+                )}
+              >
+                {showLeftPanel && (
+                  <div className="col-span-1 border-r border-slate-300 bg-slate-100 overflow-hidden">
+                    {renderContentPanel()}
+                  </div>
+                )}
+                <div
+                  className={cn(
+                    "overflow-hidden bg-slate-100",
+                    showLeftPanel ? "col-span-1" : "flex-1"
+                  )}
+                >
+                  {renderQuestionPanel()}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Navigator */}
-        {renderNavigator()}
+        {!showInstructionPage && renderNavigator()}
       </DialogContent>
     </Dialog>
   );

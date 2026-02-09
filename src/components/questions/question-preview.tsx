@@ -66,7 +66,7 @@ export function QuestionPreview({
       ) : fmt.startsWith("speaking_") ? (
         <SpeakingPreview data={data} />
       ) : (
-        <div className="bg-white rounded-lg border p-6">
+        <div className="bg-white rounded-lg border p-6 flex-1 overflow-y-auto">
           <p className="text-sm text-gray-500">지원하지 않는 문제 형태: {fmt}</p>
         </div>
       )}
@@ -151,7 +151,7 @@ function MCQPreview({ data }: { data: QuestionPreviewData }) {
   };
 
   return (
-    <div className="bg-white rounded-lg border p-6 space-y-4">
+    <div className="bg-white rounded-lg border p-6 space-y-4 flex-1 overflow-y-auto">
       <p className="text-lg" dangerouslySetInnerHTML={{ __html: sanitizeHtml(question || "(문제 입력)") }} />
       {isMultiple && (
         <p className="text-sm text-blue-600">Choose {maxSelections} answers.</p>
@@ -222,7 +222,7 @@ function TFNGPreview({ data }: { data: QuestionPreviewData }) {
   // Single-item mode (legacy: content holds the statement)
   if (items.length === 0) {
     return (
-      <div className="bg-white rounded-lg border p-6 space-y-4">
+      <div className="bg-white rounded-lg border p-6 space-y-4 flex-1 overflow-y-auto">
         <div className="p-4 border rounded-lg">
           <p className="mb-4" dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content || "(진술문 입력)") }} />
           <div className="flex gap-4">
@@ -251,7 +251,7 @@ function TFNGPreview({ data }: { data: QuestionPreviewData }) {
   }
 
   return (
-    <div className="bg-white rounded-lg border p-6 space-y-3">
+    <div className="bg-white rounded-lg border p-6 space-y-3 flex-1 overflow-y-auto">
       {items.map((item, idx) => (
         <div key={item.id || idx} className="p-4 border rounded-lg">
           <div className="flex items-start gap-3">
@@ -325,7 +325,7 @@ function FillBlankTypingPreview({ data }: { data: QuestionPreviewData }) {
   };
 
   return (
-    <div className="bg-white rounded-lg border p-6 space-y-4">
+    <div className="bg-white rounded-lg border p-6 space-y-4 flex-1 overflow-y-auto">
       {contentTitle && <h2 className="text-lg font-bold border-b pb-3">{contentTitle}</h2>}
       {inputStyle === "items" && items.length > 0 ? (
         <ul className="space-y-2 list-disc pl-5">
@@ -411,7 +411,7 @@ function FillBlankDragPreview({ data }: { data: QuestionPreviewData }) {
   };
 
   return (
-    <div className="bg-white rounded-lg border p-6 space-y-4">
+    <div className="bg-white rounded-lg border p-6 space-y-4 flex-1 overflow-y-auto">
       {contentTitle && <h2 className="text-lg font-bold border-b pb-3">{contentTitle}</h2>}
       {inputStyle === "items" && items.length > 0 ? (
         <ul className="space-y-2 list-disc pl-5">
@@ -508,7 +508,7 @@ function TableCompletionPreview({ data }: { data: QuestionPreviewData }) {
   };
 
   return (
-    <div className="bg-white rounded-lg border p-6 space-y-4">
+    <div className="bg-white rounded-lg border p-6 space-y-4 flex-1 overflow-y-auto">
       {contentTitle && <h2 className="text-lg font-bold border-b pb-3">{contentTitle}</h2>}
       <div
         className="leading-relaxed [&_table]:border-collapse [&_table]:w-full [&_table]:table-fixed [&_td]:border [&_td]:border-slate-300 [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-slate-300 [&_th]:px-3 [&_th]:py-2 [&_th]:bg-slate-100 [&_th]:font-semibold"
@@ -624,14 +624,14 @@ function MatchingPreview({ data }: { data: QuestionPreviewData }) {
   };
 
   return (
-    <div className="grid grid-cols-2 gap-6">
-      <div className="bg-white rounded-lg border p-6 max-h-[600px] overflow-y-auto">
+    <div className="grid grid-cols-2 gap-6 flex-1 min-h-0">
+      <div className="bg-white rounded-lg border p-6 overflow-y-auto">
         {contentTitle && <h2 className="text-lg font-bold mb-4">{contentTitle}</h2>}
         <div className="prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em] [&_strong]:font-bold leading-relaxed">
           {renderContentWithSlots()}
         </div>
       </div>
-      <div className="bg-white rounded-lg border p-4 h-fit sticky top-0">
+      <div className="bg-white rounded-lg border p-4 overflow-y-auto">
         <h3 className="font-semibold mb-1">List of Headings</h3>
         <p className="text-xs text-muted-foreground mb-4">Drag headings to the numbered slots.</p>
         {allowDuplicate && (
@@ -682,7 +682,7 @@ function FlowchartPreview({ data }: { data: QuestionPreviewData }) {
   const sortedRows = [...rowMap.keys()].sort((a, b) => a - b);
 
   return (
-    <div className="bg-white rounded-lg border p-6">
+    <div className="bg-white rounded-lg border p-6 flex-1 overflow-y-auto">
       {contentTitle && <h2 className="text-lg font-bold text-center mb-6">{contentTitle}</h2>}
       <div className="flex flex-col items-center">
         {sortedRows.map((row, rowIndex) => {
@@ -755,12 +755,12 @@ function MapLabelingPreview({ data }: { data: QuestionPreviewData }) {
   };
 
   return (
-    <div className="space-y-4">
-      {contentTitle && <h2 className="text-lg font-bold">{contentTitle}</h2>}
+    <div className="space-y-4 flex-1 min-h-0 flex flex-col overflow-y-auto">
+      {contentTitle && <h2 className="text-lg font-bold shrink-0">{contentTitle}</h2>}
       {passage && passage.trim() && (
-        <div className="text-sm text-muted-foreground leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeHtml(passage) }} />
+        <div className="text-sm text-muted-foreground leading-relaxed shrink-0" dangerouslySetInnerHTML={{ __html: sanitizeHtml(passage) }} />
       )}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-2 gap-6 flex-1 min-h-0">
         {/* 왼쪽: 이미지 */}
         <div className="bg-white rounded-lg border p-4 flex items-center justify-center min-h-[300px]">
           {imageUrl ? (
@@ -896,7 +896,7 @@ function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
   // Part 1
   if (fmt === "speaking_part1") {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 flex-1 overflow-y-auto">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs font-medium bg-emerald-50 text-emerald-700 border-emerald-200">
@@ -923,7 +923,7 @@ function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
     const imageUrl = getCdnUrl(getStr(o, "image_url", ""));
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 flex-1 overflow-y-auto">
         <div className="border-2 border-amber-300 rounded-lg overflow-hidden bg-amber-50/30">
           <div className="flex items-center justify-between px-4 py-2.5 bg-amber-100 border-b border-amber-200">
             <Badge className="text-xs font-semibold bg-amber-500 hover:bg-amber-500 text-white">
@@ -963,7 +963,7 @@ function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
     const depthLabel = data.depthLevel ? `Level ${data.depthLevel}` : null;
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 flex-1 overflow-y-auto">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs font-medium bg-violet-50 text-violet-700 border-violet-200">
@@ -988,7 +988,7 @@ function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
 
   // Fallback
   return (
-    <div className="bg-white rounded-lg border p-6">
+    <div className="bg-white rounded-lg border p-6 flex-1 overflow-y-auto">
       <p dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content || "") }} />
     </div>
   );
