@@ -93,8 +93,6 @@ interface AssignmentsResponse {
   };
 }
 
-const PAGE_SIZE = 20;
-
 export default function AssignmentsPage() {
   const router = useRouter();
 
@@ -103,6 +101,7 @@ export default function AssignmentsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [totalItems, setTotalItems] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
 
   // Filters
@@ -135,8 +134,8 @@ export default function AssignmentsPage() {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
-      params.set("limit", PAGE_SIZE.toString());
-      params.set("offset", ((currentPage - 1) * PAGE_SIZE).toString());
+      params.set("limit", pageSize.toString());
+      params.set("offset", ((currentPage - 1) * pageSize).toString());
       if (filterPackage !== "all") params.set("package_id", filterPackage);
       if (filterStatus !== "all") params.set("is_active", filterStatus);
 
@@ -153,7 +152,7 @@ export default function AssignmentsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, filterPackage, filterStatus]);
+  }, [currentPage, pageSize, filterPackage, filterStatus]);
 
   useEffect(() => {
     loadAssignments();
@@ -485,10 +484,14 @@ export default function AssignmentsPage() {
           data={assignments}
           searchPlaceholder="패키지명 또는 대상으로 검색..."
           totalItems={totalItems}
-          pageSize={PAGE_SIZE}
+          pageSize={pageSize}
           currentPage={currentPage}
           onSearch={setSearch}
           onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
         />
       )}
 

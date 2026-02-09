@@ -67,8 +67,8 @@ export default function CouponsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [totalItems, setTotalItems] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
-  const limit = 20;
 
   // Create/Edit dialog
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -91,8 +91,8 @@ export default function CouponsPage() {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
-      params.set("limit", limit.toString());
-      params.set("offset", ((currentPage - 1) * limit).toString());
+      params.set("limit", pageSize.toString());
+      params.set("offset", ((currentPage - 1) * pageSize).toString());
       if (search) params.set("search", search);
 
       const { data, error } = await api.get<{
@@ -110,7 +110,7 @@ export default function CouponsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, search]);
+  }, [currentPage, pageSize, search]);
 
   useEffect(() => {
     loadCoupons();
@@ -355,10 +355,14 @@ export default function CouponsPage() {
           data={coupons}
           searchPlaceholder="쿠폰 코드 또는 이름으로 검색..."
           totalItems={totalItems}
-          pageSize={limit}
+          pageSize={pageSize}
           currentPage={currentPage}
           onSearch={setSearch}
           onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
         />
       )}
 

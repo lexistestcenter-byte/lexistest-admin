@@ -113,7 +113,7 @@ export default function SessionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
 
   const fetchSessions = useCallback(async () => {
@@ -349,6 +349,10 @@ export default function SessionsPage() {
           currentPage={currentPage}
           onSearch={setSearchInput}
           onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
         />
       )}
     </div>

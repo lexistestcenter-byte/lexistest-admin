@@ -72,14 +72,13 @@ interface UsersResponse {
   };
 }
 
-const PAGE_SIZE = 10;
-
 export default function GroupsPage() {
   // List state
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalItems, setTotalItems] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
 
   // Modal state
@@ -112,8 +111,8 @@ export default function GroupsPage() {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
-      params.set("limit", PAGE_SIZE.toString());
-      params.set("offset", ((currentPage - 1) * PAGE_SIZE).toString());
+      params.set("limit", pageSize.toString());
+      params.set("offset", ((currentPage - 1) * pageSize).toString());
       if (search) params.set("search", search);
 
       const { data, error } = await api.get<GroupsResponse>(`/api/groups?${params.toString()}`);
@@ -128,7 +127,7 @@ export default function GroupsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, search]);
+  }, [currentPage, pageSize, search]);
 
   useEffect(() => {
     loadGroups();
@@ -462,10 +461,14 @@ export default function GroupsPage() {
         data={groups}
         searchPlaceholder="그룹명으로 검색..."
         totalItems={totalItems}
-        pageSize={PAGE_SIZE}
+        pageSize={pageSize}
         currentPage={currentPage}
         onSearch={setSearch}
         onPageChange={setCurrentPage}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setCurrentPage(1);
+        }}
       />
 
       {/* Create Group Modal */}

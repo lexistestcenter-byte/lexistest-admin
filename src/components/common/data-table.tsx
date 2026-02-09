@@ -133,7 +133,7 @@ export function DataTable<T extends { id: string }>({
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">페이지당</span>
           <Select
-            defaultValue={pageSize.toString()}
+            value={pageSize.toString()}
             onValueChange={handlePageSizeChange}
           >
             <SelectTrigger className="w-[70px] h-8 text-sm">
@@ -141,9 +141,8 @@ export function DataTable<T extends { id: string }>({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="10">10</SelectItem>
-              <SelectItem value="20">20</SelectItem>
+              <SelectItem value="30">30</SelectItem>
               <SelectItem value="50">50</SelectItem>
-              <SelectItem value="100">100</SelectItem>
             </SelectContent>
           </Select>
           <span className="text-sm text-muted-foreground">

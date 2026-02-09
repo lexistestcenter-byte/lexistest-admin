@@ -102,7 +102,7 @@ export default function InquiriesPage() {
   // Pagination
   const [totalItems, setTotalItems] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const limit = 10;
+  const [pageSize, setPageSize] = useState(10);
 
   // Reply dialog
   const [selectedInquiry, setSelectedInquiry] = useState<InquiryRow | null>(null);
@@ -113,8 +113,8 @@ export default function InquiriesPage() {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
-      params.set("limit", limit.toString());
-      params.set("offset", ((currentPage - 1) * limit).toString());
+      params.set("limit", pageSize.toString());
+      params.set("offset", ((currentPage - 1) * pageSize).toString());
 
       if (selectedStatus !== "all") {
         params.set("status", selectedStatus);
@@ -141,7 +141,7 @@ export default function InquiriesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, selectedStatus, selectedCategory, search]);
+  }, [currentPage, pageSize, selectedStatus, selectedCategory, search]);
 
   useEffect(() => {
     loadInquiries();
@@ -382,10 +382,14 @@ export default function InquiriesPage() {
           data={inquiries}
           searchPlaceholder="제목 또는 내용으로 검색..."
           totalItems={totalItems}
-          pageSize={limit}
+          pageSize={pageSize}
           currentPage={currentPage}
           onSearch={setSearch}
           onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
         />
       )}
 

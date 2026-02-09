@@ -89,15 +89,15 @@ export default function SectionsPage() {
   // Pagination
   const [totalItems, setTotalItems] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const limit = 20;
+  const [pageSize, setPageSize] = useState(10);
 
   // Load sections
   const loadSections = useCallback(async () => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
-      params.set("limit", limit.toString());
-      params.set("offset", ((currentPage - 1) * limit).toString());
+      params.set("limit", pageSize.toString());
+      params.set("offset", ((currentPage - 1) * pageSize).toString());
 
       if (selectedType !== "all") {
         params.set("section_type", selectedType);
@@ -119,7 +119,7 @@ export default function SectionsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, selectedType, search]);
+  }, [currentPage, pageSize, selectedType, search]);
 
   useEffect(() => {
     loadSections();
@@ -393,7 +393,14 @@ export default function SectionsPage() {
           data={sections}
           searchPlaceholder="섹션명으로 검색..."
           totalItems={totalItems}
+          pageSize={pageSize}
+          currentPage={currentPage}
           onSearch={setSearch}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
         />
       )}
 

@@ -150,15 +150,15 @@ export default function QuestionsPage() {
   // Pagination
   const [totalItems, setTotalItems] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const limit = 10;
+  const [pageSize, setPageSize] = useState(10);
 
   // Load questions
   const loadQuestions = useCallback(async () => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
-      params.set("limit", limit.toString());
-      params.set("offset", ((currentPage - 1) * limit).toString());
+      params.set("limit", pageSize.toString());
+      params.set("offset", ((currentPage - 1) * pageSize).toString());
 
       if (selectedType !== "all") {
         params.set("question_type", selectedType);
@@ -186,7 +186,7 @@ export default function QuestionsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, selectedType, selectedFormat, practiceOnly, search]);
+  }, [currentPage, pageSize, selectedType, selectedFormat, practiceOnly, search]);
 
   useEffect(() => {
     loadQuestions();
@@ -408,10 +408,14 @@ export default function QuestionsPage() {
           data={questions}
           searchPlaceholder="문제 내용으로 검색..."
           totalItems={totalItems}
-          pageSize={limit}
+          pageSize={pageSize}
           currentPage={currentPage}
           onSearch={setSearch}
           onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
         />
       )}
 
