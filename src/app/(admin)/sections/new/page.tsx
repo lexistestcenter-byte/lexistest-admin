@@ -67,6 +67,7 @@ import { SectionPreview, type PreviewQuestion } from "./section-preview";
 import { FileUpload, uploadFile } from "@/components/ui/file-upload";
 import { formatLabels, typeColors } from "@/components/sections/constants";
 import { QuestionDetailPreview } from "@/components/sections/question-detail-preview";
+import { stripHtml } from "@/lib/utils/sanitize";
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -169,7 +170,7 @@ function SortableQuestionInGroup({
           {formatLabels[question.question_format] || question.question_format}
         </Badge>
         <span className="flex-1 text-xs text-muted-foreground">
-          {question.title || question.content}
+          {stripHtml(question.title || question.content)}
         </span>
         <Button
           variant="ghost"
@@ -1201,7 +1202,7 @@ export default function NewSectionPage() {
                                   {q.item_count}문항
                                 </span>
                                 <span className="text-xs text-muted-foreground flex-1">
-                                  {q.title || q.content}
+                                  {stripHtml(q.title || q.content)}
                                 </span>
                                 {isExpanded ? (
                                   <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />

@@ -433,7 +433,7 @@ export default function QuestionsPage() {
               <strong className="text-foreground">
                 {deleteTarget?.question_code}
               </strong>{" "}
-              - {deleteTarget?.title || deleteTarget?.content}
+              - {stripHtml(deleteTarget?.title || deleteTarget?.content || "")}
               <br />
               <br />
               <span className="text-amber-600">

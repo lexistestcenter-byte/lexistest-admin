@@ -67,6 +67,7 @@ import { SectionPreview, type PreviewQuestion } from "../new/section-preview";
 import { FileUpload } from "@/components/ui/file-upload";
 import { formatLabels } from "@/components/sections/constants";
 import { QuestionDetailPreview } from "@/components/sections/question-detail-preview";
+import { stripHtml } from "@/lib/utils/sanitize";
 
 const TOTAL_STEPS = 2;
 const STEP_LABELS = ["기본 정보", "섹션 구성"];
@@ -206,7 +207,7 @@ function SortableGroupItemRow({
           {formatLabels[info.question_format] || info.question_format}
         </Badge>
         <span className="flex-1 text-xs text-muted-foreground">
-          {info.title || info.content}
+          {stripHtml(info.title || info.content)}
         </span>
         <Button
           variant="ghost"
@@ -1228,7 +1229,7 @@ export default function SectionEditPage({
                                 {q.item_count}문항
                               </span>
                               <span className="text-xs text-muted-foreground flex-1">
-                                {q.title || q.content}
+                                {stripHtml(q.title || q.content)}
                               </span>
                               {isExpanded ? (
                                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />

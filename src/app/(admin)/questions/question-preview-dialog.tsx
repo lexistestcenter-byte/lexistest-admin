@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCdnUrl } from "@/lib/cdn";
+import { sanitizeHtml } from "@/lib/utils/sanitize";
 import { api } from "@/lib/api/client";
 import {
   QuestionPreview,
@@ -85,7 +86,7 @@ export function QuestionPreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[95vw] max-w-[95vw] w-[95vw] max-h-[85vh] p-0 gap-0 flex flex-col">
+      <DialogContent className="!max-w-none !w-screen !h-screen !rounded-none !p-0 !gap-0 !inset-0 !translate-x-0 !translate-y-0 !top-0 !left-0 flex flex-col overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b shrink-0">
           <DialogTitle className="flex items-center gap-2">
             미리보기 - 실제 시험 화면
@@ -120,7 +121,10 @@ export function QuestionPreviewDialog({
               {/* Instructions */}
               {question.instructions && (
                 <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="font-medium text-blue-900">{question.instructions}</p>
+                  <div
+                    className="font-medium text-blue-900 prose prose-sm max-w-none [&_p]:my-1"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(question.instructions) }}
+                  />
                 </div>
               )}
 

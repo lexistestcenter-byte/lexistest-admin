@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { sanitizeHtml } from "@/lib/utils/sanitize";
 
 interface QuestionDetailPreviewProps {
   question: {
@@ -61,15 +62,17 @@ export function QuestionDetailPreview({ question }: QuestionDetailPreviewProps) 
   return (
     <div className="mt-2 p-3 bg-white border rounded-lg text-sm space-y-2">
       {question.instructions && (
-        <div className="text-xs text-gray-500 italic bg-gray-50 p-2 rounded">
-          {question.instructions}
-        </div>
+        <div
+          className="text-xs text-gray-500 italic bg-gray-50 p-2 rounded prose prose-xs max-w-none [&_p]:my-0.5"
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(question.instructions) }}
+        />
       )}
 
       {question.content && (
-        <div className="whitespace-pre-wrap text-gray-700 leading-relaxed text-xs">
-          {question.content}
-        </div>
+        <div
+          className="text-gray-700 leading-relaxed text-xs prose prose-xs max-w-none [&_p]:my-0.5"
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(question.content) }}
+        />
       )}
 
       {/* MCQ */}
