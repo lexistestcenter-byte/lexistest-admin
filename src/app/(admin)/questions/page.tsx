@@ -48,7 +48,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/api/client";
 import { stripHtml } from "@/lib/utils/sanitize";
-import { QuestionPreviewDialog } from "./question-preview-dialog";
+import { QuestionPreviewDialog } from "@/components/questions/question-preview-dialog";
 
 interface QuestionRow {
   id: string;

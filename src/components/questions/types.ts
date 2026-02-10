@@ -138,6 +138,14 @@ export interface MatchingItem {
   correctLabel: string;   // 정답 레이블 (A, B, C, ...)
 }
 
+// 지도 라벨링 문항
+export interface MapLabelingItem {
+  id: string;
+  number: number;
+  statement: string;
+  correctLabel: string;
+}
+
 // 플로우차트 노드
 export interface FlowchartNode {
   id: string;
@@ -246,6 +254,16 @@ export interface MapLabelingOptionsData {
 // =============================================================================
 // Speaking 관련 타입
 // =============================================================================
+
+// Speaking 서브 질문 (Part 1 & Part 3)
+export interface SpeakingSubQ {
+  id: string;
+  text: string;
+  timeLimitSeconds: string;
+  allowResponseReset: boolean;
+  audioUrl: string;
+  audioFile: File | null;
+}
 
 // Speaking 카테고리
 export interface SpeakingCategory {

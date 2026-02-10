@@ -30,7 +30,7 @@ import { getCdnUrl } from "@/lib/cdn";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/api/client";
-import { SectionPreview, type PreviewQuestion } from "./new/section-preview";
+import { SectionPreview, type PreviewQuestion } from "@/components/sections/section-preview";
 
 const typeFilters = [
   { id: "all", label: "전체", icon: null },
