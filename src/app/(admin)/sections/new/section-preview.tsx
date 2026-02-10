@@ -13,13 +13,13 @@ import {
   ArrowRight,
   X,
   Clock,
-  Mic,
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCdnUrl } from "@/lib/cdn";
 import { formatLabels } from "@/components/sections/constants";
 import { sanitizeHtml, stripHtml } from "@/lib/utils/sanitize";
+import { SpeakingRecorder } from "@/components/ui/speaking-recorder";
 
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -1045,50 +1045,76 @@ export function SectionPreview({
       return { topic, bullets, closing };
     };
 
-    // Band range display
-    const bandRange =
-      q.target_band_min || q.target_band_max
-        ? `Band ${q.target_band_min || "?"}${q.target_band_max ? `-${q.target_band_max}` : ""}`
-        : null;
-
-    // Part 1: Simple question with category
+    // Part 1: Multi-question group
     if (fmt === "speaking_part1") {
+      const questions = Array.isArray(od.questions) ? (od.questions as Record<string, unknown>[]) : [];
+
       return (
         <div className="space-y-4">
-          {/* Header with category and band */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs font-medium bg-emerald-50 text-emerald-700 border-emerald-200">
-                Part 1
+          {/* Header */}
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs font-medium bg-emerald-50 text-emerald-700 border-emerald-200">
+              Part 1 &ndash; Interview
+            </Badge>
+            {q.speaking_category && (
+              <Badge variant="secondary" className="text-xs">
+                {q.speaking_category}
               </Badge>
-              {q.speaking_category && (
-                <Badge variant="secondary" className="text-xs">
-                  {q.speaking_category}
-                </Badge>
-              )}
-            </div>
-            {bandRange && (
-              <span className="text-xs text-gray-500">{bandRange}</span>
             )}
+            <span className="text-xs text-muted-foreground">{questions.length || 1} question(s)</span>
           </div>
 
-          {/* Question */}
-          {q.content && (
-            <div
-              className="text-[15px] leading-relaxed prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(q.content) }}
-            />
+          {/* Questions list */}
+          {questions.length > 0 ? (
+            <div className="space-y-4">
+              {questions.map((sq, idx) => (
+                <div key={idx} className="border border-emerald-200 rounded-lg overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-emerald-50">
+                    <span className="text-xs font-semibold text-emerald-700">Q{sq.number ? Number(sq.number) : idx + 1}</span>
+                    <div className="flex items-center gap-2">
+                      {sq.time_limit_seconds ? (
+                        <Badge variant="outline" className="text-[10px] text-gray-500 border-gray-300">
+                          <Clock className="h-2.5 w-2.5 mr-0.5" />
+                          {String(sq.time_limit_seconds)}s
+                        </Badge>
+                      ) : null}
+                      {sq.allow_response_reset === false && (
+                        <Badge variant="outline" className="text-[10px] text-orange-500 border-orange-300">No re-record</Badge>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-3 space-y-3">
+                    {sq.text ? (
+                      <div
+                        className="text-[15px] leading-relaxed prose prose-sm max-w-none [&_p]:my-2 [&_p:empty]:min-h-[1em]"
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(String(sq.text)) }}
+                      />
+                    ) : null}
+                    <SpeakingRecorder
+                      questionId={`${q.id}-q${idx}`}
+                      timeLimitSeconds={sq.time_limit_seconds ? Number(sq.time_limit_seconds) : undefined}
+                      allowResponseReset={sq.allow_response_reset !== false}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* Fallback: single question from content */
+            <div className="space-y-3">
+              {q.content && (
+                <div
+                  className="text-[15px] leading-relaxed prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em]"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(q.content) }}
+                />
+              )}
+              <SpeakingRecorder
+                questionId={q.id}
+                timeLimitSeconds={od.time_limit_seconds ? Number(od.time_limit_seconds) : undefined}
+                allowResponseReset={od.allow_response_reset !== false}
+              />
+            </div>
           )}
-
-          {/* Recording placeholder */}
-          <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
-            <Mic className="h-8 w-8 text-gray-300 mb-2" />
-            <p className="text-sm text-gray-400 mb-2">Recording area (Preview)</p>
-            <Button variant="outline" size="sm" disabled>
-              <Mic className="mr-2 h-4 w-4" />
-              Start Recording
-            </Button>
-          </div>
         </div>
       );
     }
@@ -1109,9 +1135,6 @@ export function SectionPreview({
                   Part 2 - Cue Card
                 </Badge>
               </div>
-              {bandRange && (
-                <span className="text-xs font-medium text-amber-700">{bandRange}</span>
-              )}
             </div>
 
             {/* Card body */}
@@ -1157,46 +1180,40 @@ export function SectionPreview({
 
             {/* Card footer - timing info */}
             <div className="px-4 py-2 bg-amber-50 border-t border-amber-200 text-xs text-amber-700">
-              Preparation: 1 min | Speaking: 1-2 min
+              Preparation: {od.prep_time_seconds ? `${od.prep_time_seconds}s` : "1 min"} | Speaking: {od.speaking_time_seconds ? `${od.speaking_time_seconds}s` : "1-2 min"}
+              {od.allow_response_reset === true && " | Re-recording allowed"}
             </div>
           </div>
 
-          {/* Recording placeholder */}
-          <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
-            <Mic className="h-8 w-8 text-gray-300 mb-2" />
-            <p className="text-sm text-gray-400 mb-2">Recording area (Preview)</p>
-            <Button variant="outline" size="sm" disabled>
-              <Mic className="mr-2 h-4 w-4" />
-              Start Recording
-            </Button>
-          </div>
+          {/* Recording */}
+          <SpeakingRecorder
+            questionId={q.id}
+            timeLimitSeconds={od.time_limit_seconds ? Number(od.time_limit_seconds) : undefined}
+            allowResponseReset={od.allow_response_reset !== false}
+            isPart2
+            prepTimeSeconds={od.prep_time_seconds ? Number(od.prep_time_seconds) : 60}
+            speakingTimeSeconds={od.speaking_time_seconds ? Number(od.speaking_time_seconds) : 120}
+          />
         </div>
       );
     }
 
-    // Part 3: Discussion with depth level
+    // Part 3: Multi-question group (same structure as Part 1)
     if (fmt === "speaking_part3") {
-      const depthLabel = q.depth_level
-        ? `Level ${q.depth_level}`
-        : null;
+      const depthLabel = q.depth_level ? `Level ${q.depth_level}` : null;
+      const questions = Array.isArray(od.questions) ? (od.questions as Record<string, unknown>[]) : [];
 
       return (
         <div className="space-y-4">
-          {/* Header with depth level and band */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs font-medium bg-violet-50 text-violet-700 border-violet-200">
-                Part 3 - Discussion
-              </Badge>
-              {depthLabel && (
-                <Badge variant="secondary" className="text-xs">
-                  {depthLabel}
-                </Badge>
-              )}
-            </div>
-            {bandRange && (
-              <span className="text-xs text-gray-500">{bandRange}</span>
+          {/* Header */}
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs font-medium bg-violet-50 text-violet-700 border-violet-200">
+              Part 3 &ndash; Discussion
+            </Badge>
+            {depthLabel && (
+              <Badge variant="secondary" className="text-xs">{depthLabel}</Badge>
             )}
+            <span className="text-xs text-muted-foreground">{questions.length || 1} question(s)</span>
           </div>
 
           {/* Related Part 2 reference */}
@@ -1206,23 +1223,57 @@ export function SectionPreview({
             </div>
           )}
 
-          {/* Question */}
-          {q.content && (
-            <div
-              className="text-[15px] leading-relaxed p-4 bg-violet-50/50 border border-violet-100 rounded-lg prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(q.content) }}
-            />
+          {/* Questions list */}
+          {questions.length > 0 ? (
+            <div className="space-y-4">
+              {questions.map((sq, idx) => (
+                <div key={idx} className="border border-violet-200 rounded-lg overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-violet-50">
+                    <span className="text-xs font-semibold text-violet-700">Q{sq.number ? Number(sq.number) : idx + 1}</span>
+                    <div className="flex items-center gap-2">
+                      {sq.time_limit_seconds ? (
+                        <Badge variant="outline" className="text-[10px] text-gray-500 border-gray-300">
+                          <Clock className="h-2.5 w-2.5 mr-0.5" />
+                          {String(sq.time_limit_seconds)}s
+                        </Badge>
+                      ) : null}
+                      {sq.allow_response_reset === false && (
+                        <Badge variant="outline" className="text-[10px] text-orange-500 border-orange-300">No re-record</Badge>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-3 space-y-3">
+                    {sq.text ? (
+                      <div
+                        className="text-[15px] leading-relaxed prose prose-sm max-w-none [&_p]:my-2 [&_p:empty]:min-h-[1em]"
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(String(sq.text)) }}
+                      />
+                    ) : null}
+                    <SpeakingRecorder
+                      questionId={`${q.id}-q${idx}`}
+                      timeLimitSeconds={sq.time_limit_seconds ? Number(sq.time_limit_seconds) : undefined}
+                      allowResponseReset={sq.allow_response_reset !== false}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* Fallback: single question from content */
+            <div className="space-y-3">
+              {q.content && (
+                <div
+                  className="text-[15px] leading-relaxed p-4 bg-violet-50/50 border border-violet-100 rounded-lg prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em]"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(q.content) }}
+                />
+              )}
+              <SpeakingRecorder
+                questionId={q.id}
+                timeLimitSeconds={od.time_limit_seconds ? Number(od.time_limit_seconds) : undefined}
+                allowResponseReset={od.allow_response_reset !== false}
+              />
+            </div>
           )}
-
-          {/* Recording placeholder */}
-          <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
-            <Mic className="h-8 w-8 text-gray-300 mb-2" />
-            <p className="text-sm text-gray-400 mb-2">Recording area (Preview)</p>
-            <Button variant="outline" size="sm" disabled>
-              <Mic className="mr-2 h-4 w-4" />
-              Start Recording
-            </Button>
-          </div>
         </div>
       );
     }
@@ -1236,14 +1287,11 @@ export function SectionPreview({
             dangerouslySetInnerHTML={{ __html: sanitizeHtml(q.content) }}
           />
         )}
-        <div className="flex flex-col items-center justify-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
-          <Mic className="h-10 w-10 text-gray-300 mb-3" />
-          <p className="text-sm text-gray-400 mb-3">Recording area (Preview)</p>
-          <Button variant="outline" size="sm" disabled>
-            <Mic className="mr-2 h-4 w-4" />
-            Start Recording
-          </Button>
-        </div>
+        <SpeakingRecorder
+          questionId={q.id}
+          timeLimitSeconds={od.time_limit_seconds ? Number(od.time_limit_seconds) : undefined}
+          allowResponseReset={od.allow_response_reset !== false}
+        />
       </div>
     );
   };

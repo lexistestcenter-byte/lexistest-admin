@@ -59,6 +59,8 @@ import {
   AlignCenter,
   AlignRight,
   List,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -79,8 +81,10 @@ import { FlowchartEditor } from "@/components/questions/flowchart-editor";
 import { TableCompletionEditor } from "@/components/questions/table-completion-editor";
 import { FillBlankEditor, FillBlankDragEditor } from "@/components/questions/fill-blank-editor";
 import { QuestionPreview, tabToPreviewData, type QuestionPreviewData } from "@/components/questions/question-preview";
-import { FileUpload } from "@/components/ui/file-upload";
+import { FileUpload, uploadFile } from "@/components/ui/file-upload";
 import { api } from "@/lib/api/client";
+
+type SpeakingSubQ = { id: string; text: string; timeLimitSeconds: string; allowResponseReset: boolean; audioUrl: string; audioFile: File | null };
 
 // =============================================================================
 // question_type 별 정보
@@ -214,19 +218,17 @@ export default function EditQuestionPage({
   const [writingMinWords, setWritingMinWords] = useState("");
 
   // Speaking
-  const [speakingQuestion, setSpeakingQuestion] = useState("");
+  const [speakingQuestions, setSpeakingQuestions] = useState<SpeakingSubQ[]>(
+    Array.from({ length: 5 }, (_, i) => ({ id: `sq-${i}`, text: "", timeLimitSeconds: "30", allowResponseReset: true, audioUrl: "", audioFile: null }))
+  );
   const [cueCardTopic, setCueCardTopic] = useState("");
   const [cueCardPoints, setCueCardPoints] = useState<string[]>(["", "", "", ""]);
   const [cueCardImageUrl, setCueCardImageUrl] = useState("");
   const [generateFollowup, setGenerateFollowup] = useState(false);
-  const [speakingCategory, setSpeakingCategory] = useState("");
   const [relatedPart2Id, setRelatedPart2Id] = useState("");
   const [depthLevel, setDepthLevel] = useState<1 | 2 | 3>(1);
-  const [targetBandMin, setTargetBandMin] = useState("");
-  const [targetBandMax, setTargetBandMax] = useState("");
 
-  // Speaking 데이터 (카테고리, Part 2 목록)
-  const [speakingCategories, setSpeakingCategories] = useState<{ id: string; code: string; name_en: string; name_ko?: string; display_order: number }[]>([]);
+  // Speaking 데이터 (Part 2 목록)
   const [part2Questions, setPart2Questions] = useState<{ id: string; question_code: string; topic: string }[]>([]);
   const [isLoadingSpeakingData, setIsLoadingSpeakingData] = useState(false);
 
@@ -411,10 +413,19 @@ export default function EditQuestionPage({
         }
         // Speaking Part 1
         else if (format === "speaking_part1") {
-          setSpeakingQuestion(content);
-          setSpeakingCategory(data.speaking_category || "");
-          setTargetBandMin(data.target_band_min ? String(data.target_band_min) : "");
-          setTargetBandMax(data.target_band_max ? String(data.target_band_max) : "");
+          if (optionsData?.questions && Array.isArray(optionsData.questions)) {
+            setSpeakingQuestions(optionsData.questions.map((q: any, i: number) => ({
+              id: `sq-${i}`,
+              text: q.text || "",
+              timeLimitSeconds: q.time_limit_seconds ? String(q.time_limit_seconds) : "30",
+              allowResponseReset: q.allow_response_reset !== false,
+              audioUrl: q.audio_url || "",
+              audioFile: null,
+            })));
+          } else {
+            // Legacy single question format
+            setSpeakingQuestions([{ id: "sq-0", text: content || "", timeLimitSeconds: "30", allowResponseReset: true, audioUrl: "", audioFile: null }]);
+          }
         }
         // Speaking Part 2
         else if (format === "speaking_part2") {
@@ -423,21 +434,28 @@ export default function EditQuestionPage({
             setCueCardTopic(parsed.topic || "");
             setCueCardPoints(parsed.points || ["", "", "", ""]);
           } catch {
-            setSpeakingQuestion(content);
+            setCueCardTopic(content || "");
           }
           if (optionsData?.image_url) {
             setCueCardImageUrl(optionsData.image_url);
           }
-          setTargetBandMin(data.target_band_min ? String(data.target_band_min) : "");
-          setTargetBandMax(data.target_band_max ? String(data.target_band_max) : "");
         }
         // Speaking Part 3
         else if (format === "speaking_part3") {
-          setSpeakingQuestion(content);
+          if (optionsData?.questions && Array.isArray(optionsData.questions)) {
+            setSpeakingQuestions(optionsData.questions.map((q: any, i: number) => ({
+              id: `sq-${i}`,
+              text: q.text || "",
+              timeLimitSeconds: q.time_limit_seconds ? String(q.time_limit_seconds) : "30",
+              allowResponseReset: q.allow_response_reset !== false,
+              audioUrl: q.audio_url || "",
+              audioFile: null,
+            })));
+          } else {
+            setSpeakingQuestions([{ id: "sq-0", text: content || "", timeLimitSeconds: "30", allowResponseReset: true, audioUrl: "", audioFile: null }]);
+          }
           setRelatedPart2Id(data.related_part2_id || "");
           setDepthLevel((data.depth_level || 1) as 1 | 2 | 3);
-          setTargetBandMin(data.target_band_min ? String(data.target_band_min) : "");
-          setTargetBandMax(data.target_band_max ? String(data.target_band_max) : "");
         }
         // Map Labeling
         else if (format === "map_labeling") {
@@ -480,17 +498,13 @@ export default function EditQuestionPage({
     };
   }, [id, router, setOverride, clearOverride]);
 
-  // Speaking 카테고리 및 Part 2 질문 목록 로드
+  // Speaking Part 2 질문 목록 로드
   useEffect(() => {
     if (selectedQuestionType === "speaking") {
       setIsLoadingSpeakingData(true);
-      Promise.all([
-        api.get<{ categories: any[] }>("/api/speaking/categories"),
-        api.get<{ questions: any[] }>("/api/speaking/part2-questions"),
-      ])
-        .then(([categoriesRes, part2Res]) => {
-          setSpeakingCategories(categoriesRes.data?.categories || []);
-          setPart2Questions(part2Res.data?.questions || []);
+      api.get<{ questions: any[] }>("/api/speaking/part2-questions")
+        .then((res) => {
+          setPart2Questions(res.data?.questions || []);
         })
         .catch(err => {
           console.error("Failed to load speaking data:", err);
@@ -755,13 +769,10 @@ export default function EditQuestionPage({
     }
 
     // Speaking 유효성 검사
-    if (selectedFormat === "speaking_part1") {
-      if (!speakingQuestion.trim()) {
-        toast.error("질문을 입력해주세요.");
-        return;
-      }
-      if (!speakingCategory) {
-        toast.error("카테고리를 선택해주세요.");
+    if (selectedFormat === "speaking_part1" || selectedFormat === "speaking_part3") {
+      const filledQs = speakingQuestions.filter(q => q.text.trim());
+      if (filledQs.length === 0) {
+        toast.error("최소 1개의 질문을 입력해주세요.");
         return;
       }
     }
@@ -774,23 +785,9 @@ export default function EditQuestionPage({
     }
 
     if (selectedFormat === "speaking_part3") {
-      if (!speakingQuestion.trim()) {
-        toast.error("질문을 입력해주세요.");
-        return;
-      }
       if (!relatedPart2Id) {
         toast.error("연결된 Part 2 질문을 선택해주세요.");
         return;
-      }
-    }
-
-    // Speaking Band 범위 검증
-    if (selectedFormat === "speaking_part1" || selectedFormat === "speaking_part2" || selectedFormat === "speaking_part3") {
-      if (targetBandMin && targetBandMax) {
-        if (parseFloat(targetBandMin) > parseFloat(targetBandMax)) {
-          toast.error("목표 Band 최소값이 최대값보다 클 수 없습니다.");
-          return;
-        }
       }
     }
 
@@ -942,13 +939,23 @@ export default function EditQuestionPage({
       }
       // Speaking Part 1
       else if (selectedFormat === "speaking_part1") {
-        content = speakingQuestion;
+        const filledQuestions = speakingQuestions.filter(q => q.text.trim());
+        content = filledQuestions[0]?.text || "";
+        optionsData = {
+          questions: filledQuestions.map((q, i) => ({
+            number: i + 1,
+            text: q.text,
+            time_limit_seconds: q.timeLimitSeconds ? parseInt(q.timeLimitSeconds) : 30,
+            allow_response_reset: q.allowResponseReset,
+            audio_url: q.audioUrl && !q.audioFile ? q.audioUrl : undefined,
+          })),
+        };
       }
       // Speaking Part 2
       else if (selectedFormat === "speaking_part2") {
         content = JSON.stringify({
           topic: cueCardTopic,
-          points: cueCardPoints,
+          points: cueCardPoints.filter(p => p.trim()),
         });
         optionsData = {
           generate_followup: generateFollowup,
@@ -957,7 +964,17 @@ export default function EditQuestionPage({
       }
       // Speaking Part 3
       else if (selectedFormat === "speaking_part3") {
-        content = speakingQuestion;
+        const filledQuestions = speakingQuestions.filter(q => q.text.trim());
+        content = filledQuestions[0]?.text || "";
+        optionsData = {
+          questions: filledQuestions.map((q, i) => ({
+            number: i + 1,
+            text: q.text,
+            time_limit_seconds: q.timeLimitSeconds ? parseInt(q.timeLimitSeconds) : 30,
+            allow_response_reset: q.allowResponseReset,
+            audio_url: q.audioUrl && !q.audioFile ? q.audioUrl : undefined,
+          })),
+        };
       }
       // Map Labeling
       else if (selectedFormat === "map_labeling") {
@@ -1001,25 +1018,48 @@ export default function EditQuestionPage({
         generate_followup: generateFollowup,
         is_practice: isPractice,
         tags: (selectedFormat !== "mcq" && selectedFormat !== "true_false_ng") && tags ? tags.split(",").map(t => t.trim()) : null,
-        // Audio fields (Listening & Speaking)
-        audio_url: (selectedQuestionType === "listening" || selectedQuestionType === "speaking") && audioUrl ? audioUrl : null,
-        audio_transcript: (selectedQuestionType === "listening" || selectedQuestionType === "speaking") && audioTranscript ? audioTranscript : null,
+        // Audio fields (Listening & Speaking Part 2)
+        audio_url: (selectedQuestionType === "listening" || selectedFormat === "speaking_part2") && audioUrl ? audioUrl : null,
+        audio_transcript: (selectedQuestionType === "listening" || selectedFormat === "speaking_part2") && audioTranscript ? audioTranscript : null,
         // Speaking fields
-        speaking_category: selectedFormat === "speaking_part1" ? (speakingCategory || null) : null,
+        speaking_category: null,
         related_part2_id: selectedFormat === "speaking_part3" ? (relatedPart2Id || null) : null,
         depth_level: selectedFormat === "speaking_part3" ? depthLevel : null,
-        target_band_min: (selectedFormat === "speaking_part1" || selectedFormat === "speaking_part2" || selectedFormat === "speaking_part3")
-          ? (targetBandMin ? parseFloat(targetBandMin) : null)
-          : null,
-        target_band_max: (selectedFormat === "speaking_part1" || selectedFormat === "speaking_part2" || selectedFormat === "speaking_part3")
-          ? (targetBandMax ? parseFloat(targetBandMax) : null)
-          : null,
+        target_band_min: null,
+        target_band_max: null,
       };
 
       const { error } = await api.put(`/api/questions/${id}`, questionData);
 
       if (error) {
         throw new Error(error);
+      }
+
+      // Per-sub-question audio upload for speaking Part 1/3
+      if (selectedFormat === "speaking_part1" || selectedFormat === "speaking_part3") {
+        const filledQuestions = speakingQuestions.filter(q => q.text.trim());
+        const audioUploads = filledQuestions
+          .map((q, i) => ({ index: i, file: q.audioFile }))
+          .filter((u): u is { index: number; file: File } => u.file !== null);
+
+        if (audioUploads.length > 0) {
+          const currentOptionsData = questionData.options_data as any;
+          const updatedQuestions = [...(currentOptionsData?.questions || [])];
+          for (const upload of audioUploads) {
+            try {
+              const result = await uploadFile(upload.file, "audio", `questions/${id}`);
+              if (updatedQuestions[upload.index]) {
+                updatedQuestions[upload.index] = { ...updatedQuestions[upload.index], audio_url: result.path };
+              }
+            } catch (e) {
+              console.error(`Failed to upload audio for sub-question ${upload.index}:`, e);
+            }
+          }
+          await api.put(`/api/questions/${id}`, {
+            ...questionData,
+            options_data: { ...currentOptionsData, questions: updatedQuestions },
+          });
+        }
       }
 
       toast.success("문제가 수정되었습니다.");
@@ -1179,8 +1219,8 @@ export default function EditQuestionPage({
 
             </div>
 
-            {/* Audio Settings (Listening & Speaking) */}
-            {(selectedQuestionType === "listening" || selectedQuestionType === "speaking") && (
+            {/* Audio Settings (Listening & Speaking Part 2) */}
+            {(selectedQuestionType === "listening" || selectedFormat === "speaking_part2") && (
               <div className="space-y-4">
                 <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">오디오 설정</h3>
                 <div className="space-y-3">
@@ -1403,16 +1443,8 @@ export default function EditQuestionPage({
             {/* Speaking Part 1 */}
             {selectedFormat === "speaking_part1" && (
               <SpeakingPart1EditorEdit
-                question={speakingQuestion}
-                setQuestion={setSpeakingQuestion}
-                category={speakingCategory}
-                setCategory={setSpeakingCategory}
-                categories={speakingCategories}
-                targetBandMin={targetBandMin}
-                setTargetBandMin={setTargetBandMin}
-                targetBandMax={targetBandMax}
-                setTargetBandMax={setTargetBandMax}
-                isLoading={isLoadingSpeakingData}
+                questions={speakingQuestions}
+                setQuestions={setSpeakingQuestions}
               />
             )}
 
@@ -1425,10 +1457,6 @@ export default function EditQuestionPage({
                 setPoints={setCueCardPoints}
                 imageUrl={cueCardImageUrl}
                 setImageUrl={setCueCardImageUrl}
-                targetBandMin={targetBandMin}
-                setTargetBandMin={setTargetBandMin}
-                targetBandMax={targetBandMax}
-                setTargetBandMax={setTargetBandMax}
                 questionCode={questionCode}
               />
             )}
@@ -1436,17 +1464,13 @@ export default function EditQuestionPage({
             {/* Speaking Part 3 */}
             {selectedFormat === "speaking_part3" && (
               <SpeakingPart3EditorEdit
-                question={speakingQuestion}
-                setQuestion={setSpeakingQuestion}
+                questions={speakingQuestions}
+                setQuestions={setSpeakingQuestions}
                 relatedPart2Id={relatedPart2Id}
                 setRelatedPart2Id={setRelatedPart2Id}
                 part2Questions={part2Questions}
                 depthLevel={depthLevel}
                 setDepthLevel={setDepthLevel}
-                targetBandMin={targetBandMin}
-                setTargetBandMin={setTargetBandMin}
-                targetBandMax={targetBandMax}
-                setTargetBandMax={setTargetBandMax}
                 isLoading={isLoadingSpeakingData}
               />
             )}
@@ -1522,9 +1546,8 @@ export default function EditQuestionPage({
           tableInputMode,
           flowchartTitle, flowchartNodes,
           writingTitle, writingCondition, writingPrompt, writingImageUrl, writingMinWords,
-          speakingQuestion, cueCardTopic, cueCardPoints, cueCardImageUrl: "",
-          speakingCategory: "", relatedPart2Id: "", depthLevel: 1,
-          targetBandMin: "", targetBandMax: "",
+          speakingQuestions, cueCardTopic, cueCardPoints, cueCardImageUrl,
+          relatedPart2Id, depthLevel,
           audioUrl,
           mapLabelingTitle, mapLabelingPassage,
           mapLabelingImageUrl,
@@ -2016,94 +2039,142 @@ function WritingEditor({
 // Speaking Part 1 에디터
 // =============================================================================
 function SpeakingPart1EditorEdit({
-  question,
-  setQuestion,
-  category,
-  setCategory,
-  categories,
-  targetBandMin,
-  setTargetBandMin,
-  targetBandMax,
-  setTargetBandMax,
-  isLoading,
+  questions,
+  setQuestions,
 }: {
-  question: string;
-  setQuestion: (v: string) => void;
-  category: string;
-  setCategory: (v: string) => void;
-  categories: { id: string; code: string; name_en: string; name_ko?: string }[];
-  targetBandMin: string;
-  setTargetBandMin: (v: string) => void;
-  targetBandMax: string;
-  setTargetBandMax: (v: string) => void;
-  isLoading?: boolean;
+  questions: SpeakingSubQ[];
+  setQuestions: (v: SpeakingSubQ[]) => void;
 }) {
-  const bandOptions = ["4.0", "4.5", "5.0", "5.5", "6.0", "6.5", "7.0", "7.5", "8.0", "8.5", "9.0"];
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const filledCount = questions.filter((q) => q.text.trim()).length;
+
+  const toggleCard = (id: string) => {
+    setExpandedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const getTextPreview = (html: string) => {
+    const text = html.replace(/<[^>]*>/g, "").trim();
+    return text.length > 40 ? text.slice(0, 40) + "..." : text || "비어있음";
+  };
+
+  const updateSubQ = (id: string, updates: Partial<SpeakingSubQ>) => {
+    setQuestions(questions.map((q) => (q.id === id ? { ...q, ...updates } : q)));
+  };
+
+  const addSubQ = () => {
+    const newId = `sq-${Date.now()}`;
+    setQuestions([...questions, { id: newId, text: "", timeLimitSeconds: "30", allowResponseReset: true, audioUrl: "", audioFile: null }]);
+    setExpandedCards((prev) => new Set(prev).add(newId));
+  };
+
+  const removeSubQ = (id: string) => {
+    if (questions.length <= 1) return;
+    setQuestions(questions.filter((q) => q.id !== id));
+    setExpandedCards((prev) => { const next = new Set(prev); next.delete(id); return next; });
+  };
 
   return (
     <div className="space-y-6">
-      <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-        <p className="text-sm text-purple-800">
-          Part 1: 일상적인 주제에 대한 질문입니다. 학생은 30초~1분 정도의 짧은 답변을 합니다.
-        </p>
+      <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+        <p className="font-medium text-emerald-900">Part 1: Interview</p>
+        <p className="text-sm text-emerald-700 mt-1">일상적인 주제에 대한 짧은 질문 그룹. 각 질문별로 시간 제한과 설정을 지정합니다.</p>
       </div>
 
-      {/* 카테고리 선택 */}
-      <div className="space-y-2">
-        <RequiredLabel required>카테고리</RequiredLabel>
-        <Select value={category} onValueChange={setCategory} disabled={isLoading}>
-          <SelectTrigger>
-            <SelectValue placeholder={isLoading ? "로딩 중..." : "카테고리 선택"} />
-          </SelectTrigger>
-          <SelectContent>
-            {categories.map((cat) => (
-              <SelectItem key={cat.id} value={cat.code}>
-                {cat.name_en} ({cat.name_ko})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* 질문 */}
-      <div className="space-y-2">
-        <RequiredLabel required>질문</RequiredLabel>
-        <RichTextEditor
-          value={question}
-          onChange={setQuestion}
-          placeholder="예: What is your hometown like?"
-          minHeight="80px"
-        />
-      </div>
-
-      {/* 목표 밴드 범위 */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>목표 Band (최소)</Label>
-          <Select value={targetBandMin} onValueChange={setTargetBandMin}>
-            <SelectTrigger>
-              <SelectValue placeholder="선택" />
-            </SelectTrigger>
-            <SelectContent>
-              {bandOptions.map((band) => (
-                <SelectItem key={band} value={band}>{band}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{filledCount}</span> / {questions.length} 질문 입력됨
         </div>
-        <div className="space-y-2">
-          <Label>목표 Band (최대)</Label>
-          <Select value={targetBandMax} onValueChange={setTargetBandMax}>
-            <SelectTrigger>
-              <SelectValue placeholder="선택" />
-            </SelectTrigger>
-            <SelectContent>
-              {bandOptions.map((band) => (
-                <SelectItem key={band} value={band}>{band}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs"
+            onClick={() => {
+              const allIds = questions.map((q) => q.id);
+              const allExpanded = allIds.every((id) => expandedCards.has(id));
+              setExpandedCards(allExpanded ? new Set() : new Set(allIds));
+            }}
+          >
+            {questions.every((q) => expandedCards.has(q.id)) ? "모두 접기" : "모두 펼치기"}
+          </Button>
+          <Button variant="outline" size="sm" className="text-xs" onClick={addSubQ}>
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            질문 추가
+          </Button>
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {questions.map((sq, idx) => {
+          const isExpanded = expandedCards.has(sq.id);
+          return (
+            <div key={sq.id} className={cn("border border-emerald-200 rounded-lg overflow-hidden", isExpanded && "col-span-2")}>
+              <div
+                className="flex items-center justify-between px-3 py-2 bg-emerald-50 hover:bg-emerald-100 cursor-pointer select-none"
+                onClick={() => toggleCard(sq.id)}
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-emerald-600 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-emerald-600 shrink-0" />}
+                  <span className="text-xs font-semibold text-emerald-700 shrink-0">Q{idx + 1}</span>
+                  {!isExpanded && <span className="text-xs text-muted-foreground truncate">{getTextPreview(sq.text)}</span>}
+                </div>
+                <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  {isExpanded && (
+                    <>
+                      <div className="flex items-center gap-1">
+                        <Label className="text-[10px] text-muted-foreground">시간:</Label>
+                        <Input
+                          type="text" inputMode="numeric" maxLength={3}
+                          className="h-6 w-14 text-[11px] text-center"
+                          value={sq.timeLimitSeconds}
+                          onChange={(e) => { const val = e.target.value; if (val === "" || /^\d{1,3}$/.test(val)) updateSubQ(sq.id, { timeLimitSeconds: val }); }}
+                          placeholder="30"
+                        />
+                        <span className="text-[10px] text-muted-foreground">초</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Label className="text-[10px] text-muted-foreground">재녹음:</Label>
+                        <input type="checkbox" checked={sq.allowResponseReset} onChange={(e) => updateSubQ(sq.id, { allowResponseReset: e.target.checked })} className="h-3.5 w-3.5" />
+                      </div>
+                    </>
+                  )}
+                  {questions.length > 1 && (
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeSubQ(sq.id)}>
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {isExpanded && (
+                <div className="p-4 space-y-3">
+                  <RichTextEditor
+                    value={sq.text}
+                    onChange={(v) => updateSubQ(sq.id, { text: v })}
+                    placeholder={`Q${idx + 1}: e.g. What do you do in your free time?`}
+                    minHeight="60px"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground shrink-0">오디오:</Label>
+                    <div className="flex-1">
+                      <FileUpload
+                        value={sq.audioUrl}
+                        onChange={(v) => updateSubQ(sq.id, { audioUrl: v })}
+                        accept="audio"
+                        placeholder="시험관 오디오 업로드 (선택)"
+                        deferred
+                        onFileReady={(file) => updateSubQ(sq.id, { audioFile: file })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -2119,10 +2190,6 @@ function SpeakingPart2EditorEdit({
   setPoints,
   imageUrl,
   setImageUrl,
-  targetBandMin,
-  setTargetBandMin,
-  targetBandMax,
-  setTargetBandMax,
   questionCode,
 }: {
   topic: string;
@@ -2131,61 +2198,75 @@ function SpeakingPart2EditorEdit({
   setPoints: (v: string[]) => void;
   imageUrl: string;
   setImageUrl: (v: string) => void;
-  targetBandMin: string;
-  setTargetBandMin: (v: string) => void;
-  targetBandMax: string;
-  setTargetBandMax: (v: string) => void;
   questionCode?: string;
 }) {
-  const bandOptions = ["4.0", "4.5", "5.0", "5.5", "6.0", "6.5", "7.0", "7.5", "8.0", "8.5", "9.0"];
-
-  const updatePoint = (index: number, value: string) => {
-    const newPoints = [...points];
-    newPoints[index] = value;
-    setPoints(newPoints);
-  };
-
   return (
     <div className="space-y-6">
-      <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-        <p className="text-sm text-purple-800">
-          Part 2: 큐카드를 보고 1분간 준비 후 1~2분간 발표합니다.
-        </p>
+      <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+        <p className="font-medium text-amber-900">Part 2: 큐카드 발표</p>
+        <p className="text-sm text-amber-700 mt-1">주어진 주제에 대해 1분 준비 후 1~2분간 발표</p>
       </div>
 
-      <div className="border-2 border-slate-300 rounded-lg p-6 bg-white">
-        <div className="space-y-4">
+      <div className="border-2 border-amber-200 rounded-lg overflow-hidden">
+        <div className="bg-amber-100 px-4 py-2 border-b border-amber-200">
+          <p className="text-sm font-semibold text-amber-800">Cue Card Content</p>
+        </div>
+        <div className="p-4 space-y-4">
           <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">주제</Label>
+            <RequiredLabel>Topic</RequiredLabel>
             <RichTextEditor
               value={topic}
               onChange={setTopic}
-              placeholder="예: Describe a book that you have read recently."
-              minHeight="60px"
+              placeholder="e.g. Describe a book that you have recently read."
+              minHeight="80px"
             />
           </div>
 
-          <div className="text-sm text-muted-foreground">You should say:</div>
-
-          <div className="space-y-2 pl-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>You should say:</Label>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7"
+                onClick={() => setPoints([...points, ""])}
+                disabled={points.length >= 6}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add Point
+              </Button>
+            </div>
             {points.map((point, index) => (
               <div key={index} className="flex items-center gap-2">
-                <span className="text-muted-foreground">•</span>
+                <span className="text-xs text-muted-foreground font-mono w-4 shrink-0">{index + 1}.</span>
                 <Input
                   value={point}
-                  onChange={(e) => updatePoint(index, e.target.value)}
-                  placeholder={["what the book was about", "why you decided to read it", "what you liked or disliked", "whether you would recommend it"][index]}
+                  onChange={(e) => {
+                    const newPoints = [...points];
+                    newPoints[index] = e.target.value;
+                    setPoints(newPoints);
+                  }}
+                  placeholder={`Point ${index + 1}`}
                   className="flex-1"
                 />
+                {points.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => setPoints(points.filter((_, i) => i !== index))}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                )}
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* 큐카드 이미지 */}
       <div className="space-y-2">
-        <Label>큐카드 이미지 (선택)</Label>
+        <Label>Cue Card Image (optional)</Label>
         <FileUpload
           value={imageUrl}
           onChange={setImageUrl}
@@ -2193,36 +2274,6 @@ function SpeakingPart2EditorEdit({
           placeholder="큐카드 이미지 업로드"
           context={questionCode ? `questions/${questionCode}` : undefined}
         />
-      </div>
-
-      {/* 목표 밴드 범위 */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>목표 Band (최소)</Label>
-          <Select value={targetBandMin} onValueChange={setTargetBandMin}>
-            <SelectTrigger>
-              <SelectValue placeholder="선택" />
-            </SelectTrigger>
-            <SelectContent>
-              {bandOptions.map((band) => (
-                <SelectItem key={band} value={band}>{band}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label>목표 Band (최대)</Label>
-          <Select value={targetBandMax} onValueChange={setTargetBandMax}>
-            <SelectTrigger>
-              <SelectValue placeholder="선택" />
-            </SelectTrigger>
-            <SelectContent>
-              {bandOptions.map((band) => (
-                <SelectItem key={band} value={band}>{band}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
     </div>
   );
@@ -2232,45 +2283,66 @@ function SpeakingPart2EditorEdit({
 // Speaking Part 3 에디터
 // =============================================================================
 function SpeakingPart3EditorEdit({
-  question,
-  setQuestion,
+  questions,
+  setQuestions,
   relatedPart2Id,
   setRelatedPart2Id,
   part2Questions,
   depthLevel,
   setDepthLevel,
-  targetBandMin,
-  setTargetBandMin,
-  targetBandMax,
-  setTargetBandMax,
   isLoading,
 }: {
-  question: string;
-  setQuestion: (v: string) => void;
+  questions: SpeakingSubQ[];
+  setQuestions: (v: SpeakingSubQ[]) => void;
   relatedPart2Id: string;
   setRelatedPart2Id: (v: string) => void;
   part2Questions: { id: string; question_code: string; topic: string }[];
   depthLevel: 1 | 2 | 3;
   setDepthLevel: (v: 1 | 2 | 3) => void;
-  targetBandMin: string;
-  setTargetBandMin: (v: string) => void;
-  targetBandMax: string;
-  setTargetBandMax: (v: string) => void;
   isLoading?: boolean;
 }) {
-  const bandOptions = ["4.0", "4.5", "5.0", "5.5", "6.0", "6.5", "7.0", "7.5", "8.0", "8.5", "9.0"];
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const filledCount = questions.filter((q) => q.text.trim()).length;
+
+  const toggleCard = (id: string) => {
+    setExpandedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const getTextPreview = (html: string) => {
+    const text = html.replace(/<[^>]*>/g, "").trim();
+    return text.length > 40 ? text.slice(0, 40) + "..." : text || "비어있음";
+  };
+
+  const updateSubQ = (id: string, updates: Partial<SpeakingSubQ>) => {
+    setQuestions(questions.map((q) => (q.id === id ? { ...q, ...updates } : q)));
+  };
+
+  const addSubQ = () => {
+    const newId = `sq-${Date.now()}`;
+    setQuestions([...questions, { id: newId, text: "", timeLimitSeconds: "30", allowResponseReset: true, audioUrl: "", audioFile: null }]);
+    setExpandedCards((prev) => new Set(prev).add(newId));
+  };
+
+  const removeSubQ = (id: string) => {
+    if (questions.length <= 1) return;
+    setQuestions(questions.filter((q) => q.id !== id));
+    setExpandedCards((prev) => { const next = new Set(prev); next.delete(id); return next; });
+  };
 
   return (
     <div className="space-y-6">
-      <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-        <p className="text-sm text-purple-800">
-          Part 3: Part 2 주제와 연관된 심화 토론 질문입니다.
-        </p>
+      <div className="p-4 bg-violet-50 border border-violet-200 rounded-lg">
+        <p className="font-medium text-violet-900">Part 3: 심화 토론</p>
+        <p className="text-sm text-violet-700 mt-1">Part 2 주제와 관련된 추상적이고 심화된 질문 그룹</p>
       </div>
 
       {/* Part 2 연결 */}
       <div className="space-y-2">
-        <RequiredLabel required>연결된 Part 2 질문</RequiredLabel>
+        <RequiredLabel>연결된 Part 2 질문</RequiredLabel>
         <Select value={relatedPart2Id} onValueChange={setRelatedPart2Id} disabled={isLoading}>
           <SelectTrigger>
             <SelectValue placeholder={isLoading ? "로딩 중..." : "Part 2 질문 선택"} />
@@ -2310,45 +2382,99 @@ function SpeakingPart3EditorEdit({
         </p>
       </div>
 
-      {/* 질문 */}
-      <div className="space-y-2">
-        <RequiredLabel required>질문</RequiredLabel>
-        <RichTextEditor
-          value={question}
-          onChange={setQuestion}
-          placeholder="예: Do you think reading habits have changed?"
-          minHeight="80px"
-        />
+      {/* Question count */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{filledCount}</span> / {questions.length} 질문 입력됨
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs"
+            onClick={() => {
+              const allIds = questions.map((q) => q.id);
+              const allExpanded = allIds.every((id) => expandedCards.has(id));
+              setExpandedCards(allExpanded ? new Set() : new Set(allIds));
+            }}
+          >
+            {questions.every((q) => expandedCards.has(q.id)) ? "모두 접기" : "모두 펼치기"}
+          </Button>
+          <Button variant="outline" size="sm" className="text-xs" onClick={addSubQ}>
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            질문 추가
+          </Button>
+        </div>
       </div>
 
-      {/* 목표 밴드 범위 */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>목표 Band (최소)</Label>
-          <Select value={targetBandMin} onValueChange={setTargetBandMin}>
-            <SelectTrigger>
-              <SelectValue placeholder="선택" />
-            </SelectTrigger>
-            <SelectContent>
-              {bandOptions.map((band) => (
-                <SelectItem key={band} value={band}>{band}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label>목표 Band (최대)</Label>
-          <Select value={targetBandMax} onValueChange={setTargetBandMax}>
-            <SelectTrigger>
-              <SelectValue placeholder="선택" />
-            </SelectTrigger>
-            <SelectContent>
-              {bandOptions.map((band) => (
-                <SelectItem key={band} value={band}>{band}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Question grid - 2 columns */}
+      <div className="grid grid-cols-2 gap-3">
+        {questions.map((sq, idx) => {
+          const isExpanded = expandedCards.has(sq.id);
+          return (
+            <div key={sq.id} className={cn("border border-violet-200 rounded-lg overflow-hidden", isExpanded && "col-span-2")}>
+              <div
+                className="flex items-center justify-between px-3 py-2 bg-violet-50 hover:bg-violet-100 cursor-pointer select-none"
+                onClick={() => toggleCard(sq.id)}
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-violet-600 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-violet-600 shrink-0" />}
+                  <span className="text-xs font-semibold text-violet-700 shrink-0">Q{idx + 1}</span>
+                  {!isExpanded && <span className="text-xs text-muted-foreground truncate">{getTextPreview(sq.text)}</span>}
+                </div>
+                <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  {isExpanded && (
+                    <>
+                      <div className="flex items-center gap-1">
+                        <Label className="text-[10px] text-muted-foreground">시간:</Label>
+                        <Input
+                          type="text" inputMode="numeric" maxLength={3}
+                          className="h-6 w-14 text-[11px] text-center"
+                          value={sq.timeLimitSeconds}
+                          onChange={(e) => { const val = e.target.value; if (val === "" || /^\d{1,3}$/.test(val)) updateSubQ(sq.id, { timeLimitSeconds: val }); }}
+                          placeholder="30"
+                        />
+                        <span className="text-[10px] text-muted-foreground">초</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Label className="text-[10px] text-muted-foreground">재녹음:</Label>
+                        <input type="checkbox" checked={sq.allowResponseReset} onChange={(e) => updateSubQ(sq.id, { allowResponseReset: e.target.checked })} className="h-3.5 w-3.5" />
+                      </div>
+                    </>
+                  )}
+                  {questions.length > 1 && (
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeSubQ(sq.id)}>
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {isExpanded && (
+                <div className="p-4 space-y-3">
+                  <RichTextEditor
+                    value={sq.text}
+                    onChange={(v) => updateSubQ(sq.id, { text: v })}
+                    placeholder={`Q${idx + 1}: e.g. Why do you think some people prefer reading books rather than watching movies?`}
+                    minHeight="60px"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground shrink-0">오디오:</Label>
+                    <div className="flex-1">
+                      <FileUpload
+                        value={sq.audioUrl}
+                        onChange={(v) => updateSubQ(sq.id, { audioUrl: v })}
+                        accept="audio"
+                        placeholder="시험관 오디오 업로드 (선택)"
+                        deferred
+                        onFileReady={(file) => updateSubQ(sq.id, { audioFile: file })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

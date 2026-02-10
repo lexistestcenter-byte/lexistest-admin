@@ -202,6 +202,11 @@ export async function POST(request: NextRequest) {
       p_is_practice: body.is_practice || false,
       p_generate_followup: body.generate_followup || false,
       p_tags: sanitizedBody.tags,
+      // Speaking options_data params (migration 016)
+      p_time_limit_seconds: body.time_limit_seconds || null,
+      p_allow_response_reset: body.allow_response_reset ?? null,
+      p_prep_time_seconds: body.prep_time_seconds || null,
+      p_speaking_time_seconds: body.speaking_time_seconds || null,
     });
 
     if (error) {

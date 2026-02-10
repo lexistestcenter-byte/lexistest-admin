@@ -932,6 +932,13 @@ export default function NewSectionPage() {
   const [collapsedBlocks, setCollapsedBlocks] = useState<Set<string>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
+  // 부모 패널(문제 추가 드로어) 닫히면 자식 패널(문제 생성)도 연쇄 닫기
+  useEffect(() => {
+    if (!addDrawerGroupId) {
+      setShowCreateQuestion(false);
+    }
+  }, [addDrawerGroupId]);
+
   const toggleBlockCollapse = (blockId: string) => {
     setCollapsedBlocks((prev) => {
       const next = new Set(prev);
@@ -963,8 +970,9 @@ export default function NewSectionPage() {
 
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* ─── Left Column: Content Blocks ─── */}
+        <div className={cn("grid gap-6", needsContent ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1")}>
+          {/* ─── Left Column: Content Blocks (reading/listening only) ─── */}
+          {needsContent && (
           <div className="space-y-6">
             {needsContent && (
               <Card>
@@ -1145,8 +1153,9 @@ export default function NewSectionPage() {
             )}
 
           </div>
+          )}
 
-          {/* ─── Right Column: Question Groups ─── */}
+          {/* ─── Right Column: Question Groups (full width when no content blocks) ─── */}
           <div className="space-y-6">
             {/* Question Groups */}
             <Card>
@@ -1238,8 +1247,8 @@ export default function NewSectionPage() {
 
                           {isExpanded && (
                             <div className="p-3 space-y-3" onClick={(e) => e.stopPropagation()}>
-                              {/* Content block selector */}
-                              {contentBlocks.length > 0 && (
+                              {/* Content block selector (reading/listening only) */}
+                              {needsContent && contentBlocks.length > 0 && (
                                 <div className="space-y-1">
                                   <Label className="text-xs">콘텐츠 블록</Label>
                                   <Select

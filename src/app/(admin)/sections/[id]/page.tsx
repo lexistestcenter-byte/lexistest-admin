@@ -288,6 +288,13 @@ export default function SectionEditPage({
   // 문제 생성 모달
   const [showCreateQuestion, setShowCreateQuestion] = useState(false);
 
+  // 부모 패널(문제 추가 드로어) 닫히면 자식 패널(문제 생성)도 연쇄 닫기
+  useEffect(() => {
+    if (!addDrawerGroupId) {
+      setShowCreateQuestion(false);
+    }
+  }, [addDrawerGroupId]);
+
   // Pending deletions (deferred until save)
   const [pendingBlockDeletes, setPendingBlockDeletes] = useState<string[]>([]);
   const [pendingGroupDeletes, setPendingGroupDeletes] = useState<string[]>([]);
@@ -1128,8 +1135,9 @@ export default function SectionEditPage({
 
       {/* ─── Step 2: 섹션 구성 ─── */}
       {currentStep === 2 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* ─── Left Column: Content Blocks ─── */}
+        <div className={cn("grid gap-6", (section.section_type === "reading" || section.section_type === "listening") ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1")}>
+          {/* ─── Left Column: Content Blocks (reading/listening only) ─── */}
+          {(section.section_type === "reading" || section.section_type === "listening") && (
           <div className="space-y-6">
             {/* Content Blocks */}
             {(section.section_type === "reading" ||
@@ -1180,8 +1188,9 @@ export default function SectionEditPage({
           )}
 
         </div>
+        )}
 
-          {/* ─── Right Column: Question Groups ─── */}
+          {/* ─── Right Column: Question Groups (full width when no content blocks) ─── */}
         <div className="space-y-6">
           {/* Question Groups */}
           <Card>
@@ -1224,6 +1233,7 @@ export default function SectionEditPage({
                         isAddingQuestions={addDrawerGroupId === group.id}
                         autoTitle={autoTitle}
                         contentBlocks={contentBlocks}
+                        sectionType={section.section_type}
                         sensors={sensors}
                         onActivate={() => setActiveGroupId(group.id)}
                         onUpdate={handleUpdateGroup}
@@ -1578,6 +1588,7 @@ function EditGroupCard({
   isAddingQuestions,
   autoTitle,
   contentBlocks,
+  sectionType,
   sensors,
   onActivate,
   onUpdate,
@@ -1599,6 +1610,7 @@ function EditGroupCard({
   isAddingQuestions: boolean;
   autoTitle: string;
   contentBlocks: ContentBlock[];
+  sectionType: string;
   sensors: ReturnType<typeof useSensors>;
   onActivate: () => void;
   onUpdate: (id: string, data: Record<string, unknown>) => void;
@@ -1681,8 +1693,8 @@ function EditGroupCard({
 
       {expanded && (
         <div className="p-3 space-y-3" onClick={(e) => e.stopPropagation()}>
-          {/* Content block selector */}
-          {contentBlocks.length > 0 && (
+          {/* Content block selector (reading/listening only) */}
+          {(sectionType === "reading" || sectionType === "listening") && contentBlocks.length > 0 && (
             <div className="space-y-1">
               <Label className="text-xs">콘텐츠 블록</Label>
               <Select

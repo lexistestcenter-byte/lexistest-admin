@@ -30,6 +30,8 @@ import {
   Mic,
   X,
   Check,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api/client";
@@ -81,6 +83,17 @@ interface MatchingItemData {
   number: number;
   statement: string;
   correctLabel: string;
+}
+
+// ─── Speaking Sub-Question ───────────────────────────────────
+
+interface SpeakingSubQuestion {
+  id: string;
+  text: string;
+  timeLimitSeconds: string;
+  allowResponseReset: boolean;
+  audioUrl: string;
+  audioFile: File | null;
 }
 
 // ─── Tab State ──────────────────────────────────────────────
@@ -141,11 +154,9 @@ interface TabState {
   // Audio (listening/speaking)
   audioUrl: string;
   audioFile: File | null;
-  // Speaking
-  speakingQuestion: string;
+  // Speaking (Part 1 & Part 3: multi-question groups)
+  speakingQuestions: SpeakingSubQuestion[];
   speakingCategory: string;
-  targetBandMin: string;
-  targetBandMax: string;
   cueCardTopic: string;
   cueCardPoints: string[];
   cueCardImageUrl: string;
@@ -153,6 +164,11 @@ interface TabState {
   generateFollowup: boolean;
   relatedPart2Id: string;
   depthLevel: 1 | 2 | 3;
+  // Speaking Part 2 options_data params (migration 016)
+  timeLimitSeconds: string;
+  allowResponseReset: boolean;
+  prepTimeSeconds: string;
+  speakingTimeSeconds: string;
 }
 
 function createEmptyTab(): TabState {
@@ -210,10 +226,8 @@ function createEmptyTab(): TabState {
     essayMinWords: "",
     essayImageUrl: "",
     essayImageFile: null,
-    speakingQuestion: "",
+    speakingQuestions: Array.from({ length: 5 }, () => createSpeakingSubQuestion()),
     speakingCategory: "",
-    targetBandMin: "",
-    targetBandMax: "",
     cueCardTopic: "",
     cueCardPoints: ["", "", "", ""],
     cueCardImageUrl: "",
@@ -221,6 +235,10 @@ function createEmptyTab(): TabState {
     generateFollowup: false,
     relatedPart2Id: "",
     depthLevel: 1,
+    timeLimitSeconds: "",
+    allowResponseReset: true,
+    prepTimeSeconds: "60",
+    speakingTimeSeconds: "120",
   };
 }
 
@@ -251,14 +269,25 @@ const formatDescriptions: Record<string, string> = {
   table_completion: "테이블을 완성하는 형식의 문제",
   map_labeling: "지도/이미지의 위치에 해당하는 라벨 선택",
   essay: "주어진 주제에 대해 에세이 작성",
-  speaking_part1: "일상적인 주제에 대한 짧은 질문과 답변",
-  speaking_part2: "큐카드를 보고 1~2분간 발표",
-  speaking_part3: "Part 2 주제와 관련된 심화 토론",
+  speaking_part1: "Short Q&A on everyday topics (Interview)",
+  speaking_part2: "Cue card topic with 1-2 min response",
+  speaking_part3: "In-depth discussion related to Part 2",
 };
 
 let idCounter = 0;
 function genId() {
   return `cqm-${++idCounter}-${Date.now()}`;
+}
+
+function createSpeakingSubQuestion(): SpeakingSubQuestion {
+  return {
+    id: genId(),
+    text: "",
+    timeLimitSeconds: "30",
+    allowResponseReset: true,
+    audioUrl: "",
+    audioFile: null,
+  };
 }
 
 // Short format label for tabs (MCQ is dynamic, see getTabLabel)
@@ -271,9 +300,9 @@ const formatShortLabels: Record<string, string> = {
   table_completion: "테이블",
   map_labeling: "지도라벨링",
   essay: "에세이",
-  speaking_part1: "Part 1",
-  speaking_part2: "Part 2",
-  speaking_part3: "Part 3",
+  speaking_part1: "Part 1 (Interview)",
+  speaking_part2: "Part 2 (Cue Card)",
+  speaking_part3: "Part 3 (Discussion)",
 };
 
 function getTabLabel(t: TabState): string {
@@ -300,7 +329,6 @@ export function CreateQuestionModal({
   const [activeTabIdx, setActiveTabIdx] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   // Speaking API data (shared across tabs)
-  const [speakingCategories, setSpeakingCategories] = useState<{ id: string; code: string; name_en: string; name_ko?: string }[]>([]);
   const [part2Questions, setPart2Questions] = useState<{ id: string; question_code: string; topic: string }[]>([]);
   const [isLoadingSpeakingData, setIsLoadingSpeakingData] = useState(false);
 
@@ -312,22 +340,18 @@ export function CreateQuestionModal({
     setTabs((prev) => prev.map((t, i) => (i === activeTabIdx ? { ...t, ...updates } : t)));
   }, [activeTabIdx]);
 
-  // Speaking data load
+  // Speaking data load (Part 2 questions for Part 3 linking)
   useEffect(() => {
-    if (open && questionType === "speaking" && speakingCategories.length === 0) {
+    if (open && questionType === "speaking" && part2Questions.length === 0) {
       setIsLoadingSpeakingData(true);
-      Promise.all([
-        api.get<{ categories: { id: string; code: string; name_en: string; name_ko?: string }[] }>("/api/speaking/categories"),
-        api.get<{ questions: { id: string; question_code: string; topic: string }[] }>("/api/speaking/part2-questions"),
-      ])
-        .then(([catRes, p2Res]) => {
-          setSpeakingCategories(catRes.data?.categories || []);
+      api.get<{ questions: { id: string; question_code: string; topic: string }[] }>("/api/speaking/part2-questions")
+        .then((p2Res) => {
           setPart2Questions(p2Res.data?.questions || []);
         })
-        .catch(() => toast.error("Speaking 데이터 로드 실패"))
+        .catch(() => toast.error("Failed to load speaking data"))
         .finally(() => setIsLoadingSpeakingData(false));
     }
-  }, [open, questionType, speakingCategories.length]);
+  }, [open, questionType, part2Questions.length]);
 
   // Reset on close
   const resetAll = useCallback(() => {
@@ -516,10 +540,20 @@ export function CreateQuestionModal({
         min_words: tab.essayMinWords ? parseInt(tab.essayMinWords) : undefined,
       };
     } else if (tab.selectedFormat === "speaking_part1") {
-      if (!tab.speakingQuestion.trim()) { toast.error("질문을 입력해주세요."); return; }
-      content = tab.speakingQuestion;
+      const filledQuestions = tab.speakingQuestions.filter((q) => q.text.trim());
+      if (filledQuestions.length === 0) { toast.error("Please enter at least one question."); return; }
+      content = filledQuestions[0].text;
+      optionsData = {
+        questions: filledQuestions.map((q, i) => ({
+          number: i + 1,
+          text: q.text,
+          time_limit_seconds: q.timeLimitSeconds ? parseInt(q.timeLimitSeconds) : 30,
+          allow_response_reset: q.allowResponseReset,
+          audio_url: q.audioUrl && !q.audioFile ? q.audioUrl : undefined,
+        })),
+      };
     } else if (tab.selectedFormat === "speaking_part2") {
-      if (!tab.cueCardTopic.trim()) { toast.error("주제를 입력해주세요."); return; }
+      if (!tab.cueCardTopic.trim()) { toast.error("Please enter a cue card topic."); return; }
       content = JSON.stringify({
         topic: tab.cueCardTopic,
         points: tab.cueCardPoints.filter((p) => p.trim()),
@@ -529,8 +563,18 @@ export function CreateQuestionModal({
         image_url: tab.cueCardImageUrl && !tab.cueCardImageFile ? tab.cueCardImageUrl : undefined,
       };
     } else if (tab.selectedFormat === "speaking_part3") {
-      if (!tab.speakingQuestion.trim()) { toast.error("질문을 입력해주세요."); return; }
-      content = tab.speakingQuestion;
+      const filledQuestions = tab.speakingQuestions.filter((q) => q.text.trim());
+      if (filledQuestions.length === 0) { toast.error("Please enter at least one question."); return; }
+      content = filledQuestions[0].text;
+      optionsData = {
+        questions: filledQuestions.map((q, i) => ({
+          number: i + 1,
+          text: q.text,
+          time_limit_seconds: q.timeLimitSeconds ? parseInt(q.timeLimitSeconds) : 30,
+          allow_response_reset: q.allowResponseReset,
+          audio_url: q.audioUrl && !q.audioFile ? q.audioUrl : undefined,
+        })),
+      };
     }
 
     setIsSaving(true);
@@ -544,15 +588,20 @@ export function CreateQuestionModal({
         options_data: Object.keys(optionsData).length > 0 ? optionsData : undefined,
         answer_data: Object.keys(answerData).length > 0 ? answerData : undefined,
         is_practice: tab.isPractice,
-        audio_url: (questionType === "listening" || questionType === "speaking") && tab.audioUrl && !tab.audioFile ? tab.audioUrl : undefined,
-        speaking_category: tab.selectedFormat === "speaking_part1" ? tab.speakingCategory || undefined : undefined,
+        audio_url: (questionType === "listening" || tab.selectedFormat === "speaking_part2") && tab.audioUrl && !tab.audioFile ? tab.audioUrl : undefined,
+        // speaking_category removed
         related_part2_id: tab.selectedFormat === "speaking_part3" ? tab.relatedPart2Id || undefined : undefined,
         depth_level: tab.selectedFormat === "speaking_part3" ? tab.depthLevel : undefined,
-        target_band_min: ["speaking_part1", "speaking_part2", "speaking_part3"].includes(tab.selectedFormat!)
-          ? (tab.targetBandMin ? parseFloat(tab.targetBandMin) : undefined) : undefined,
-        target_band_max: ["speaking_part1", "speaking_part2", "speaking_part3"].includes(tab.selectedFormat!)
-          ? (tab.targetBandMax ? parseFloat(tab.targetBandMax) : undefined) : undefined,
         generate_followup: tab.selectedFormat === "speaking_part2" ? tab.generateFollowup : undefined,
+        // Speaking options_data params (migration 016) — Part 2 only (Part 1/3 use per-question settings in options_data)
+        time_limit_seconds: tab.selectedFormat === "speaking_part2"
+          ? (tab.timeLimitSeconds ? parseInt(tab.timeLimitSeconds) : undefined) : undefined,
+        allow_response_reset: tab.selectedFormat === "speaking_part2"
+          ? tab.allowResponseReset : undefined,
+        prep_time_seconds: tab.selectedFormat === "speaking_part2"
+          ? (tab.prepTimeSeconds ? parseInt(tab.prepTimeSeconds) : 60) : undefined,
+        speaking_time_seconds: tab.selectedFormat === "speaking_part2"
+          ? (tab.speakingTimeSeconds ? parseInt(tab.speakingTimeSeconds) : 120) : undefined,
       };
 
       // Remove blob URLs from options_data
@@ -560,6 +609,14 @@ export function CreateQuestionModal({
         const od = payload.options_data as Record<string, unknown>;
         if (od.image_url && typeof od.image_url === "string" && (od.image_url as string).startsWith("blob:")) {
           delete od.image_url;
+        }
+        // Strip blob URLs from sub-question audio_url fields
+        if (Array.isArray(od.questions)) {
+          for (const q of od.questions as Record<string, unknown>[]) {
+            if (q.audio_url && typeof q.audio_url === "string" && (q.audio_url as string).startsWith("blob:")) {
+              delete q.audio_url;
+            }
+          }
         }
       }
 
@@ -578,6 +635,32 @@ export function CreateQuestionModal({
             updatePayload.audio_url = uploaded.path;
           } catch {
             toast.error("오디오 업로드에 실패했습니다. 상세 페이지에서 다시 저장해주세요.");
+          }
+        }
+
+        // Per-sub-question audio upload for Part 1 / Part 3
+        if (tab.selectedFormat === "speaking_part1" || tab.selectedFormat === "speaking_part3") {
+          const filledQuestions = tab.speakingQuestions.filter((q) => q.text.trim());
+          const questionsWithAudio = filledQuestions.filter((q) => q.audioFile);
+          if (questionsWithAudio.length > 0) {
+            const existingOd = (payload.options_data || {}) as Record<string, unknown>;
+            const questions = (existingOd.questions || []) as Record<string, unknown>[];
+            let audioUploadFailed = false;
+            for (const sq of questionsWithAudio) {
+              const idx = filledQuestions.indexOf(sq);
+              if (idx >= 0 && questions[idx]) {
+                try {
+                  const uploaded = await uploadFile(sq.audioFile!, "audio", `${context}/q${idx + 1}`);
+                  questions[idx].audio_url = uploaded.path;
+                } catch {
+                  audioUploadFailed = true;
+                }
+              }
+            }
+            if (audioUploadFailed) {
+              toast.error("Some question audio uploads failed.");
+            }
+            updatePayload.options_data = { ...existingOd, questions };
           }
         }
 
@@ -602,7 +685,7 @@ export function CreateQuestionModal({
         }
       }
 
-      toast.success("문제가 생성되었습니다.");
+      toast.success("Question created successfully.");
       updateTab({ saved: true, savedQuestionId: data.id });
       onCreated(data.id);
     } catch (error) {
@@ -839,11 +922,11 @@ export function CreateQuestionModal({
 
     return (
       <div className="space-y-5">
-        {/* ─── 기본 설정 ─── */}
+        {/* ─── Basic Settings ─── */}
         <div className="space-y-3">
-          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">기본 설정</h4>
+          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{isSpeaking ? "Basic Settings" : "기본 설정"}</h4>
           <div className="flex items-center justify-between">
-            <Label className="text-xs">연습문제</Label>
+            <Label className="text-xs">{isSpeaking ? "Practice Question" : "연습문제"}</Label>
             <Switch checked={tab.isPractice} onCheckedChange={(v) => updateTab({ isPractice: v })} disabled={tab.saved} />
           </div>
           {hasSeparateNumbers && (
@@ -865,15 +948,20 @@ export function CreateQuestionModal({
           )}
         </div>
 
-        {/* ─── 오디오 설정 (listening/speaking) ─── */}
-        {(isListening || isSpeaking) && (
+        {/* ─── Audio (listening / speaking Part 2) ─── */}
+        {(isListening || fmt === "speaking_part2") && (
           <div className="space-y-3">
-            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">오디오</h4>
+            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              {fmt === "speaking_part2" ? "Examiner Audio" : "Audio"}
+            </h4>
+            <p className="text-[10px] text-muted-foreground">
+              {fmt === "speaking_part2" ? "Upload the examiner's recorded question audio" : "Upload audio file"}
+            </p>
             <FileUpload
               value={tab.audioUrl}
               onChange={(v) => updateTab({ audioUrl: v })}
               accept="audio"
-              placeholder="오디오 파일 업로드"
+              placeholder={fmt === "speaking_part2" ? "Upload examiner audio" : "Upload audio file"}
               deferred
               onFileReady={(file) => updateTab({ audioFile: file })}
             />
@@ -1009,47 +1097,62 @@ export function CreateQuestionModal({
           </div>
         )}
 
-        {/* ─── Speaking 설정 ─── */}
-        {fmt === "speaking_part1" && (
-          <div className="space-y-3">
-            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Speaking 설정</h4>
-            <div className="space-y-1.5">
-              <Label className="text-xs">카테고리</Label>
-              <Select value={tab.speakingCategory} onValueChange={(v) => updateTab({ speakingCategory: v })} disabled={isLoadingSpeakingData || tab.saved}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder={isLoadingSpeakingData ? "로딩 중..." : "카테고리 선택"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {speakingCategories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.code}>{cat.name_en} ({cat.name_ko})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        )}
-
+        {/* ─── Speaking Settings ─── */}
         {fmt === "speaking_part2" && (
           <div className="space-y-3">
-            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Speaking 설정</h4>
+            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Speaking Settings</h4>
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-xs">AI 심화질문 생성</Label>
-                <p className="text-[10px] text-muted-foreground">Part 2 답변 후 AI 추가 질문</p>
+                <Label className="text-xs">AI Follow-up Questions</Label>
+                <p className="text-[10px] text-muted-foreground">Generate AI follow-up after Part 2</p>
               </div>
               <Switch checked={tab.generateFollowup} onCheckedChange={(v) => updateTab({ generateFollowup: v })} disabled={tab.saved} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Preparation Time (seconds)</Label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                maxLength={3}
+                className="h-8 text-xs"
+                value={tab.prepTimeSeconds}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || /^\d{1,3}$/.test(val)) updateTab({ prepTimeSeconds: val });
+                }}
+                placeholder="60"
+                disabled={tab.saved}
+              />
+              <p className="text-[10px] text-muted-foreground">Default: 60 seconds</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Speaking Time (seconds)</Label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                maxLength={3}
+                className="h-8 text-xs"
+                value={tab.speakingTimeSeconds}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || /^\d{1,3}$/.test(val)) updateTab({ speakingTimeSeconds: val });
+                }}
+                placeholder="120"
+                disabled={tab.saved}
+              />
+              <p className="text-[10px] text-muted-foreground">Default: 120 seconds</p>
             </div>
           </div>
         )}
 
         {fmt === "speaking_part3" && (
           <div className="space-y-3">
-            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Speaking 설정</h4>
+            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Speaking Settings</h4>
             <div className="space-y-1.5">
-              <Label className="text-xs">연결된 Part 2 질문</Label>
+              <Label className="text-xs">Related Part 2 Question</Label>
               <Select value={tab.relatedPart2Id} onValueChange={(v) => updateTab({ relatedPart2Id: v })} disabled={isLoadingSpeakingData || tab.saved}>
                 <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder={isLoadingSpeakingData ? "로딩 중..." : "Part 2 질문 선택"} />
+                  <SelectValue placeholder={isLoadingSpeakingData ? "Loading..." : "Select Part 2 question"} />
                 </SelectTrigger>
                 <SelectContent>
                   {part2Questions.map((q) => (
@@ -1066,50 +1169,48 @@ export function CreateQuestionModal({
               )}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">심화 레벨</Label>
+              <Label className="text-xs">Depth Level</Label>
               <Select value={String(tab.depthLevel)} onValueChange={(v) => updateTab({ depthLevel: Number(v) as 1 | 2 | 3 })} disabled={tab.saved}>
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">Level 1 (기본)</SelectItem>
-                  <SelectItem value="2">Level 2 (중간)</SelectItem>
-                  <SelectItem value="3">Level 3 (고급)</SelectItem>
+                  <SelectItem value="1">Level 1 (Basic)</SelectItem>
+                  <SelectItem value="2">Level 2 (Intermediate)</SelectItem>
+                  <SelectItem value="3">Level 3 (Advanced)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
         )}
 
-        {/* ─── Band 범위 (Speaking 전체) ─── */}
-        {isSpeaking && (
+        {/* ─── Response Settings (Part 2 only — Part 1/3 have per-question settings) ─── */}
+        {fmt === "speaking_part2" && (
           <div className="space-y-3">
-            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">목표 Band</h4>
+            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Response Settings</h4>
             <div className="space-y-1.5">
-              <Label className="text-xs">최소</Label>
-              <Select value={tab.targetBandMin} onValueChange={(v) => updateTab({ targetBandMin: v })} disabled={tab.saved}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  {bandOptions.map((band) => (
-                    <SelectItem key={band} value={band}>{band}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-xs">Time Limit (seconds)</Label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                maxLength={3}
+                className="h-8 text-xs"
+                value={tab.timeLimitSeconds}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || /^\d{1,3}$/.test(val)) updateTab({ timeLimitSeconds: val });
+                }}
+                placeholder="e.g. 30"
+                disabled={tab.saved}
+              />
+              <p className="text-[10px] text-muted-foreground">Max response time</p>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">최대</Label>
-              <Select value={tab.targetBandMax} onValueChange={(v) => updateTab({ targetBandMax: v })} disabled={tab.saved}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  {bandOptions.map((band) => (
-                    <SelectItem key={band} value={band}>{band}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-xs">Allow Re-recording</Label>
+                <p className="text-[10px] text-muted-foreground">Let students re-record their response</p>
+              </div>
+              <Switch checked={tab.allowResponseReset} onCheckedChange={(v) => updateTab({ allowResponseReset: v })} disabled={tab.saved} />
             </div>
           </div>
         )}
@@ -1737,38 +1838,220 @@ export function CreateQuestionModal({
     </div>
   );
 
-  const bandOptions = ["4.0", "4.5", "5.0", "5.5", "6.0", "6.5", "7.0", "7.5", "8.0", "8.5", "9.0"];
+
+
+  const [expandedSpeakingCards, setExpandedSpeakingCards] = useState<Set<string>>(new Set());
+
+  const toggleSpeakingCard = (id: string) => {
+    setExpandedSpeakingCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const renderSpeakingSimple = () => {
     const isPart1 = tab.selectedFormat === "speaking_part1";
     const isPart3 = tab.selectedFormat === "speaking_part3";
 
+    const updateSubQuestion = (id: string, updates: Partial<SpeakingSubQuestion>) => {
+      updateTab({
+        speakingQuestions: tab.speakingQuestions.map((q) =>
+          q.id === id ? { ...q, ...updates } : q
+        ),
+      });
+    };
+
+    const addSubQuestion = () => {
+      const newQ = createSpeakingSubQuestion();
+      updateTab({
+        speakingQuestions: [...tab.speakingQuestions, newQ],
+      });
+      setExpandedSpeakingCards((prev) => new Set(prev).add(newQ.id));
+    };
+
+    const removeSubQuestion = (id: string) => {
+      if (tab.speakingQuestions.length <= 1) return;
+      updateTab({
+        speakingQuestions: tab.speakingQuestions.filter((q) => q.id !== id),
+      });
+      setExpandedSpeakingCards((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    };
+
+    const filledCount = tab.speakingQuestions.filter((q) => q.text.trim()).length;
+
+    const getTextPreview = (html: string) => {
+      const text = html.replace(/<[^>]*>/g, "").trim();
+      return text.length > 40 ? text.slice(0, 40) + "..." : text || "Empty";
+    };
+
     return (
       <div className="space-y-6">
         {isPart1 && (
-          <div className="p-4 bg-violet-50 border border-violet-200 rounded-lg">
-            <p className="font-medium text-violet-900">Part 1: 일상적인 주제에 대한 질문</p>
-            <p className="text-sm text-violet-700 mt-1">수험자의 배경, 관심사, 취미 등에 대한 짧은 질문</p>
+          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+            <p className="font-medium text-emerald-900">Part 1: Interview</p>
+            <p className="text-sm text-emerald-700 mt-1">
+              Short questions about everyday topics. Add multiple questions below &mdash; each has its own time limit and settings.
+            </p>
           </div>
         )}
 
         {isPart3 && (
           <div className="p-4 bg-violet-50 border border-violet-200 rounded-lg">
-            <p className="font-medium text-violet-900">Part 3: 심화 토론</p>
-            <p className="text-sm text-violet-700 mt-1">Part 2 주제와 관련된 추상적이고 심화된 질문</p>
+            <p className="font-medium text-violet-900">Part 3: Discussion</p>
+            <p className="text-sm text-violet-700 mt-1">
+              Abstract, in-depth questions related to the Part 2 topic. Add multiple questions below.
+            </p>
           </div>
         )}
 
-        <div className="space-y-2">
-          <RequiredLabel>질문</RequiredLabel>
-          <RichTextEditor
-            value={tab.speakingQuestion}
-            onChange={(v) => updateTab({ speakingQuestion: v })}
-            placeholder={isPart3
-              ? "예: Why do you think some people prefer reading books rather than watching movies?"
-              : "예: What do you do in your free time?"}
-            minHeight="80px"
-          />
+        {/* Question count summary */}
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{filledCount}</span> / {tab.speakingQuestions.length} questions filled
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs"
+              onClick={() => {
+                const allIds = tab.speakingQuestions.map((q) => q.id);
+                const allExpanded = allIds.every((id) => expandedSpeakingCards.has(id));
+                setExpandedSpeakingCards(allExpanded ? new Set() : new Set(allIds));
+              }}
+            >
+              {tab.speakingQuestions.every((q) => expandedSpeakingCards.has(q.id)) ? "Collapse All" : "Expand All"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={addSubQuestion}
+              disabled={tab.saved}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Add Question
+            </Button>
+          </div>
+        </div>
+
+        {/* Question grid - 2 columns */}
+        <div className="grid grid-cols-2 gap-3">
+          {tab.speakingQuestions.map((sq, idx) => {
+            const isExpanded = expandedSpeakingCards.has(sq.id);
+            return (
+              <div
+                key={sq.id}
+                className={cn(
+                  "border rounded-lg overflow-hidden",
+                  isPart1 ? "border-emerald-200" : "border-violet-200",
+                  isExpanded && "col-span-2"
+                )}
+              >
+                {/* Question header - clickable to toggle */}
+                <div
+                  className={cn(
+                    "flex items-center justify-between px-3 py-2 cursor-pointer select-none",
+                    isPart1 ? "bg-emerald-50 hover:bg-emerald-100" : "bg-violet-50 hover:bg-violet-100"
+                  )}
+                  onClick={() => toggleSpeakingCard(sq.id)}
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    {isExpanded ? (
+                      <ChevronDown className={cn("h-3.5 w-3.5 shrink-0", isPart1 ? "text-emerald-600" : "text-violet-600")} />
+                    ) : (
+                      <ChevronRight className={cn("h-3.5 w-3.5 shrink-0", isPart1 ? "text-emerald-600" : "text-violet-600")} />
+                    )}
+                    <span className={cn(
+                      "text-xs font-semibold shrink-0",
+                      isPart1 ? "text-emerald-700" : "text-violet-700"
+                    )}>
+                      Q{idx + 1}
+                    </span>
+                    {!isExpanded && (
+                      <span className="text-xs text-muted-foreground truncate">
+                        {getTextPreview(sq.text)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    {isExpanded && (
+                      <>
+                        <div className="flex items-center gap-1">
+                          <Label className="text-[10px] text-muted-foreground">Time:</Label>
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={3}
+                            className="h-6 w-14 text-[11px] text-center"
+                            value={sq.timeLimitSeconds}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === "" || /^\d{1,3}$/.test(val)) updateSubQuestion(sq.id, { timeLimitSeconds: val });
+                            }}
+                            placeholder="30"
+                            disabled={tab.saved}
+                          />
+                          <span className="text-[10px] text-muted-foreground">s</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Label className="text-[10px] text-muted-foreground">Re-record:</Label>
+                          <Switch
+                            checked={sq.allowResponseReset}
+                            onCheckedChange={(v) => updateSubQuestion(sq.id, { allowResponseReset: v })}
+                            disabled={tab.saved}
+                            className="scale-75"
+                          />
+                        </div>
+                      </>
+                    )}
+                    {tab.speakingQuestions.length > 1 && !tab.saved && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => removeSubQuestion(sq.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Question body - only shown when expanded */}
+                {isExpanded && (
+                  <div className="p-4 space-y-3">
+                    <RichTextEditor
+                      value={sq.text}
+                      onChange={(v) => updateSubQuestion(sq.id, { text: v })}
+                      placeholder={isPart3
+                        ? `Q${idx + 1}: e.g. Why do you think some people prefer reading books rather than watching movies?`
+                        : `Q${idx + 1}: e.g. What do you do in your free time?`}
+                      minHeight="60px"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground shrink-0">Audio:</Label>
+                      <div className="flex-1">
+                        <FileUpload
+                          value={sq.audioUrl}
+                          onChange={(v) => updateSubQuestion(sq.id, { audioUrl: v })}
+                          accept="audio"
+                          placeholder="Upload examiner audio (optional)"
+                          deferred
+                          onFileReady={(file) => updateSubQuestion(sq.id, { audioFile: file })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -1776,50 +2059,88 @@ export function CreateQuestionModal({
 
   const renderSpeakingPart2 = () => (
     <div className="space-y-6">
-      <div className="p-4 bg-violet-50 border border-violet-200 rounded-lg">
-        <p className="font-medium text-violet-900">Part 2: 큐카드 발표</p>
-        <p className="text-sm text-violet-700 mt-1">주어진 주제에 대해 1분 준비 후 1~2분간 발표</p>
+      <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+        <p className="font-medium text-amber-900">Part 2: Cue Card</p>
+        <p className="text-sm text-amber-700 mt-1">
+          The candidate prepares for {tab.prepTimeSeconds || 60}s, then speaks for up to {tab.speakingTimeSeconds || 120}s on the given topic.
+        </p>
       </div>
 
+      {/* Cue Card Content */}
+      <div className="border-2 border-amber-200 rounded-lg overflow-hidden">
+        <div className="bg-amber-100 px-4 py-2 border-b border-amber-200">
+          <p className="text-sm font-semibold text-amber-800">Cue Card Content</p>
+        </div>
+        <div className="p-4 space-y-4">
+          <div className="space-y-2">
+            <RequiredLabel>Topic</RequiredLabel>
+            <RichTextEditor
+              value={tab.cueCardTopic}
+              onChange={(v) => updateTab({ cueCardTopic: v })}
+              placeholder="e.g. Describe a book that you have recently read."
+              minHeight="80px"
+            />
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>You should say:</Label>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7"
+                onClick={() => updateTab({ cueCardPoints: [...tab.cueCardPoints, ""] })}
+                disabled={tab.saved || tab.cueCardPoints.length >= 6}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add Point
+              </Button>
+            </div>
+            {tab.cueCardPoints.map((point, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground font-mono w-4 shrink-0">{index + 1}.</span>
+                <Input
+                  value={point}
+                  onChange={(e) => {
+                    const newPoints = [...tab.cueCardPoints];
+                    newPoints[index] = e.target.value;
+                    updateTab({ cueCardPoints: newPoints });
+                  }}
+                  placeholder={`Point ${index + 1}`}
+                  disabled={tab.saved}
+                  className="flex-1"
+                />
+                {tab.cueCardPoints.length > 1 && !tab.saved && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => {
+                      const newPoints = tab.cueCardPoints.filter((_, i) => i !== index);
+                      updateTab({ cueCardPoints: newPoints });
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Cue Card Image */}
       <div className="space-y-2">
-        <RequiredLabel>큐카드 주제</RequiredLabel>
-        <RichTextEditor
-          value={tab.cueCardTopic}
-          onChange={(v) => updateTab({ cueCardTopic: v })}
-          placeholder="예: Describe a book that you have recently read."
-          minHeight="60px"
-        />
-      </div>
-
-      <div className="space-y-3">
-        <Label>You should say: (포인트)</Label>
-        {tab.cueCardPoints.map((point, index) => (
-          <Input
-            key={index}
-            value={point}
-            onChange={(e) => {
-              const newPoints = [...tab.cueCardPoints];
-              newPoints[index] = e.target.value;
-              updateTab({ cueCardPoints: newPoints });
-            }}
-            placeholder={`포인트 ${index + 1}`}
-            disabled={tab.saved}
-          />
-        ))}
-      </div>
-
-      <div className="space-y-2">
-        <Label>큐카드 이미지 (선택)</Label>
+        <Label>Cue Card Image (optional)</Label>
         <FileUpload
           value={tab.cueCardImageUrl}
           onChange={(v) => updateTab({ cueCardImageUrl: v })}
           accept="image"
-          placeholder="큐카드 이미지 업로드"
+          placeholder="Upload cue card image"
           deferred
           onFileReady={(file) => updateTab({ cueCardImageFile: file })}
         />
       </div>
-
     </div>
   );
 

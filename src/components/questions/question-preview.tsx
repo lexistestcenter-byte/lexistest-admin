@@ -23,12 +23,9 @@ export interface QuestionPreviewData {
   options_data: Record<string, unknown>;
 
   // speaking specific
-  speakingCategory?: string;
   relatedPart2Code?: string;
   relatedPart2Id?: string;
   depthLevel?: number;
-  targetBandMin?: number;
-  targetBandMax?: number;
 }
 
 // =============================================================================
@@ -887,31 +884,36 @@ function EssayPreview({ data }: { data: QuestionPreviewData }) {
 function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
   const fmt = data.question_format;
   const o = od(data);
+  const questions = getArr(o, "questions") as Record<string, unknown>[];
 
-  const bandRange =
-    data.targetBandMin || data.targetBandMax
-      ? `Band ${data.targetBandMin || "?"}${data.targetBandMax ? `-${data.targetBandMax}` : ""}`
-      : null;
-
-  // Part 1
+  // Part 1 - Multi-question group
   if (fmt === "speaking_part1") {
     return (
       <div className="space-y-4 flex-1 overflow-y-auto">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs font-medium bg-emerald-50 text-emerald-700 border-emerald-200">
-              Part 1
-            </Badge>
-            {data.speakingCategory && (
-              <Badge variant="secondary" className="text-xs">{data.speakingCategory}</Badge>
-            )}
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs font-medium bg-emerald-50 text-emerald-700 border-emerald-200">
+            Part 1 &ndash; Interview
+          </Badge>
+          <span className="text-xs text-muted-foreground">{questions.length || 1} question(s)</span>
+        </div>
+        {questions.length > 0 ? (
+          <div className="space-y-3">
+            {questions.map((sq, i) => (
+              <div key={i} className="bg-white rounded-lg border p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-emerald-700">Q{sq.number ? Number(sq.number) : i + 1}</span>
+                  {sq.time_limit_seconds ? <span className="text-[10px] text-gray-500">{String(sq.time_limit_seconds)}s</span> : null}
+                </div>
+                <p className="text-sm" dangerouslySetInnerHTML={{ __html: sanitizeHtml(String(sq.text || "")) }} />
+                <RecordingArea />
+              </div>
+            ))}
           </div>
-          {bandRange && <span className="text-xs text-gray-500">{bandRange}</span>}
-        </div>
-        <div className="bg-white rounded-lg border p-6">
-          <p className="text-lg" dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content || "(질문 입력)") }} />
-        </div>
-        <RecordingArea />
+        ) : (
+          <div className="bg-white rounded-lg border p-6">
+            <p className="text-lg" dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content || "(질문 입력)") }} />
+          </div>
+        )}
       </div>
     );
   }
@@ -925,11 +927,10 @@ function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
     return (
       <div className="space-y-4 flex-1 overflow-y-auto">
         <div className="border-2 border-amber-300 rounded-lg overflow-hidden bg-amber-50/30">
-          <div className="flex items-center justify-between px-4 py-2.5 bg-amber-100 border-b border-amber-200">
+          <div className="px-4 py-2.5 bg-amber-100 border-b border-amber-200">
             <Badge className="text-xs font-semibold bg-amber-500 hover:bg-amber-500 text-white">
               Part 2 - Cue Card
             </Badge>
-            {bandRange && <span className="text-xs font-medium text-amber-700">{bandRange}</span>}
           </div>
           <div className="p-5 space-y-4">
             <p className="text-base font-semibold text-gray-900">{topic || "(주제 입력)"}</p>
@@ -958,30 +959,42 @@ function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
     );
   }
 
-  // Part 3
+  // Part 3 - Multi-question group
   if (fmt === "speaking_part3") {
     const depthLabel = data.depthLevel ? `Level ${data.depthLevel}` : null;
 
     return (
       <div className="space-y-4 flex-1 overflow-y-auto">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs font-medium bg-violet-50 text-violet-700 border-violet-200">
-              Part 3 - Discussion
-            </Badge>
-            {depthLabel && <Badge variant="secondary" className="text-xs">{depthLabel}</Badge>}
-          </div>
-          {bandRange && <span className="text-xs text-gray-500">{bandRange}</span>}
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs font-medium bg-violet-50 text-violet-700 border-violet-200">
+            Part 3 &ndash; Discussion
+          </Badge>
+          {depthLabel && <Badge variant="secondary" className="text-xs">{depthLabel}</Badge>}
+          <span className="text-xs text-muted-foreground">{questions.length || 1} question(s)</span>
         </div>
         {(data.relatedPart2Id || data.relatedPart2Code) && (
           <div className="text-xs text-gray-500 bg-gray-50 rounded px-3 py-2">
             연결된 Part 2: <span className="font-mono">{data.relatedPart2Code || data.relatedPart2Id}</span>
           </div>
         )}
-        <div className="bg-white rounded-lg border p-6">
-          <p className="text-lg" dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content || "(질문 입력)") }} />
-        </div>
-        <RecordingArea />
+        {questions.length > 0 ? (
+          <div className="space-y-3">
+            {questions.map((sq, i) => (
+              <div key={i} className="bg-white rounded-lg border p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-violet-700">Q{sq.number ? Number(sq.number) : i + 1}</span>
+                  {sq.time_limit_seconds ? <span className="text-[10px] text-gray-500">{String(sq.time_limit_seconds)}s</span> : null}
+                </div>
+                <p className="text-sm" dangerouslySetInnerHTML={{ __html: sanitizeHtml(String(sq.text || "")) }} />
+                <RecordingArea />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg border p-6">
+            <p className="text-lg" dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content || "(질문 입력)") }} />
+          </div>
+        )}
       </div>
     );
   }
@@ -1041,16 +1054,13 @@ export interface QuestionTabLike {
   writingPrompt: string;
   writingImageUrl: string;
   writingMinWords: string;
-  // Speaking
-  speakingQuestion: string;
+  // Speaking (Part 1 & Part 3: multi-question groups)
+  speakingQuestions: { id: string; text: string; timeLimitSeconds: string; allowResponseReset: boolean; audioUrl: string }[];
   cueCardTopic: string;
   cueCardPoints: string[];
   cueCardImageUrl: string;
-  speakingCategory: string;
   relatedPart2Id: string;
   depthLevel: number;
-  targetBandMin: string;
-  targetBandMax: string;
   // Audio
   audioUrl: string;
   // Map labeling
@@ -1126,7 +1136,14 @@ export function tabToPreviewData(
     options_data.image_url = tab.writingImageUrl;
     options_data.min_words = tab.writingMinWords ? parseInt(tab.writingMinWords) : 0;
   } else if (fmt === "speaking_part1" || fmt === "speaking_part3") {
-    content = tab.speakingQuestion;
+    const filledQs = tab.speakingQuestions.filter((q) => q.text.trim());
+    content = filledQs[0]?.text || "";
+    options_data.questions = filledQs.map((q, i) => ({
+      number: i + 1,
+      text: q.text,
+      time_limit_seconds: q.timeLimitSeconds ? parseInt(q.timeLimitSeconds) : 30,
+      allow_response_reset: q.allowResponseReset,
+    }));
   } else if (fmt === "speaking_part2") {
     content = tab.cueCardTopic;
     options_data.topic = tab.cueCardTopic;
@@ -1142,11 +1159,8 @@ export function tabToPreviewData(
     instructions: tab.instructions || undefined,
     audioUrl: tab.audioUrl || undefined,
     options_data,
-    speakingCategory: tab.speakingCategory || undefined,
     relatedPart2Id: tab.relatedPart2Id || undefined,
     depthLevel: tab.depthLevel || undefined,
-    targetBandMin: tab.targetBandMin ? parseFloat(tab.targetBandMin) : undefined,
-    targetBandMax: tab.targetBandMax ? parseFloat(tab.targetBandMax) : undefined,
   };
 }
 
@@ -1182,11 +1196,8 @@ export function apiToPreviewData(q: ApiQuestionData): QuestionPreviewData {
     instructions: q.instructions || undefined,
     audioUrl: q.audio_url || undefined,
     options_data: q.options_data || {},
-    speakingCategory: q.speaking_category || undefined,
     relatedPart2Id: q.related_part2_id || undefined,
     relatedPart2Code: q.related_part2_code || undefined,
     depthLevel: q.depth_level || undefined,
-    targetBandMin: q.target_band_min || undefined,
-    targetBandMax: q.target_band_max || undefined,
   };
 }

@@ -32,6 +32,7 @@ export function FillBlankEditor({
   title, setTitle, content, setContent, blanks, setBlanks, blankMode, setBlankMode,
 }: FillBlankEditorProps) {
   const [editorContextMenu, setEditorContextMenu] = useState<{ x: number; y: number; text: string; from: number; to: number } | null>(null);
+  const [expandedBlank, setExpandedBlank] = useState<string | null>(null);
   const pendingAnswers = useRef<Map<number, string>>(new Map());
 
   const blanksRef = useRef(blanks);
@@ -131,6 +132,10 @@ export function FillBlankEditor({
     setBlanks(blanks.map(b => b.id === id ? { ...b, answer: clean } : b));
   };
 
+  const updateBlankAlternatives = (id: string, alternatives: string[]) => {
+    setBlanks(blanks.map(b => b.id === id ? { ...b, alternatives } : b));
+  };
+
   return (
     <div className="space-y-6" onClick={() => setEditorContextMenu(null)}>
       <div className="space-y-2">
@@ -219,10 +224,59 @@ export function FillBlankEditor({
                   <Input className="flex-1 h-8 text-sm" value={blank.answer}
                     onChange={(e) => updateBlankAnswer(blank.id, e.target.value)}
                     placeholder={blankMode === "word" ? "정답 단어 입력" : "정답 (문장 가능)"} />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setExpandedBlank(expandedBlank === blank.id ? null : blank.id)}
+                    className="text-xs shrink-0"
+                  >
+                    {expandedBlank === blank.id ? "접기" : `대체 ${blank.alternatives?.length || 0}`}
+                  </Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeBlankAndRestore(blank.id)}>
                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
                   </Button>
                 </div>
+                {expandedBlank === blank.id && (
+                  <div className="ml-10 space-y-2 pt-2 mt-2 border-t">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">대체 정답</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => updateBlankAlternatives(blank.id, [...(blank.alternatives || []), ""])}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        추가
+                      </Button>
+                    </div>
+                    {(blank.alternatives || []).map((alt, i) => (
+                      <div key={i} className="flex gap-2">
+                        <Input
+                          value={alt}
+                          onChange={(e) => {
+                            const alts = [...(blank.alternatives || [])];
+                            alts[i] = e.target.value;
+                            updateBlankAlternatives(blank.id, alts);
+                          }}
+                          placeholder={`대체 정답 ${i + 1}`}
+                          className="h-8 text-sm"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0"
+                          onClick={() => updateBlankAlternatives(blank.id, (blank.alternatives || []).filter((_, idx) => idx !== i))}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                    {(!blank.alternatives || blank.alternatives.length === 0) && (
+                      <p className="text-xs text-muted-foreground py-1">대체 정답이 없습니다. &quot;추가&quot; 버튼을 클릭하세요.</p>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -255,6 +309,7 @@ export function FillBlankDragEditor({
   title, setTitle, content, setContent, blanks, setBlanks, wordBank, setWordBank, blankMode, setBlankMode, allowDuplicate, setAllowDuplicate,
 }: FillBlankDragEditorProps) {
   const [editorContextMenu, setEditorContextMenu] = useState<{ x: number; y: number; text: string; from: number; to: number } | null>(null);
+  const [expandedBlank, setExpandedBlank] = useState<string | null>(null);
   const pendingAnswers = useRef<Map<number, string>>(new Map());
 
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -380,6 +435,10 @@ export function FillBlankDragEditor({
     }
   };
 
+  const updateBlankAlternatives = (id: string, alternatives: string[]) => {
+    setBlanks(blanks.map(b => b.id === id ? { ...b, alternatives } : b));
+  };
+
   return (
     <div className="space-y-6" onClick={() => setEditorContextMenu(null)}>
       <div className="space-y-2">
@@ -473,10 +532,59 @@ export function FillBlankDragEditor({
                   <Input className="flex-1 h-8 text-sm" value={blank.answer}
                     onChange={(e) => updateBlankAnswer(blank.id, e.target.value)}
                     placeholder="정답 단어 입력" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setExpandedBlank(expandedBlank === blank.id ? null : blank.id)}
+                    className="text-xs shrink-0"
+                  >
+                    {expandedBlank === blank.id ? "접기" : `대체 ${blank.alternatives?.length || 0}`}
+                  </Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeBlankAndRestore(blank.id)}>
                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
                   </Button>
                 </div>
+                {expandedBlank === blank.id && (
+                  <div className="ml-10 space-y-2 pt-2 mt-2 border-t">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">대체 정답</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => updateBlankAlternatives(blank.id, [...(blank.alternatives || []), ""])}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        추가
+                      </Button>
+                    </div>
+                    {(blank.alternatives || []).map((alt, i) => (
+                      <div key={i} className="flex gap-2">
+                        <Input
+                          value={alt}
+                          onChange={(e) => {
+                            const alts = [...(blank.alternatives || [])];
+                            alts[i] = e.target.value;
+                            updateBlankAlternatives(blank.id, alts);
+                          }}
+                          placeholder={`대체 정답 ${i + 1}`}
+                          className="h-8 text-sm"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0"
+                          onClick={() => updateBlankAlternatives(blank.id, (blank.alternatives || []).filter((_, idx) => idx !== i))}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                    {(!blank.alternatives || blank.alternatives.length === 0) && (
+                      <p className="text-xs text-muted-foreground py-1">대체 정답이 없습니다. &quot;추가&quot; 버튼을 클릭하세요.</p>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

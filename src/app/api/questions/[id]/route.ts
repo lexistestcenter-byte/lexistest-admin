@@ -233,6 +233,11 @@ export async function PUT(
         body.generate_followup !== undefined ? body.generate_followup : null,
       p_tags: sanitizedTags,
       p_is_active: body.is_active !== undefined ? body.is_active : null,
+      // Speaking options_data params (migration 016)
+      p_time_limit_seconds: body.time_limit_seconds ?? null,
+      p_allow_response_reset: body.allow_response_reset ?? null,
+      p_prep_time_seconds: body.prep_time_seconds ?? null,
+      p_speaking_time_seconds: body.speaking_time_seconds ?? null,
     });
 
     if (error) {
