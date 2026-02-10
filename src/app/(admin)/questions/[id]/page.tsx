@@ -23,7 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { RichTextEditor, uploadEditorImages } from "@/components/ui/rich-text-editor";
 
 import {
   AlertDialog,
@@ -214,7 +214,6 @@ export default function EditQuestionPage({
   const [writingTitle, setWritingTitle] = useState("");
   const [writingCondition, setWritingCondition] = useState("");
   const [writingPrompt, setWritingPrompt] = useState("");
-  const [writingImageUrl, setWritingImageUrl] = useState("");
   const [writingMinWords, setWritingMinWords] = useState("");
 
   // Speaking
@@ -223,7 +222,6 @@ export default function EditQuestionPage({
   );
   const [cueCardTopic, setCueCardTopic] = useState("");
   const [cueCardPoints, setCueCardPoints] = useState<string[]>(["", "", "", ""]);
-  const [cueCardImageUrl, setCueCardImageUrl] = useState("");
   const [generateFollowup, setGenerateFollowup] = useState(false);
   const [relatedPart2Id, setRelatedPart2Id] = useState("");
   const [depthLevel, setDepthLevel] = useState<1 | 2 | 3>(1);
@@ -239,7 +237,6 @@ export default function EditQuestionPage({
   // Map Labeling
   const [mapLabelingTitle, setMapLabelingTitle] = useState("");
   const [mapLabelingPassage, setMapLabelingPassage] = useState("");
-  const [mapLabelingImageUrl, setMapLabelingImageUrl] = useState("");
   const [mapLabelingLabels, setMapLabelingLabels] = useState<string[]>(["A", "B", "C", "D", "E", "F", "G", "H"]);
   const [mapLabelingItems, setMapLabelingItems] = useState<{ id: string; number: number; statement: string; correctLabel: string }[]>([
     { id: "ml1", number: 1, statement: "", correctLabel: "" }
@@ -407,7 +404,6 @@ export default function EditQuestionPage({
           if (optionsData) {
             setWritingTitle(optionsData.title || "");
             setWritingCondition(optionsData.condition || "");
-            setWritingImageUrl(optionsData.image_url || "");
             setWritingMinWords(optionsData.min_words ? String(optionsData.min_words) : "");
           }
         }
@@ -436,9 +432,6 @@ export default function EditQuestionPage({
           } catch {
             setCueCardTopic(content || "");
           }
-          if (optionsData?.image_url) {
-            setCueCardImageUrl(optionsData.image_url);
-          }
         }
         // Speaking Part 3
         else if (format === "speaking_part3") {
@@ -462,7 +455,6 @@ export default function EditQuestionPage({
           if (optionsData) {
             setMapLabelingTitle(String(optionsData.title || data.title || ""));
             setMapLabelingPassage(data.content || "");
-            setMapLabelingImageUrl(optionsData.image_url || "");
             if (Array.isArray(optionsData.labels)) {
               setMapLabelingLabels(optionsData.labels);
             }
@@ -810,10 +802,6 @@ export default function EditQuestionPage({
 
     // Map Labeling 유효성 검사
     if (selectedFormat === "map_labeling") {
-      if (!mapLabelingImageUrl.trim()) {
-        toast.error("지도/이미지 URL을 입력해주세요.");
-        return;
-      }
       if (mapLabelingItems.length === 0) {
         toast.error("문제 항목을 추가해주세요.");
         return;
@@ -827,6 +815,15 @@ export default function EditQuestionPage({
 
     setIsSaving(true);
     try {
+      // 에디터 이미지 업로드 (blob URL → R2 상대 경로, 저장 전 처리)
+      const imgCtx = questionCode ? `questions/${questionCode}` : "questions";
+      const processedWritingPrompt = writingPrompt.includes("blob:")
+        ? await uploadEditorImages(writingPrompt, imgCtx) : writingPrompt;
+      const processedCueCardTopic = cueCardTopic.includes("blob:")
+        ? await uploadEditorImages(cueCardTopic, imgCtx) : cueCardTopic;
+      const processedMapPassage = mapLabelingPassage.includes("blob:")
+        ? await uploadEditorImages(mapLabelingPassage, imgCtx) : mapLabelingPassage;
+
       // Build question content based on format
       let content = "";
       let optionsData = null;
@@ -929,11 +926,10 @@ export default function EditQuestionPage({
       }
       // Writing
       else if (selectedFormat === "essay") {
-        content = writingPrompt;
+        content = processedWritingPrompt;
         optionsData = {
           title: writingTitle || null,
           condition: writingCondition || null,
-          image_url: writingImageUrl || null,
           min_words: writingMinWords ? parseInt(writingMinWords) : null,
         };
       }
@@ -954,12 +950,11 @@ export default function EditQuestionPage({
       // Speaking Part 2
       else if (selectedFormat === "speaking_part2") {
         content = JSON.stringify({
-          topic: cueCardTopic,
+          topic: processedCueCardTopic,
           points: cueCardPoints.filter(p => p.trim()),
         });
         optionsData = {
           generate_followup: generateFollowup,
-          image_url: cueCardImageUrl || null,
         };
       }
       // Speaking Part 3
@@ -978,10 +973,9 @@ export default function EditQuestionPage({
       }
       // Map Labeling
       else if (selectedFormat === "map_labeling") {
-        content = mapLabelingPassage || " ";
+        content = processedMapPassage || " ";
         optionsData = {
           title: mapLabelingTitle || undefined,
-          image_url: mapLabelingImageUrl,
           labels: mapLabelingLabels,
           items: mapLabelingItems.map(i => ({
             number: i.number,
@@ -1432,8 +1426,6 @@ export default function EditQuestionPage({
                 setCondition={setWritingCondition}
                 prompt={writingPrompt}
                 setPrompt={setWritingPrompt}
-                imageUrl={writingImageUrl}
-                setImageUrl={setWritingImageUrl}
                 minWords={writingMinWords}
                 setMinWords={setWritingMinWords}
                 questionCode={questionCode}
@@ -1455,8 +1447,6 @@ export default function EditQuestionPage({
                 setTopic={setCueCardTopic}
                 points={cueCardPoints}
                 setPoints={setCueCardPoints}
-                imageUrl={cueCardImageUrl}
-                setImageUrl={setCueCardImageUrl}
                 questionCode={questionCode}
               />
             )}
@@ -1482,8 +1472,6 @@ export default function EditQuestionPage({
                 setTitle={setMapLabelingTitle}
                 passage={mapLabelingPassage}
                 setPassage={setMapLabelingPassage}
-                imageUrl={mapLabelingImageUrl}
-                setImageUrl={setMapLabelingImageUrl}
                 labels={mapLabelingLabels}
                 setLabels={setMapLabelingLabels}
                 items={mapLabelingItems}
@@ -1545,12 +1533,11 @@ export default function EditQuestionPage({
           fillBlankDragAllowDuplicate,
           tableInputMode,
           flowchartTitle, flowchartNodes,
-          writingTitle, writingCondition, writingPrompt, writingImageUrl, writingMinWords,
-          speakingQuestions, cueCardTopic, cueCardPoints, cueCardImageUrl,
+          writingTitle, writingCondition, writingPrompt, writingMinWords,
+          speakingQuestions, cueCardTopic, cueCardPoints,
           relatedPart2Id, depthLevel,
           audioUrl,
           mapLabelingTitle, mapLabelingPassage,
-          mapLabelingImageUrl,
           mapLabelingLabels,
           mapLabelingItems,
           instructions,
@@ -1940,7 +1927,6 @@ function WritingEditor({
   title, setTitle,
   condition, setCondition,
   prompt, setPrompt,
-  imageUrl, setImageUrl,
   minWords, setMinWords,
   questionCode,
 }: {
@@ -1950,8 +1936,6 @@ function WritingEditor({
   setCondition: (v: string) => void;
   prompt: string;
   setPrompt: (v: string) => void;
-  imageUrl: string;
-  setImageUrl: (v: string) => void;
   minWords: string;
   setMinWords: (v: string) => void;
   questionCode?: string;
@@ -2017,18 +2001,6 @@ function WritingEditor({
           onChange={setPrompt}
           placeholder="예: The chart below shows the number of trips made by children..."
           minHeight="200px"
-        />
-      </div>
-
-      {/* 이미지 (선택 - Task 1 그래프/차트용) */}
-      <div className="space-y-2">
-        <Label>이미지 (선택 - Task 1 그래프/차트용)</Label>
-        <FileUpload
-          value={imageUrl}
-          onChange={setImageUrl}
-          accept="image"
-          placeholder="Task 1 그래프/차트 이미지 업로드"
-          context={questionCode ? `questions/${questionCode}` : undefined}
         />
       </div>
     </div>
@@ -2188,16 +2160,12 @@ function SpeakingPart2EditorEdit({
   setTopic,
   points,
   setPoints,
-  imageUrl,
-  setImageUrl,
   questionCode,
 }: {
   topic: string;
   setTopic: (v: string) => void;
   points: string[];
   setPoints: (v: string[]) => void;
-  imageUrl: string;
-  setImageUrl: (v: string) => void;
   questionCode?: string;
 }) {
   return (
@@ -2219,7 +2187,7 @@ function SpeakingPart2EditorEdit({
               onChange={setTopic}
               placeholder="e.g. Describe a book that you have recently read."
               minHeight="80px"
-            />
+                />
           </div>
 
           <div className="space-y-3">
@@ -2265,16 +2233,6 @@ function SpeakingPart2EditorEdit({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label>Cue Card Image (optional)</Label>
-        <FileUpload
-          value={imageUrl}
-          onChange={setImageUrl}
-          accept="image"
-          placeholder="큐카드 이미지 업로드"
-          context={questionCode ? `questions/${questionCode}` : undefined}
-        />
-      </div>
     </div>
   );
 }
@@ -2495,8 +2453,6 @@ function MapLabelingEditor({
   setTitle,
   passage,
   setPassage,
-  imageUrl,
-  setImageUrl,
   labels,
   setLabels,
   items,
@@ -2507,8 +2463,6 @@ function MapLabelingEditor({
   setTitle: (v: string) => void;
   passage: string;
   setPassage: (v: string) => void;
-  imageUrl: string;
-  setImageUrl: (v: string) => void;
   labels: string[];
   setLabels: (v: string[]) => void;
   items: MapLabelingItem[];
@@ -2564,23 +2518,8 @@ function MapLabelingEditor({
             onChange={setPassage}
             placeholder="지도에 대한 설명 텍스트 (선택사항)"
             minHeight="60px"
-          />
+            />
         </div>
-      </div>
-
-      {/* 이미지 */}
-      <div className="space-y-3">
-        <RequiredLabel required>지도/이미지</RequiredLabel>
-        <p className="text-xs text-muted-foreground">
-          A~{labels[labels.length - 1] || "F"} 라벨이 표시된 지도 이미지
-        </p>
-        <FileUpload
-          value={imageUrl}
-          onChange={setImageUrl}
-          accept="image"
-          placeholder="지도/이미지 업로드"
-          context={questionCode ? `questions/${questionCode}` : undefined}
-        />
       </div>
 
       {/* 라벨 설정 + 테이블 */}

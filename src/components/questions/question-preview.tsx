@@ -1052,13 +1052,11 @@ export interface QuestionTabLike {
   writingTitle: string;
   writingCondition: string;
   writingPrompt: string;
-  writingImageUrl: string;
   writingMinWords: string;
   // Speaking (Part 1 & Part 3: multi-question groups)
   speakingQuestions: { id: string; text: string; timeLimitSeconds: string; allowResponseReset: boolean; audioUrl: string }[];
   cueCardTopic: string;
   cueCardPoints: string[];
-  cueCardImageUrl: string;
   relatedPart2Id: string;
   depthLevel: number;
   // Audio
@@ -1066,7 +1064,6 @@ export interface QuestionTabLike {
   // Map labeling
   mapLabelingTitle: string;
   mapLabelingPassage: string;
-  mapLabelingImageUrl: string;
   mapLabelingLabels: string[];
   mapLabelingItems: { id: string; number: number; statement: string; correctLabel: string }[];
   // Common
@@ -1122,7 +1119,6 @@ export function tabToPreviewData(
   } else if (fmt === "map_labeling") {
     content = tab.mapLabelingPassage;
     options_data.title = tab.mapLabelingTitle;
-    options_data.image_url = tab.mapLabelingImageUrl;
     options_data.labels = tab.mapLabelingLabels;
     options_data.items = tab.mapLabelingItems.map((i) => ({
       id: i.id,
@@ -1133,7 +1129,6 @@ export function tabToPreviewData(
     content = tab.writingPrompt;
     options_data.title = tab.writingTitle;
     options_data.condition = tab.writingCondition;
-    options_data.image_url = tab.writingImageUrl;
     options_data.min_words = tab.writingMinWords ? parseInt(tab.writingMinWords) : 0;
   } else if (fmt === "speaking_part1" || fmt === "speaking_part3") {
     const filledQs = tab.speakingQuestions.filter((q) => q.text.trim());
@@ -1148,7 +1143,6 @@ export function tabToPreviewData(
     content = tab.cueCardTopic;
     options_data.topic = tab.cueCardTopic;
     options_data.points = tab.cueCardPoints;
-    options_data.image_url = tab.cueCardImageUrl;
   }
 
   return {

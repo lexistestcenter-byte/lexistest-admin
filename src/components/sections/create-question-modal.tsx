@@ -36,7 +36,7 @@ import {
 import { toast } from "sonner";
 import { api } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
-import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { RichTextEditor, uploadEditorImages, stripBlobImages } from "@/components/ui/rich-text-editor";
 import { RequiredLabel } from "@/components/ui/required-label";
 import { FileUpload, uploadFile } from "@/components/ui/file-upload";
 import {
@@ -140,8 +140,6 @@ interface TabState {
   // Map labeling
   mapTitle: string;
   mapPassage: string;
-  mapImageUrl: string;
-  mapImageFile: File | null;
   mapLabels: string[];
   mapItems: MatchingItemData[];
   // Essay
@@ -149,8 +147,6 @@ interface TabState {
   essayCondition: string;
   essayPrompt: string;
   essayMinWords: string;
-  essayImageUrl: string;
-  essayImageFile: File | null;
   // Audio (listening/speaking)
   audioUrl: string;
   audioFile: File | null;
@@ -159,8 +155,6 @@ interface TabState {
   speakingCategory: string;
   cueCardTopic: string;
   cueCardPoints: string[];
-  cueCardImageUrl: string;
-  cueCardImageFile: File | null;
   generateFollowup: boolean;
   relatedPart2Id: string;
   depthLevel: 1 | 2 | 3;
@@ -214,8 +208,6 @@ function createEmptyTab(): TabState {
     flowchartBlanks: [],
     mapTitle: "",
     mapPassage: "",
-    mapImageUrl: "",
-    mapImageFile: null,
     mapLabels: ["A", "B", "C", "D", "E", "F", "G", "H"],
     mapItems: [{ id: "ml1", number: 1, statement: "", correctLabel: "" }],
     audioUrl: "",
@@ -224,14 +216,10 @@ function createEmptyTab(): TabState {
     essayCondition: "",
     essayPrompt: "",
     essayMinWords: "",
-    essayImageUrl: "",
-    essayImageFile: null,
     speakingQuestions: Array.from({ length: 5 }, () => createSpeakingSubQuestion()),
     speakingCategory: "",
     cueCardTopic: "",
     cueCardPoints: ["", "", "", ""],
-    cueCardImageUrl: "",
-    cueCardImageFile: null,
     generateFollowup: false,
     relatedPart2Id: "",
     depthLevel: 1,
@@ -517,12 +505,11 @@ export function CreateQuestionModal({
       };
     } else if (tab.selectedFormat === "map_labeling") {
       if (tab.mapItems.length === 0) { toast.error("문항을 1개 이상 추가해주세요."); return; }
-      content = tab.mapPassage || " ";
+      content = stripBlobImages(tab.mapPassage) || " ";
       title = tab.mapTitle || undefined;
       optionsData = {
         title: tab.mapTitle || undefined,
         separateNumbers: tab.separateNumbers,
-        image_url: tab.mapImageUrl && !tab.mapImageFile ? tab.mapImageUrl : undefined,
         labels: tab.mapLabels,
         items: tab.mapItems.map((i) => ({ number: i.number, statement: i.statement, correctLabel: i.correctLabel })),
       };
@@ -531,12 +518,11 @@ export function CreateQuestionModal({
       };
     } else if (tab.selectedFormat === "essay") {
       if (!tab.essayPrompt.trim()) { toast.error("에세이 주제를 입력해주세요."); return; }
-      content = tab.essayPrompt;
+      content = stripBlobImages(tab.essayPrompt);
       title = tab.essayTitle || undefined;
       optionsData = {
         title: tab.essayTitle || undefined,
         condition: tab.essayCondition || undefined,
-        image_url: tab.essayImageUrl && !tab.essayImageFile ? tab.essayImageUrl : undefined,
         min_words: tab.essayMinWords ? parseInt(tab.essayMinWords) : undefined,
       };
     } else if (tab.selectedFormat === "speaking_part1") {
@@ -555,12 +541,11 @@ export function CreateQuestionModal({
     } else if (tab.selectedFormat === "speaking_part2") {
       if (!tab.cueCardTopic.trim()) { toast.error("Please enter a cue card topic."); return; }
       content = JSON.stringify({
-        topic: tab.cueCardTopic,
+        topic: stripBlobImages(tab.cueCardTopic),
         points: tab.cueCardPoints.filter((p) => p.trim()),
       });
       optionsData = {
         generate_followup: tab.generateFollowup,
-        image_url: tab.cueCardImageUrl && !tab.cueCardImageFile ? tab.cueCardImageUrl : undefined,
       };
     } else if (tab.selectedFormat === "speaking_part3") {
       const filledQuestions = tab.speakingQuestions.filter((q) => q.text.trim());
@@ -607,9 +592,6 @@ export function CreateQuestionModal({
       // Remove blob URLs from options_data
       if (payload.options_data) {
         const od = payload.options_data as Record<string, unknown>;
-        if (od.image_url && typeof od.image_url === "string" && (od.image_url as string).startsWith("blob:")) {
-          delete od.image_url;
-        }
         // Strip blob URLs from sub-question audio_url fields
         if (Array.isArray(od.questions)) {
           for (const q of od.questions as Record<string, unknown>[]) {
@@ -638,6 +620,23 @@ export function CreateQuestionModal({
           }
         }
 
+        // 에디터 이미지 업로드 (blob URL → R2 상대 경로)
+        try {
+          if (tab.selectedFormat === "essay" && tab.essayPrompt.includes("blob:")) {
+            updatePayload.content = await uploadEditorImages(tab.essayPrompt, context);
+          } else if (tab.selectedFormat === "speaking_part2" && tab.cueCardTopic.includes("blob:")) {
+            const uploadedTopic = await uploadEditorImages(tab.cueCardTopic, context);
+            updatePayload.content = JSON.stringify({
+              topic: uploadedTopic,
+              points: tab.cueCardPoints.filter((p) => p.trim()),
+            });
+          } else if (tab.selectedFormat === "map_labeling" && tab.mapPassage.includes("blob:")) {
+            updatePayload.content = await uploadEditorImages(tab.mapPassage, context);
+          }
+        } catch {
+          toast.error("이미지 업로드에 실패했습니다.");
+        }
+
         // Per-sub-question audio upload for Part 1 / Part 3
         if (tab.selectedFormat === "speaking_part1" || tab.selectedFormat === "speaking_part3") {
           const filledQuestions = tab.speakingQuestions.filter((q) => q.text.trim());
@@ -661,18 +660,6 @@ export function CreateQuestionModal({
               toast.error("Some question audio uploads failed.");
             }
             updatePayload.options_data = { ...existingOd, questions };
-          }
-        }
-
-        // Image file upload
-        const imageFile = tab.essayImageFile || tab.cueCardImageFile || tab.mapImageFile;
-        if (imageFile) {
-          try {
-            const uploaded = await uploadFile(imageFile, "image", context);
-            const existingOptions = payload.options_data || {};
-            updatePayload.options_data = { ...(existingOptions as Record<string, unknown>), image_url: uploaded.path };
-          } catch {
-            toast.error("이미지 업로드에 실패했습니다. 상세 페이지에서 다시 저장해주세요.");
           }
         }
 
@@ -1659,22 +1646,6 @@ export function CreateQuestionModal({
         </div>
       </div>
 
-      {/* 이미지 */}
-      <div className="space-y-3">
-        <RequiredLabel required>지도/이미지</RequiredLabel>
-        <p className="text-xs text-muted-foreground">
-          A~{tab.mapLabels[tab.mapLabels.length - 1] || "F"} 라벨이 표시된 지도 이미지
-        </p>
-        <FileUpload
-          value={tab.mapImageUrl}
-          onChange={(v) => updateTab({ mapImageUrl: v })}
-          accept="image"
-          placeholder="지도/이미지 파일 업로드"
-          deferred
-          onFileReady={(file) => updateTab({ mapImageFile: file })}
-        />
-      </div>
-
       {/* 라벨 설정 + 테이블 */}
       <div className="space-y-3">
         <div className="flex items-center gap-3">
@@ -1821,18 +1792,6 @@ export function CreateQuestionModal({
           onChange={(v) => updateTab({ essayPrompt: v })}
           placeholder="작문 주제를 입력하세요"
           minHeight="200px"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label>이미지 (선택 - Task 1 그래프/차트용)</Label>
-        <FileUpload
-          value={tab.essayImageUrl}
-          onChange={(v) => updateTab({ essayImageUrl: v })}
-          accept="image"
-          placeholder="Task 1 그래프/차트 이미지 업로드"
-          deferred
-          onFileReady={(file) => updateTab({ essayImageFile: file })}
         />
       </div>
     </div>
@@ -2079,7 +2038,7 @@ export function CreateQuestionModal({
               onChange={(v) => updateTab({ cueCardTopic: v })}
               placeholder="e.g. Describe a book that you have recently read."
               minHeight="80px"
-            />
+              />
           </div>
 
           <div className="space-y-3">
@@ -2129,18 +2088,6 @@ export function CreateQuestionModal({
         </div>
       </div>
 
-      {/* Cue Card Image */}
-      <div className="space-y-2">
-        <Label>Cue Card Image (optional)</Label>
-        <FileUpload
-          value={tab.cueCardImageUrl}
-          onChange={(v) => updateTab({ cueCardImageUrl: v })}
-          accept="image"
-          placeholder="Upload cue card image"
-          deferred
-          onFileReady={(file) => updateTab({ cueCardImageFile: file })}
-        />
-      </div>
     </div>
   );
 

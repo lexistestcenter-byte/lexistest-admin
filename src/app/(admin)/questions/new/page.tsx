@@ -72,7 +72,7 @@ import { TableCompletionEditor } from "@/components/questions/table-completion-e
 import { FillBlankEditor, FillBlankDragEditor } from "@/components/questions/fill-blank-editor";
 import { QuestionPreview, tabToPreviewData } from "@/components/questions/question-preview";
 import { FileUpload, uploadFile } from "@/components/ui/file-upload";
-import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { RichTextEditor, uploadEditorImages, stripBlobImages } from "@/components/ui/rich-text-editor";
 
 // =============================================================================
 // question_type 별 정보
@@ -188,14 +188,12 @@ interface QuestionTab {
   writingTitle: string;
   writingCondition: string;
   writingPrompt: string;
-  writingImageUrl: string;
   writingMinWords: string;
 
   // Speaking (Part 1 & Part 3: multi-question groups)
   speakingQuestions: { id: string; text: string; timeLimitSeconds: string; allowResponseReset: boolean; audioUrl: string; audioFile: File | null }[];
   cueCardTopic: string;
   cueCardPoints: string[];
-  cueCardImageUrl: string;
   generateFollowup: boolean;
   relatedPart2Id: string;
   depthLevel: 1 | 2 | 3;
@@ -208,12 +206,6 @@ interface QuestionTab {
   // Map Labeling
   mapLabelingTitle: string;
   mapLabelingPassage: string;
-  mapLabelingImageUrl: string;
-  mapLabelingImageFile: File | null;
-
-  // Pending files (deferred upload)
-  writingImageFile: File | null;
-  cueCardImageFile: File | null;
   mapLabelingLabels: string[];
   mapLabelingItems: { id: string; number: number; statement: string; correctLabel: string }[];
 
@@ -271,7 +263,6 @@ const createDefaultTab = (): QuestionTab => ({
   writingTitle: "",
   writingCondition: "",
   writingPrompt: "",
-  writingImageUrl: "",
   writingMinWords: "",
 
   speakingQuestions: Array.from({ length: 5 }, (_, i) => ({
@@ -284,7 +275,6 @@ const createDefaultTab = (): QuestionTab => ({
   })),
   cueCardTopic: "",
   cueCardPoints: ["", "", "", ""],
-  cueCardImageUrl: "",
   generateFollowup: false,
   relatedPart2Id: "",
   depthLevel: 1,
@@ -295,10 +285,6 @@ const createDefaultTab = (): QuestionTab => ({
 
   mapLabelingTitle: "",
   mapLabelingPassage: "",
-  mapLabelingImageUrl: "",
-  mapLabelingImageFile: null,
-  writingImageFile: null,
-  cueCardImageFile: null,
   mapLabelingLabels: ["A", "B", "C", "D", "E", "F", "G", "H"],
   mapLabelingItems: [{ id: "ml1", number: 1, statement: "", correctLabel: "" }],
 
@@ -669,9 +655,6 @@ export default function NewQuestionPage() {
 
     // Map Labeling 검증
     if (format === "map_labeling") {
-      if (!tab.mapLabelingImageUrl.trim()) {
-        return { valid: false, message: `탭 ${index + 1}: 지도/이미지 URL을 입력하세요.` };
-      }
       if (tab.mapLabelingItems.length === 0) {
         return { valid: false, message: `탭 ${index + 1}: 문제 항목을 추가하세요.` };
       }
@@ -815,7 +798,6 @@ export default function NewQuestionPage() {
           optionsData = {
             title: tab.writingTitle || undefined,
             condition: tab.writingCondition || undefined,
-            image_url: tab.writingImageUrl || undefined,
             min_words: tab.writingMinWords ? parseInt(tab.writingMinWords) : undefined,
           };
         } else if (tab.format === "speaking_part1") {
@@ -832,12 +814,11 @@ export default function NewQuestionPage() {
           };
         } else if (tab.format === "speaking_part2") {
           content = JSON.stringify({
-            topic: tab.cueCardTopic,
+            topic: stripBlobImages(tab.cueCardTopic),
             points: tab.cueCardPoints.filter(p => p.trim()),
           });
           optionsData = {
             generate_followup: tab.generateFollowup,
-            image_url: tab.cueCardImageUrl || undefined,
           };
         } else if (tab.format === "speaking_part3") {
           const filledQuestions = tab.speakingQuestions.filter((q) => q.text.trim());
@@ -855,7 +836,6 @@ export default function NewQuestionPage() {
           content = tab.mapLabelingPassage || " ";
           optionsData = {
             title: tab.mapLabelingTitle || undefined,
-            image_url: tab.mapLabelingImageUrl,
             labels: tab.mapLabelingLabels,
             items: tab.mapLabelingItems.map(i => ({
               number: i.number,
@@ -872,11 +852,11 @@ export default function NewQuestionPage() {
           };
         }
 
-        // 1단계: 파일 URL 제외하고 문제 저장 (deferred 파일은 blob URL이므로)
+        // 1단계: blob URL 제거하고 문제 저장 (deferred 파일은 blob URL이므로)
         const payload = {
           question_type: selectedQuestionType,
           question_format: actualFormat,
-          content,
+          content: stripBlobImages(content),
           title: tab.format === "fill_blank_typing" || tab.format === "fill_blank_drag" || tab.format === "table_completion"
             ? tab.contentTitle
             : tab.format === "essay"
@@ -898,12 +878,9 @@ export default function NewQuestionPage() {
           depth_level: tab.format === "speaking_part3" ? tab.depthLevel : undefined,
         };
 
-        // options_data에서 blob URL 제거 (이미지/오디오는 나중에 업로드 후 업데이트)
+        // options_data에서 blob URL 제거 (오디오는 나중에 업로드 후 업데이트)
         if (payload.options_data) {
           const od = payload.options_data as Record<string, unknown>;
-          if (od.image_url && typeof od.image_url === "string" && (od.image_url as string).startsWith("blob:")) {
-            delete od.image_url;
-          }
           if (Array.isArray(od.questions)) {
             for (const q of od.questions as Record<string, unknown>[]) {
               if (q.audio_url && typeof q.audio_url === "string" && (q.audio_url as string).startsWith("blob:")) {
@@ -952,13 +929,21 @@ export default function NewQuestionPage() {
             }
           }
 
-          // 이미지 파일 업로드 (writing, speaking part2, map_labeling)
-          const imageFile = tab.writingImageFile || tab.cueCardImageFile || tab.mapLabelingImageFile;
-          if (imageFile) {
-            const uploaded = await uploadFile(imageFile, "image", context);
-            // options_data에 image_url 추가
-            const existingOptions = payload.options_data || {};
-            updatePayload.options_data = { ...existingOptions as Record<string, unknown>, image_url: uploaded.path };
+          // 에디터 이미지 업로드 (blob URL → R2 상대 경로)
+          try {
+            if (tab.format === "essay" && tab.writingPrompt.includes("blob:")) {
+              updatePayload.content = await uploadEditorImages(tab.writingPrompt, context);
+            } else if (tab.format === "speaking_part2" && tab.cueCardTopic.includes("blob:")) {
+              const uploadedTopic = await uploadEditorImages(tab.cueCardTopic, context);
+              updatePayload.content = JSON.stringify({
+                topic: uploadedTopic,
+                points: tab.cueCardPoints.filter(p => p.trim()),
+              });
+            } else if (tab.format === "map_labeling" && tab.mapLabelingPassage.includes("blob:")) {
+              updatePayload.content = await uploadEditorImages(tab.mapLabelingPassage, context);
+            }
+          } catch {
+            toast.error("이미지 업로드에 실패했습니다. 상세 페이지에서 다시 저장해주세요.");
           }
 
           // 업데이트할 내용이 있으면 PUT 요청
@@ -1496,9 +1481,6 @@ export default function NewQuestionPage() {
                 setCondition={(v) => updateCurrentTab("writingCondition", v)}
                 prompt={currentTab.writingPrompt}
                 setPrompt={(v) => updateCurrentTab("writingPrompt", v)}
-                imageUrl={currentTab.writingImageUrl}
-                setImageUrl={(v) => updateCurrentTab("writingImageUrl", v)}
-                onImageFileReady={(file) => updateCurrentTab("writingImageFile", file)}
                 minWords={currentTab.writingMinWords}
                 setMinWords={(v) => updateCurrentTab("writingMinWords", v)}
               />
@@ -1519,9 +1501,6 @@ export default function NewQuestionPage() {
                 setTopic={(v) => updateCurrentTab("cueCardTopic", v)}
                 points={currentTab.cueCardPoints}
                 setPoints={(v) => updateCurrentTab("cueCardPoints", v)}
-                imageUrl={currentTab.cueCardImageUrl}
-                setImageUrl={(v) => updateCurrentTab("cueCardImageUrl", v)}
-                onImageFileReady={(file) => updateCurrentTab("cueCardImageFile", file)}
               />
             )}
 
@@ -1546,9 +1525,6 @@ export default function NewQuestionPage() {
                 setTitle={(v) => updateCurrentTab("mapLabelingTitle", v)}
                 passage={currentTab.mapLabelingPassage}
                 setPassage={(v) => updateCurrentTab("mapLabelingPassage", v)}
-                imageUrl={currentTab.mapLabelingImageUrl}
-                setImageUrl={(v) => updateCurrentTab("mapLabelingImageUrl", v)}
-                onImageFileReady={(file) => updateCurrentTab("mapLabelingImageFile", file)}
                 labels={currentTab.mapLabelingLabels}
                 setLabels={(v) => updateCurrentTab("mapLabelingLabels", v)}
                 items={currentTab.mapLabelingItems}
@@ -1987,9 +1963,6 @@ function WritingEditor({
   setCondition,
   prompt,
   setPrompt,
-  imageUrl,
-  setImageUrl,
-  onImageFileReady,
   minWords,
   setMinWords,
 }: {
@@ -1999,9 +1972,6 @@ function WritingEditor({
   setCondition: (v: string) => void;
   prompt: string;
   setPrompt: (v: string) => void;
-  imageUrl: string;
-  setImageUrl: (v: string) => void;
-  onImageFileReady?: (file: File | null) => void;
   minWords: string;
   setMinWords: (v: string) => void;
 }) {
@@ -2062,18 +2032,6 @@ function WritingEditor({
           onChange={setPrompt}
           placeholder="작문 주제를 입력하세요"
           minHeight="200px"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label>이미지 (선택 - Task 1 그래프/차트용)</Label>
-        <FileUpload
-          value={imageUrl}
-          onChange={setImageUrl}
-          accept="image"
-          placeholder="Task 1 그래프/차트 이미지 업로드"
-          deferred
-          onFileReady={onImageFileReady}
         />
       </div>
     </div>
@@ -2239,17 +2197,11 @@ function SpeakingPart2Editor({
   setTopic,
   points,
   setPoints,
-  imageUrl,
-  setImageUrl,
-  onImageFileReady,
 }: {
   topic: string;
   setTopic: (v: string) => void;
   points: string[];
   setPoints: (v: string[]) => void;
-  imageUrl: string;
-  setImageUrl: (v: string) => void;
-  onImageFileReady?: (file: File | null) => void;
 }) {
   return (
     <div className="space-y-6">
@@ -2282,19 +2234,6 @@ function SpeakingPart2Editor({
             placeholder={`포인트 ${index + 1}`}
           />
         ))}
-      </div>
-
-      {/* 큐카드 이미지 */}
-      <div className="space-y-2">
-        <Label>큐카드 이미지 (선택)</Label>
-        <FileUpload
-          value={imageUrl}
-          onChange={setImageUrl}
-          accept="image"
-          placeholder="큐카드 이미지 업로드"
-          deferred
-          onFileReady={onImageFileReady}
-        />
       </div>
     </div>
   );
@@ -2518,9 +2457,6 @@ function MapLabelingEditor({
   setTitle,
   passage,
   setPassage,
-  imageUrl,
-  setImageUrl,
-  onImageFileReady,
   labels,
   setLabels,
   items,
@@ -2530,9 +2466,6 @@ function MapLabelingEditor({
   setTitle: (v: string) => void;
   passage: string;
   setPassage: (v: string) => void;
-  imageUrl: string;
-  setImageUrl: (v: string) => void;
-  onImageFileReady?: (file: File | null) => void;
   labels: string[];
   setLabels: (v: string[]) => void;
   items: MapLabelingItem[];
@@ -2587,24 +2520,8 @@ function MapLabelingEditor({
             onChange={setPassage}
             placeholder="지도에 대한 설명 텍스트 (선택사항)"
             minHeight="60px"
-          />
+            />
         </div>
-      </div>
-
-      {/* 이미지 */}
-      <div className="space-y-3">
-        <RequiredLabel required>지도/이미지</RequiredLabel>
-        <p className="text-xs text-muted-foreground">
-          A~{labels[labels.length - 1] || "F"} 라벨이 표시된 지도 이미지
-        </p>
-        <FileUpload
-          value={imageUrl}
-          onChange={setImageUrl}
-          accept="image"
-          placeholder="지도/이미지 파일 업로드"
-          deferred
-          onFileReady={onImageFileReady}
-        />
       </div>
 
       {/* 라벨 설정 + 테이블 */}
