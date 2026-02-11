@@ -50,12 +50,12 @@ export function StepBasicInfo({
         <CardHeader>
           <CardTitle>기본 정보</CardTitle>
           <CardDescription>
-            {sectionType.charAt(0).toUpperCase() + sectionType.slice(1)} 섹션
+            {sectionType.charAt(0).toUpperCase() + sectionType.slice(1)} 시험
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>섹션명 <span className="text-red-500">*</span></Label>
+            <Label>시험명 <span className="text-red-500">*</span></Label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -67,7 +67,7 @@ export function StepBasicInfo({
             <RichTextEditor
               value={description}
               onChange={setDescription}
-              placeholder="섹션 설명..."
+              placeholder="시험 설명..."
               minHeight="80px"
             />
           </div>
@@ -96,9 +96,9 @@ export function StepBasicInfo({
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>연습 섹션</Label>
+                <Label>연습 시험</Label>
                 <p className="text-xs text-muted-foreground">
-                  연습용 섹션으로 표시됩니다.
+                  연습용 시험으로 표시됩니다.
                 </p>
               </div>
               <Switch checked={isPractice} onCheckedChange={setIsPractice} />
@@ -110,7 +110,7 @@ export function StepBasicInfo({
           <CardHeader>
             <CardTitle>안내 페이지</CardTitle>
             <CardDescription>
-              섹션 시작 전 표시될 안내 내용입니다. (선택)
+              시험 시작 전 표시될 안내 내용입니다. (선택)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

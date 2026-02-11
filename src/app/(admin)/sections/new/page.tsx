@@ -19,8 +19,8 @@ export default function NewSectionPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="섹션 생성"
-        description="문제들을 조합하여 새로운 섹션을 생성합니다."
+        title="시험 생성"
+        description="문제들을 조합하여 새로운 시험을 생성합니다."
         actions={
           <div className="flex gap-2">
             <Button variant="outline" asChild>

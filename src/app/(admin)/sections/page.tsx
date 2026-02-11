@@ -115,7 +115,7 @@ export default function SectionsPage() {
       setTotalItems(result?.pagination?.total || 0);
     } catch (error) {
       console.error("Error loading sections:", error);
-      toast.error("섹션 목록을 불러오는데 실패했습니다.");
+      toast.error("시험 목록을 불러오는데 실패했습니다.");
     } finally {
       setIsLoading(false);
     }
@@ -135,8 +135,8 @@ export default function SectionsPage() {
 
   // Delete handler (toast-based confirmation)
   const confirmDelete = (section: SectionRow) => {
-    toast.warning(`"${section.title}" 섹션을 삭제하시겠습니까?`, {
-      description: "이 섹션에 연결된 문제나 그룹은 삭제되지 않습니다.",
+    toast.warning(`"${section.title}" 시험을 삭제하시겠습니까?`, {
+      description: "이 시험에 연결된 문제나 그룹은 삭제되지 않습니다.",
       actionButtonStyle: { backgroundColor: "hsl(0 84% 60%)", color: "white" },
       action: {
         label: "삭제",
@@ -144,19 +144,19 @@ export default function SectionsPage() {
           try {
             const { error: apiError } = await api.delete(`/api/sections/${section.id}`);
             if (apiError) throw new Error(apiError);
-            toast.success("섹션이 삭제되었습니다.");
+            toast.success("시험이 삭제되었습니다.");
             loadSections();
           } catch (error) {
             console.error("Error deleting section:", error);
             toast.error(
-              error instanceof Error ? error.message : "섹션 삭제에 실패했습니다."
+              error instanceof Error ? error.message : "시험 삭제에 실패했습니다."
             );
           }
         },
       },
       cancel: {
         label: "취소",
-        onClick: () => {},
+        onClick: () => { },
       },
     });
   };
@@ -243,7 +243,7 @@ export default function SectionsPage() {
   const columns: Column<SectionRow>[] = [
     {
       key: "section",
-      header: "섹션",
+      header: "시험",
       cell: (section) => (
         <div className="flex items-center gap-3 min-w-0">
           {section.image_url ? (
@@ -340,10 +340,10 @@ export default function SectionsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="섹션 관리"
-        description="문제들을 조합하여 섹션을 구성합니다. 섹션은 여러 패키지에서 재사용할 수 있습니다."
+        title="시험 관리"
+        description="과목별 시험을 생성합니다."
         createHref="/sections/new"
-        createLabel="섹션 생성"
+        createLabel="시험 생성"
         actions={
           <Button
             variant="outline"
@@ -394,7 +394,7 @@ export default function SectionsPage() {
         <DataTable
           columns={columns}
           data={sections}
-          searchPlaceholder="섹션명으로 검색..."
+          searchPlaceholder="시험명으로 검색..."
           totalItems={totalItems}
           pageSize={pageSize}
           currentPage={currentPage}

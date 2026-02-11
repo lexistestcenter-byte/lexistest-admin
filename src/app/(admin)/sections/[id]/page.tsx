@@ -39,7 +39,7 @@ export default function SectionEditPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="섹션 편집"
+        title="시험 편집"
         description={s.section.title}
         actions={
           <div className="flex gap-2">

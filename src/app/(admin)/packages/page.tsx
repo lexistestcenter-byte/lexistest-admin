@@ -40,7 +40,7 @@ import { getCdnUrl } from "@/lib/cdn";
 const typeFilters = [
   { id: "all", label: "전체", icon: null },
   { id: "full", label: "Full Test", icon: FileCheck, color: "text-blue-500" },
-  { id: "section_only", label: "섹션별", icon: LayoutGrid, color: "text-emerald-500" },
+  { id: "section_only", label: "시험별", icon: LayoutGrid, color: "text-emerald-500" },
   { id: "practice", label: "연습", icon: BookMarked, color: "text-amber-500" },
 ];
 
@@ -59,7 +59,7 @@ interface PackageRow {
 
 const examTypeLabels = {
   full: "Full Test",
-  section_only: "섹션별",
+  section_only: "시험별",
 };
 
 const examTypeColors = {
@@ -195,7 +195,7 @@ export default function PackagesPage() {
       header: "구성",
       cell: (pkg) => (
         <div>
-          <div className="font-medium">{pkg.section_count}개 섹션</div>
+          <div className="font-medium">{pkg.section_count}개 시험</div>
         </div>
       ),
     },
@@ -261,7 +261,7 @@ export default function PackagesPage() {
     <div className="space-y-6">
       <PageHeader
         title="패키지 관리"
-        description="섹션들을 조합하여 시험 패키지를 구성합니다."
+        description="시험들을 조합하여 시험 패키지를 구성합니다."
         createHref="/packages/new"
         createLabel="패키지 생성"
       />
@@ -339,7 +339,7 @@ export default function PackagesPage() {
             <AlertDialogTitle>패키지 삭제</AlertDialogTitle>
             <AlertDialogDescription>
               &ldquo;{deleteTarget?.title}&rdquo; 패키지를 삭제하시겠습니까?
-              이 작업은 되돌릴 수 없으며, 연결된 섹션 구성도 함께 삭제됩니다.
+              이 작업은 되돌릴 수 없으며, 연결된 시험 구성도 함께 삭제됩니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

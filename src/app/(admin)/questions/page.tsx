@@ -311,7 +311,7 @@ export default function QuestionsPage() {
     <div className="space-y-6">
       <PageHeader
         title="문제 관리"
-        description="독립적인 문제를 생성합니다. 문제는 여러 섹션에서 재사용할 수 있습니다."
+        description="독립적인 문제를 생성합니다. 문제는 여러 시험에서 재사용할 수 있습니다."
         createHref="/questions/new"
         createLabel="문제 생성"
         actions={
@@ -441,7 +441,7 @@ export default function QuestionsPage() {
               <br />
               <br />
               <span className="text-amber-600">
-                이 문제가 포함된 그룹이나 섹션에서 제거됩니다.
+                이 문제가 포함된 그룹이나 시험에서 제거됩니다.
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -329,7 +329,7 @@ export function useNewSection() {
   const handleSectionTypeChange = useCallback((newType: string) => {
     const hasQuestions = questionGroups.some((g) => g.questions.length > 0);
     if (hasQuestions && newType !== sectionType) {
-      toast.warning("섹션 유형을 변경하면 추가된 문제 목록이 초기화됩니다. 계속하시겠습니까?", {
+      toast.warning("시험 과목을 변경하면 추가된 문제 목록이 초기화됩니다. 계속하시겠습니까?", {
         actionButtonStyle: { backgroundColor: "hsl(0 84% 60%)", color: "white" },
         action: {
           label: "변경",
@@ -339,7 +339,7 @@ export function useNewSection() {
             setQuestionGroups([]);
           },
         },
-        cancel: { label: "취소", onClick: () => {} },
+        cancel: { label: "취소", onClick: () => { } },
       });
     } else {
       setSectionType(newType);
@@ -353,11 +353,11 @@ export function useNewSection() {
   const validateStep = (step: number): boolean => {
     if (step === 1) {
       if (!sectionType) {
-        toast.error("섹션 유형을 선택해주세요.");
+        toast.error("시험 과목을 선택해주세요.");
         return false;
       }
       if (!title.trim()) {
-        toast.error("섹션명을 입력해주세요.");
+        toast.error("시험명을 입력해주세요.");
         return false;
       }
       return true;
@@ -378,14 +378,14 @@ export function useNewSection() {
 
   const handleSave = async () => {
     if (!sectionType || !title) {
-      toast.error("섹션 유형과 제목은 필수입니다.");
+      toast.error("시험 유형과 제목은 필수입니다.");
       return;
     }
 
     // 최소 1세트에 1개 이상의 문제가 있어야 저장 가능
     const hasValidGroup = questionGroups.some((g) => g.questions.length > 0);
     if (!hasValidGroup) {
-      toast.error("최소 1개 세트에 문제가 1개 이상 추가되어야 저장할 수 있습니다.");
+      toast.error("최소 1개 섹션에 문제가 1개 이상 추가되어야 저장할 수 있습니다.");
       return;
     }
 
@@ -477,12 +477,12 @@ export function useNewSection() {
         }
       }
 
-      toast.success("섹션이 생성되었습니다.");
+      toast.success("시험이 생성되었습니다.");
       router.push("/sections");
     } catch (error) {
       console.error("Error saving section:", error);
       toast.error(
-        error instanceof Error ? error.message : "섹션 생성에 실패했습니다."
+        error instanceof Error ? error.message : "시험 생성에 실패했습니다."
       );
     } finally {
       setIsSaving(false);
@@ -607,7 +607,7 @@ export function useNewSection() {
     if (activeGroupId && !expandedGroups.has(activeGroupId)) {
       setExpandedGroups((prev) => new Set(prev).add(activeGroupId));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGroupId]);
 
   // ─── Build preview props ───────────────────────────────────

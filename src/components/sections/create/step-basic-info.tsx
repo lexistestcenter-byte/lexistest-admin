@@ -59,12 +59,12 @@ export function StepBasicInfo({
       <Card>
         <CardHeader>
           <CardTitle>기본 정보</CardTitle>
-          <CardDescription>섹션의 기본 정보를 입력합니다.</CardDescription>
+          <CardDescription>시험의 기본 정보를 입력합니다.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>
-              섹션 유형 <span className="text-red-500">*</span>
+              시험 과목 <span className="text-red-500">*</span>
             </Label>
             <Select
               value={sectionType}
@@ -84,7 +84,7 @@ export function StepBasicInfo({
 
           <div className="space-y-2">
             <Label>
-              섹션명 <span className="text-red-500">*</span>
+              시험명 <span className="text-red-500">*</span>
             </Label>
             <Input
               placeholder="예: Reading Passage 1 - Glass History"
@@ -96,7 +96,7 @@ export function StepBasicInfo({
           <div className="space-y-2">
             <Label>설명</Label>
             <RichTextEditor
-              placeholder="섹션에 대한 설명을 입력하세요..."
+              placeholder="시험에 대한 설명을 입력하세요..."
               value={description}
               onChange={setDescription}
               minHeight="80px"
@@ -128,9 +128,9 @@ export function StepBasicInfo({
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>연습 섹션</Label>
+                <Label>연습 시험</Label>
                 <p className="text-xs text-muted-foreground">
-                  연습용 섹션으로 표시됩니다.
+                  연습용 시험으로 표시됩니다.
                 </p>
               </div>
               <Switch checked={isPractice} onCheckedChange={setIsPractice} />
@@ -142,7 +142,7 @@ export function StepBasicInfo({
           <CardHeader>
             <CardTitle>안내 페이지</CardTitle>
             <CardDescription>
-              섹션 시작 전 표시될 안내 내용입니다. (선택)
+              시험 시작 전 표시될 안내 내용입니다. (선택)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

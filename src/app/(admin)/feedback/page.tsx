@@ -113,7 +113,7 @@ const columns: Column<FeedbackRow>[] = [
   },
   {
     key: "section",
-    header: "섹션",
+    header: "시험",
     cell: (feedback) => (
       <span
         className={`px-2 py-1 text-xs rounded ${
@@ -201,10 +201,10 @@ export default function FeedbackPage() {
       <div className="flex gap-4">
         <Select defaultValue="all">
           <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="섹션" />
+            <SelectValue placeholder="시험" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">전체 섹션</SelectItem>
+            <SelectItem value="all">전체 시험</SelectItem>
             <SelectItem value="writing">Writing</SelectItem>
             <SelectItem value="speaking">Speaking</SelectItem>
           </SelectContent>

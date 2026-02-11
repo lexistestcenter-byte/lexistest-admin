@@ -36,7 +36,7 @@ export function DeleteDialog({
             <strong className="text-foreground">{questionCode}</strong>
             <br /><br />
             <span className="text-amber-600">
-              이 문제가 포함된 그룹이나 섹션에서 제거됩니다.
+              이 문제가 포함된 그룹이나 시험에서 제거됩니다.
             </span>
           </AlertDialogDescription>
         </AlertDialogHeader>

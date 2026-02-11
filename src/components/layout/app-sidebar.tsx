@@ -76,7 +76,7 @@ const navigationGroups: NavGroup[] = [
         permission: "questions",
       },
       {
-        title: "섹션 관리",
+        title: "시험 관리",
         href: "/sections",
         icon: Layers,
         permission: "sections",

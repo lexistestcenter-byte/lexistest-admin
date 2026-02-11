@@ -41,7 +41,7 @@ export interface QuestionGroup {
 // ─── Constants ─────────────────────────────────────────────────
 
 export const TOTAL_STEPS = 2;
-export const STEP_LABELS = ["기본 정보", "섹션 구성"];
+export const STEP_LABELS = ["기본 정보", "시험 구성"];
 
 let tempIdCounter = 0;
 export function generateTempId() {

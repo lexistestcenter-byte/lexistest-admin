@@ -63,7 +63,7 @@ function getModeLabel(mode: string): string {
     case "full":
       return "풀시험";
     case "section":
-      return "섹션";
+      return "시험";
     default:
       return mode;
   }

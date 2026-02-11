@@ -72,7 +72,7 @@ const typeLabels: Record<string, string> = {
 
 const examTypeLabels: Record<string, string> = {
   full: "Full Test",
-  section: "섹션별",
+  section: "시험별",
   practice: "연습",
   free: "무료",
 };
@@ -111,7 +111,7 @@ export default function NewPackagePage() {
       if (apiError) throw new Error(apiError);
       setSections(data?.sections || []);
     } catch (err) {
-      setSectionsError(err instanceof Error ? err.message : "섹션 목록 조회 실패");
+      setSectionsError(err instanceof Error ? err.message : "시험 목록 조회 실패");
     } finally {
       setSectionsLoading(false);
     }
@@ -180,7 +180,7 @@ export default function NewPackagePage() {
     <div className="space-y-6">
       <PageHeader
         title="패키지 생성"
-        description="섹션들을 조합하여 새로운 시험 패키지를 생성합니다."
+        description="시험들을 조합하여 새로운 시험 패키지를 생성합니다."
         actions={
           <div className="flex gap-2">
             <Button variant="outline" asChild>
@@ -238,15 +238,15 @@ export default function NewPackagePage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="full">Full Test</SelectItem>
-                    <SelectItem value="section">섹션별</SelectItem>
+                    <SelectItem value="section">시험별</SelectItem>
                     <SelectItem value="practice">연습</SelectItem>
                     <SelectItem value="free">무료</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  {examType === "full" && "4영역(L/R/W/S) 풀 세트 시험 패키지입니다."}
+                  {examType === "full" && "4영역(L/R/W/S) 풀 섹션 시험 패키지입니다."}
                   {examType === "section" && "특정 영역만 선택하여 구성하는 패키지입니다."}
-                  {examType === "practice" && "연습 전용 섹션들로만 구성할 수 있습니다."}
+                  {examType === "practice" && "연습 전용 시험들로만 구성할 수 있습니다."}
                   {examType === "free" && "무료로 제공되는 패키지입니다."}
                 </p>
               </div>
@@ -280,7 +280,7 @@ export default function NewPackagePage() {
                   <Badge variant="outline">{examTypeLabels[examType]}</Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">선택된 섹션</span>
+                  <span className="text-muted-foreground">선택된 시험</span>
                   <span className="font-medium">{selectedSections.length}개</span>
                 </div>
                 <div className="flex justify-between">
@@ -309,9 +309,9 @@ export default function NewPackagePage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>섹션 선택</CardTitle>
+              <CardTitle>시험 선택</CardTitle>
               <CardDescription>
-                {examType === "practice" ? "연습 전용 섹션만 표시됩니다." : "패키지에 포함할 섹션들을 선택하세요."}
+                {examType === "practice" ? "연습 전용 시험만 표시됩니다." : "패키지에 포함할 시험들을 선택하세요."}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -319,7 +319,7 @@ export default function NewPackagePage() {
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="섹션 검색..."
+                    placeholder="시험 검색..."
                     className="pl-9"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -348,7 +348,7 @@ export default function NewPackagePage() {
               {sectionsLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  <span className="ml-2 text-sm text-muted-foreground">섹션 불러오는 중...</span>
+                  <span className="ml-2 text-sm text-muted-foreground">시험 불러오는 중...</span>
                 </div>
               ) : (
                 <div className="border rounded-lg max-h-[350px] overflow-y-auto">
@@ -357,7 +357,7 @@ export default function NewPackagePage() {
                       <TableRow>
                         <TableHead className="w-[50px]"></TableHead>
                         <TableHead>유형</TableHead>
-                        <TableHead>섹션명</TableHead>
+                        <TableHead>시험명</TableHead>
                         <TableHead className="text-right">시간</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -384,7 +384,7 @@ export default function NewPackagePage() {
                       {filteredSections.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                            {examType === "practice" ? "연습 전용 섹션이 없습니다." : "섹션이 없습니다."}
+                            {examType === "practice" ? "연습 전용 시험이 없습니다." : "시험이 없습니다."}
                           </TableCell>
                         </TableRow>
                       )}
@@ -394,7 +394,7 @@ export default function NewPackagePage() {
               )}
 
               <div className="flex justify-between items-center text-sm text-muted-foreground">
-                <span>{filteredSections.length}개 섹션</span>
+                <span>{filteredSections.length}개 시험</span>
                 <span>{selectedSections.length}개 선택됨</span>
               </div>
             </CardContent>
@@ -403,7 +403,7 @@ export default function NewPackagePage() {
           {/* 선택된 섹션 */}
           <Card>
             <CardHeader>
-              <CardTitle>선택된 섹션 ({selectedSections.length})</CardTitle>
+              <CardTitle>선택된 시험 ({selectedSections.length})</CardTitle>
               <CardDescription>드래그하여 순서를 변경할 수 있습니다.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -427,7 +427,7 @@ export default function NewPackagePage() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">위 목록에서 섹션을 선택하세요.</div>
+                <div className="text-center py-8 text-muted-foreground">위 목록에서 시험을 선택하세요.</div>
               )}
             </CardContent>
           </Card>

@@ -93,7 +93,7 @@ export function StepStructure({
                       <div>
                         <CardTitle>콘텐츠 블록 ({contentBlocks.length})</CardTitle>
                         <CardDescription>
-                          여러 콘텐츠를 추가하여 문제 그룹별로 연결합니다.
+                          여러 콘텐츠를 추가하여 시험 구조별로 연결합니다.
                         </CardDescription>
                       </div>
                     </div>
@@ -136,18 +136,18 @@ export function StepStructure({
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>
-                    문제 그룹{" "}
+                    시험 구조{" "}
                     <span className="text-muted-foreground font-normal text-sm">
                       ({questionGroups.length}그룹, {totalItemCount}문항)
                     </span>
                   </CardTitle>
                   <CardDescription>
-                    그룹별로 문제를 구성합니다.
+                    섹션과 문제를 구성합니다.
                   </CardDescription>
                 </div>
                 <Button size="sm" onClick={addSet}>
                   <FolderPlus className="mr-1 h-4 w-4" />
-                  세트 추가
+                  섹션 추가
                 </Button>
               </div>
             </CardHeader>
@@ -191,10 +191,10 @@ export function StepStructure({
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
                   <FolderPlus className="h-8 w-8 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">세트가 없습니다.</p>
+                  <p className="text-sm">섹션이 없습니다.</p>
                   <Button size="sm" onClick={addSet} className="mt-3">
                     <Plus className="mr-1 h-4 w-4" />
-                    첫 번째 세트 추가
+                    첫 번째 섹션 추가
                   </Button>
                 </div>
               )}
@@ -214,7 +214,7 @@ export function StepStructure({
         <CardContent>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">섹션 유형</p>
+              <p className="text-xs text-muted-foreground">시험 유형</p>
               {sectionType ? (
                 <Badge className={typeColors[sectionType] || "bg-gray-100"}>
                   {sectionType.charAt(0).toUpperCase() + sectionType.slice(1)}
@@ -224,7 +224,7 @@ export function StepStructure({
               )}
             </div>
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">세트 수</p>
+              <p className="text-xs text-muted-foreground">섹션 수</p>
               <p className="text-sm font-medium">{questionGroups.length}개</p>
             </div>
             <div className="space-y-1">

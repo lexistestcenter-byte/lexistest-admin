@@ -73,7 +73,7 @@ export function StepStructure({
                   <div>
                     <CardTitle>콘텐츠 블록 ({contentBlocks.length})</CardTitle>
                     <CardDescription>
-                      여러 콘텐츠를 추가하여 문제 그룹별로 연결합니다.
+                      여러 콘텐츠를 추가하여 시험 구조별로 연결합니다.
                     </CardDescription>
                   </div>
                 </div>
@@ -114,18 +114,18 @@ export function StepStructure({
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>
-                  문제 그룹{" "}
+                  시험 구조{" "}
                   <span className="text-muted-foreground font-normal text-sm">
                     ({numberedGroups.length}그룹, {totalItemCount}문항)
                   </span>
                 </CardTitle>
                 <CardDescription>
-                  그룹별로 문제를 구성합니다.
+                  섹션과 문제를 구성합니다.
                 </CardDescription>
               </div>
               <Button size="sm" onClick={handleAddGroup}>
                 <FolderPlus className="mr-1 h-4 w-4" />
-                그룹 추가
+                섹션 추가
               </Button>
             </div>
           </CardHeader>
@@ -167,9 +167,9 @@ export function StepStructure({
             ) : (
               <div className="text-center py-12 text-muted-foreground">
                 <ArrowUpDown className="h-8 w-8 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">아직 문제 그룹이 없습니다.</p>
+                <p className="text-sm">아직 시험 구조가 없습니다.</p>
                 <p className="text-xs mt-1">
-                  &quot;그룹 추가&quot; 버튼을 클릭하세요.
+                  &quot;섹션 추가&quot; 버튼을 클릭하세요.
                 </p>
               </div>
             )}

@@ -89,14 +89,14 @@ export function useSectionEdit(id: string) {
         const { data, error } = await api.get<SectionData>(`/api/sections/${id}`);
         if (error) {
           if (error.includes("404") || error.includes("not found")) {
-            toast.error("섹션을 찾을 수 없습니다.");
+            toast.error("시험을 찾을 수 없습니다.");
             router.push("/sections");
             return;
           }
           throw new Error(error);
         }
 
-        if (!data) throw new Error("섹션 데이터가 없습니다.");
+        if (!data) throw new Error("시험 데이터가 없습니다.");
         setSection(data);
         setTitle(data.title);
         setDescription(data.description || "");
@@ -106,7 +106,7 @@ export function useSectionEdit(id: string) {
         setInstructionHtml(data.instruction_html || "");
       } catch (error) {
         console.error("Error loading section:", error);
-        toast.error("섹션 정보를 불러오는데 실패했습니다.");
+        toast.error("시험 정보를 불러오는데 실패했습니다.");
       } finally {
         setIsLoading(false);
       }
@@ -286,7 +286,7 @@ export function useSectionEdit(id: string) {
         question_number_start: totalItemCount + 1,
       });
       if (error) throw new Error(error);
-      toast.success("문제 그룹이 추가되었습니다.");
+      toast.success("시험 구조가 추가되었습니다.");
       await loadStructure({ preservePendingDeletes: true });
     } catch (error) {
       console.error("Error adding group:", error);
@@ -311,7 +311,7 @@ export function useSectionEdit(id: string) {
     if (activeGroupId === groupId) {
       setActiveGroupId(questionGroups.find((g) => g.id !== groupId)?.id || null);
     }
-    toast.info("문제 그룹이 제거되었습니다. 저장 시 반영됩니다.");
+    toast.info("시험 구조가 제거되었습니다. 저장 시 반영됩니다.");
   };
 
   // ─── Add questions to group ────────────────────────────────
@@ -446,13 +446,13 @@ export function useSectionEdit(id: string) {
 
   const handleSave = async () => {
     if (!title.trim()) {
-      toast.error("섹션명은 필수입니다.");
+      toast.error("시험명은 필수입니다.");
       return;
     }
 
     const hasValidGroup = questionGroups.some((g) => g.items.length > 0);
     if (!hasValidGroup) {
-      toast.error("최소 1개 세트에 문제가 1개 이상 추가되어야 저장할 수 있습니다.");
+      toast.error("최소 1개 섹션에 문제가 1개 이상 추가되어야 저장할 수 있습니다.");
       return;
     }
 
@@ -527,7 +527,7 @@ export function useSectionEdit(id: string) {
       setPendingGroupDeletes([]);
       setPendingItemDeletes([]);
 
-      toast.success("섹션이 저장되었습니다.");
+      toast.success("시험이 저장되었습니다.");
     } catch (error) {
       console.error("Error saving section:", error);
       toast.error(
@@ -541,8 +541,8 @@ export function useSectionEdit(id: string) {
   // ─── Delete ────────────────────────────────────────────────
 
   const confirmDelete = () => {
-    toast.warning(`"${title}" 섹션을 삭제하시겠습니까?`, {
-      description: "이 섹션에 연결된 문제는 삭제되지 않습니다.",
+    toast.warning(`"${title}" 시험을 삭제하시겠습니까?`, {
+      description: "이 시험에 연결된 문제는 삭제되지 않습니다.",
       actionButtonStyle: { backgroundColor: "hsl(0 84% 60%)", color: "white" },
       action: {
         label: "삭제",
@@ -550,7 +550,7 @@ export function useSectionEdit(id: string) {
           try {
             const { error } = await api.delete(`/api/sections/${id}`);
             if (error) throw new Error(error);
-            toast.success("섹션이 삭제되었습니다.");
+            toast.success("시험이 삭제되었습니다.");
             router.push("/sections");
           } catch (error) {
             console.error("Error deleting section:", error);
@@ -570,7 +570,7 @@ export function useSectionEdit(id: string) {
   const validateStep = (step: number): boolean => {
     if (step === 1) {
       if (!title.trim()) {
-        toast.error("섹션명을 입력해주세요.");
+        toast.error("시험명을 입력해주세요.");
         return false;
       }
       return true;

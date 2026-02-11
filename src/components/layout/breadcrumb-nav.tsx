@@ -19,7 +19,7 @@ const pathNameMap: Record<string, string> = {
   groups: "학생 그룹",
   exams: "시험 관리",
   questions: "문제 관리",
-  sections: "섹션 관리",
+  sections: "시험 관리",
   packages: "패키지 관리",
   passages: "지문 관리",
   audio: "오디오 관리",

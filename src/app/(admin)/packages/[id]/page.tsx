@@ -317,7 +317,7 @@ export default function EditPackagePage() {
     <div className="space-y-6">
       <PageHeader
         title="패키지 수정"
-        description="섹션 구성을 변경하여 시험 패키지를 수정합니다."
+        description="시험 구성을 변경하여 시험 패키지를 수정합니다."
         actions={
           <div className="flex gap-2">
             <AlertDialog>
@@ -402,7 +402,7 @@ export default function EditPackagePage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="full">Full Test</SelectItem>
-                      <SelectItem value="section_only">섹션별</SelectItem>
+                      <SelectItem value="section_only">시험별</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -476,7 +476,7 @@ export default function EditPackagePage() {
             <CardContent>
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">선택된 섹션</span>
+                  <span className="text-muted-foreground">선택된 시험</span>
                   <span className="font-medium">{selectedSectionIds.length}개</span>
                 </div>
                 <div className="flex justify-between">
@@ -521,15 +521,15 @@ export default function EditPackagePage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>섹션 선택</CardTitle>
-              <CardDescription>패키지에 포함할 섹션들을 선택하세요.</CardDescription>
+              <CardTitle>시험 선택</CardTitle>
+              <CardDescription>패키지에 포함할 시험들을 선택하세요.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="섹션 검색..."
+                    placeholder="시험 검색..."
                     className="pl-9"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -552,7 +552,7 @@ export default function EditPackagePage() {
               {sectionsLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  <span className="ml-2 text-sm text-muted-foreground">섹션 불러오는 중...</span>
+                  <span className="ml-2 text-sm text-muted-foreground">시험 불러오는 중...</span>
                 </div>
               ) : (
                 <div className="border rounded-lg max-h-[350px] overflow-y-auto">
@@ -561,7 +561,7 @@ export default function EditPackagePage() {
                       <TableRow>
                         <TableHead className="w-[50px]"></TableHead>
                         <TableHead>유형</TableHead>
-                        <TableHead>섹션명</TableHead>
+                        <TableHead>시험명</TableHead>
                         <TableHead className="text-right">시간</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -597,7 +597,7 @@ export default function EditPackagePage() {
                       {filteredSections.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                            섹션이 없습니다.
+                            시험이 없습니다.
                           </TableCell>
                         </TableRow>
                       )}
@@ -607,7 +607,7 @@ export default function EditPackagePage() {
               )}
 
               <div className="flex justify-between items-center text-sm text-muted-foreground">
-                <span>{filteredSections.length}개 섹션</span>
+                <span>{filteredSections.length}개 시험</span>
                 <span>{selectedSectionIds.length}개 선택됨</span>
               </div>
             </CardContent>
@@ -617,7 +617,7 @@ export default function EditPackagePage() {
           <Card>
             <CardHeader>
               <CardTitle>시험 구성 순서 ({selectedSectionIds.length})</CardTitle>
-              <CardDescription>화살표 버튼으로 섹션 순서를 변경하세요. 위에서부터 시험 순서입니다.</CardDescription>
+              <CardDescription>화살표 버튼으로 시험 순서를 변경하세요. 위에서부터 시험 순서입니다.</CardDescription>
             </CardHeader>
             <CardContent>
               {selectedSectionDetails.length > 0 ? (
@@ -668,7 +668,7 @@ export default function EditPackagePage() {
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  위 목록에서 섹션을 선택하세요.
+                  위 목록에서 시험을 선택하세요.
                 </div>
               )}
             </CardContent>

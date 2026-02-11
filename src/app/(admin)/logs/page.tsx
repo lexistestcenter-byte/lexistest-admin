@@ -106,8 +106,8 @@ const eventTypeLabels: Record<string, string> = {
   pause: "일시정지",
   resume: "재개",
   answer_submit: "답안 제출",
-  section_start: "섹션 시작",
-  section_end: "섹션 종료",
+  section_start: "시험 시작",
+  section_end: "시험 종료",
 };
 
 const eventTypeColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
