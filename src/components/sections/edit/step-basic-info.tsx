@@ -50,7 +50,7 @@ export function StepBasicInfo({
         <CardHeader>
           <CardTitle>기본 정보</CardTitle>
           <CardDescription>
-            {sectionType.charAt(0).toUpperCase() + sectionType.slice(1)} 시험
+            목록에 표시되는 시험의 기본 정보입니다.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -110,7 +110,7 @@ export function StepBasicInfo({
           <CardHeader>
             <CardTitle>안내 페이지</CardTitle>
             <CardDescription>
-              시험 시작 전 표시될 안내 내용입니다. (선택)
+              시험 시작 시 학생에게 처음 보여지는 안내 내용입니다. (선택)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

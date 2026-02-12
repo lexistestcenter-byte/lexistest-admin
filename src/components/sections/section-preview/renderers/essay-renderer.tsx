@@ -9,7 +9,7 @@ export function EssayRenderer({ item, answers, setAnswer }: RendererProps) {
   return (
     <div className="space-y-3">
       {od.condition ? (
-        <p className="text-sm text-gray-500 italic">{String(od.condition)}</p>
+        <p className="text-sm text-gray-500">{String(od.condition)}</p>
       ) : null}
       <textarea
         rows={10}
