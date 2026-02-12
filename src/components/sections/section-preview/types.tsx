@@ -1,4 +1,4 @@
-import { sanitizeHtml, stripHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay, stripHtml } from "@/lib/utils/sanitize";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -95,7 +95,7 @@ export function renderFormattedText(text: string) {
   return (
     <span
       className="[&_p]:inline [&_p]:m-0 [&_br]:content-[''] [&_br]:block"
-      dangerouslySetInnerHTML={{ __html: sanitizeHtml(text) }}
+      dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(text) }}
     />
   );
 }

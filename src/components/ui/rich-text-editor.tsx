@@ -12,6 +12,7 @@ import {
   AlignRight,
   List,
   ImageIcon,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "./button";
 import { cn } from "@/lib/utils";
@@ -111,7 +112,7 @@ export function RichTextEditor({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: false,
+        heading: { levels: [1, 2, 3] },
         orderedList: false,
         blockquote: false,
         codeBlock: false,
@@ -135,7 +136,7 @@ export function RichTextEditor({
       attributes: {
         class: cn(
           "prose prose-sm max-w-none focus:outline-none min-h-[100px] px-3 py-2",
-          "[&_p]:my-1 [&_strong]:font-bold",
+          "[&_p]:my-1 [&_strong]:font-bold [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:my-2 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:my-2 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:my-1",
           "[&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-md [&_img]:my-2"
         ),
         style: `min-height: ${minHeight}`,
@@ -184,6 +185,34 @@ export function RichTextEditor({
     <div className={cn("border rounded-md overflow-hidden", className)}>
       {/* 툴바 */}
       <div className="flex items-center gap-1 px-2 py-1.5 border-b bg-slate-50">
+        {/* 텍스트 크기 드롭다운 */}
+        <div className="relative">
+          <select
+            value={
+              editor.isActive("heading", { level: 1 }) ? "h1"
+                : editor.isActive("heading", { level: 2 }) ? "h2"
+                  : editor.isActive("heading", { level: 3 }) ? "h3"
+                    : "p"
+            }
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === "p") {
+                editor.chain().focus().setParagraph().run();
+              } else {
+                const level = parseInt(val.replace("h", "")) as 1 | 2 | 3;
+                editor.chain().focus().toggleHeading({ level }).run();
+              }
+            }}
+            className="h-8 pl-2 pr-6 text-xs border-0 bg-transparent rounded hover:bg-slate-200 cursor-pointer focus:outline-none focus:ring-0 appearance-none"
+          >
+            <option value="p">본문</option>
+            <option value="h1">제목 1</option>
+            <option value="h2">제목 2</option>
+            <option value="h3">제목 3</option>
+          </select>
+          <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+        </div>
+        <div className="w-px h-5 bg-slate-200 mx-1" />
         <Button
           type="button"
           variant="ghost"

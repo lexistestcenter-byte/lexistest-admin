@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import { od, getStr, getArr, getBool, stripBlockTags } from "../helpers";
 import type { QuestionPreviewData } from "../types";
 
@@ -14,6 +14,9 @@ export function FillBlankDragPreview({ data }: { data: QuestionPreviewData }) {
   const isSentenceMode = blankMode === "sentence";
   const inputStyle = getStr(o, "input_style", "editor");
   const items = getArr(o, "items").map(String);
+
+  const allText = inputStyle === "items" && items.length > 0 ? items.join(" ") : (data.content || "");
+  const isMulti = ((allText).match(/\[\d+\]/g) || []).length > 1;
 
   const [placedWords, setPlacedWords] = useState<Record<number, string>>({});
   const [draggedWord, setDraggedWord] = useState<string | null>(null);
@@ -45,26 +48,31 @@ export function FillBlankDragPreview({ data }: { data: QuestionPreviewData }) {
         const num = parseInt(part);
         const placed = placedWords[num];
         return (
-          <span key={index} className="inline-flex items-center mx-0.5 align-middle">
+          <span key={index} className="relative inline-flex items-center mx-0.5 align-middle">
+            {isMulti && !placed && (
+              <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[10px] text-gray-400 pointer-events-none z-10">
+                {num}
+              </span>
+            )}
             <span
-              className={`inline-flex items-center justify-center min-w-[120px] h-8 border-2 rounded px-2 text-sm transition-colors ${
+              className={`inline-flex items-center justify-center min-w-[120px] h-8 border-b border-dashed px-2 text-sm transition-colors ${
                 placed
-                  ? "bg-green-50 border-green-400 text-green-800 cursor-pointer"
+                  ? "bg-green-50 border-green-400 border-solid text-green-800 cursor-pointer"
                   : draggedWord
-                    ? "border-dashed border-primary bg-primary/5"
-                    : "border-slate-300 bg-white text-slate-400"
+                    ? "border-primary bg-primary/5"
+                    : "border-slate-300 bg-white"
               }`}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => handleDrop(num)}
               onDoubleClick={() => placed && clearWord(num)}
               title={placed ? "더블클릭하여 제거" : ""}
             >
-              {placed || num}
+              {placed || "\u00A0"}
             </span>
           </span>
         );
       }
-      return <span key={index} dangerouslySetInnerHTML={{ __html: sanitizeHtml(part) }} />;
+      return <span key={index} dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(part) }} />;
     });
   };
 

@@ -127,13 +127,13 @@ export function EditGroupCard({
                   })
                 }
               >
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-8 text-xs max-w-full [&>span]:truncate">
                   <SelectValue placeholder="콘텐츠 선택..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-w-[300px]">
                   <SelectItem value="none">없음</SelectItem>
                   {contentBlocks.map((b, i) => (
-                    <SelectItem key={b.id} value={b.id}>
+                    <SelectItem key={b.id} value={b.id} className="truncate">
                       {b.content_type === "passage"
                         ? b.passage_title || `Passage ${i + 1}`
                         : `Audio ${i + 1}`}

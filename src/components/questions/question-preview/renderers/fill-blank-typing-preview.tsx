@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import { od, getStr, getArr } from "../helpers";
 import type { QuestionPreviewData } from "../types";
 
@@ -10,6 +10,9 @@ export function FillBlankTypingPreview({ data }: { data: QuestionPreviewData }) 
   const contentTitle = getStr(o, "title", data.title || "");
   const inputStyle = getStr(o, "input_style", "editor");
   const items = getArr(o, "items").map(String);
+
+  const allText = inputStyle === "items" && items.length > 0 ? items.join(" ") : (data.content || "");
+  const isMulti = ((allText).match(/\[\d+\]/g) || []).length > 1;
 
   const [answers, setAnswers] = useState<Record<number, string>>({});
 
@@ -25,18 +28,22 @@ export function FillBlankTypingPreview({ data }: { data: QuestionPreviewData }) 
       if (index % 2 === 1) {
         const num = parseInt(part);
         return (
-          <span key={index} className="inline-flex items-center mx-1 align-middle">
+          <span key={index} className="relative inline-flex items-center mx-1 align-middle">
+            {isMulti && !answers[num] && (
+              <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[10px] text-gray-400 pointer-events-none z-10">
+                {num}
+              </span>
+            )}
             <input
               type="text"
               value={answers[num] || ""}
               onChange={(e) => setAnswers((prev) => ({ ...prev, [num]: e.target.value }))}
-              className="w-28 h-7 border-b-2 border-primary px-1 text-sm outline-none bg-transparent"
-              placeholder={`(${num})`}
+              className={`w-28 h-7 border-b border-dashed border-gray-300 px-1 text-sm outline-none bg-transparent focus:border-blue-400 ${answers[num] ? "text-blue-600 border-blue-400 border-solid" : ""}`}
             />
           </span>
         );
       }
-      return <span key={index} dangerouslySetInnerHTML={{ __html: sanitizeHtml(part) }} />;
+      return <span key={index} dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(part) }} />;
     });
   };
 

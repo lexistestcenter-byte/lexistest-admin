@@ -45,6 +45,18 @@ export function sanitizeHtml(html: string): string {
   });
 }
 
+// sanitizeHtml + 상대 이미지 경로를 CDN URL로 변환 (미리보기/표시용)
+export function sanitizeHtmlForDisplay(html: string): string {
+  if (!html) return "";
+  const sanitized = sanitizeHtml(html);
+  const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || "";
+  if (!cdnUrl) return sanitized;
+  return sanitized.replace(
+    /(<img[^>]*\ssrc=")(?!blob:|http:|https:)([^"]+)(")/g,
+    `$1${cdnUrl}/$2$3`
+  );
+}
+
 // SQL Injection 위험 패턴 검사
 // 일반 영어 문장("and...from" 등)을 차단하지 않도록, 실제 injection 구문만 탐지
 const SQL_INJECTION_PATTERNS = [

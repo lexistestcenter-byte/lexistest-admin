@@ -2,9 +2,9 @@
 
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import type { RendererProps } from "../types";
-import { isHeadingMatchingQuestion, renderFormattedText } from "../types";
+import { isHeadingMatchingQuestion } from "../types";
 
 interface MatchingRendererProps extends RendererProps {
   activeMatchSlot: number | null;
@@ -31,14 +31,13 @@ export function MatchingRenderer({
         {item.question.content && (
           <div
             className="text-sm prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
-            dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.question.content) }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(item.question.content) }}
           />
         )}
       </div>
     );
   }
 
-  const matchTitleText = item.question.title || "";
   const matchNumPrefix =
     item.startNum === item.endNum
       ? `${item.startNum}`
@@ -122,15 +121,6 @@ export function MatchingRenderer({
   // Default matching layout (pills + match items)
   return (
     <div className="space-y-4">
-      {matchTitleText ? (
-        <div className="bg-slate-100 border-l-4 border-slate-300 px-4 py-2.5 rounded-r">
-          <p className="text-[15px]">
-            <span className="font-bold mr-2">{matchNumPrefix}</span>
-            {renderFormattedText(matchTitleText)}
-          </p>
-        </div>
-      ) : null}
-
       {/* Options Pool — clickable pills */}
       {options.length > 0 && (
         <div className="p-3 bg-slate-50 border rounded-lg">
@@ -174,7 +164,7 @@ export function MatchingRenderer({
             <div key={num} className="flex items-start gap-3">
               <span className="font-bold text-sm min-w-[24px] pt-2">{num}</span>
               <div className="flex-1 flex items-start gap-2">
-                <div className="text-sm flex-1 pt-2 [&_p]:m-0" dangerouslySetInnerHTML={{ __html: sanitizeHtml(String(entry.statement)) }} />
+                <div className="text-sm flex-1 pt-2 [&_p]:m-0" dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(String(entry.statement)) }} />
                 {assignedOpt ? (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-300 text-sm text-blue-700 shrink-0">
                     <span className="font-bold">{assignedOpt.label}</span>

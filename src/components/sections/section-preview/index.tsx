@@ -8,7 +8,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { X, Clock, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 
 import type { SectionPreviewProps } from "./types";
 import { isHeadingMatchingQuestion } from "./types";
@@ -120,7 +120,7 @@ export function SectionPreview({
                 {instructionHtml && (
                   <div
                     className="prose prose-sm max-w-none [&_p]:my-2 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
-                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(instructionHtml) }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(instructionHtml) }}
                   />
                 )}
                 <div className="flex justify-center pt-4">

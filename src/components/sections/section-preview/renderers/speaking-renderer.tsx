@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Clock } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import { SpeakingRecorder } from "@/components/ui/speaking-recorder";
 import type { QuestionItem } from "../types";
 
@@ -95,7 +95,7 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
                   {sq.text ? (
                     <div
                       className="text-[15px] leading-relaxed prose prose-sm max-w-none [&_p]:my-2 [&_p:empty]:min-h-[1em]"
-                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(String(sq.text)) }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(String(sq.text)) }}
                     />
                   ) : null}
                   <SpeakingRecorder
@@ -113,7 +113,7 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
             {q.content && (
               <div
                 className="text-[15px] leading-relaxed prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em]"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(q.content) }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(q.content) }}
               />
             )}
             <SpeakingRecorder
@@ -254,7 +254,7 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
                   {sq.text ? (
                     <div
                       className="text-[15px] leading-relaxed prose prose-sm max-w-none [&_p]:my-2 [&_p:empty]:min-h-[1em]"
-                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(String(sq.text)) }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(String(sq.text)) }}
                     />
                   ) : null}
                   <SpeakingRecorder
@@ -272,7 +272,7 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
             {q.content && (
               <div
                 className="text-[15px] leading-relaxed p-4 bg-violet-50/50 border border-violet-100 rounded-lg prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em]"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(q.content) }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(q.content) }}
               />
             )}
             <SpeakingRecorder
@@ -292,7 +292,7 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
       {q.content && (
         <div
           className="text-sm leading-relaxed prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
-          dangerouslySetInnerHTML={{ __html: sanitizeHtml(q.content) }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(q.content) }}
         />
       )}
       <SpeakingRecorder

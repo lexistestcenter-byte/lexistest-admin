@@ -35,23 +35,8 @@ export function TFNGRenderer({ item, answers, setAnswer }: RendererProps) {
     );
   }
 
-  // IELTS-style: title sub-header if question has a title
-  const titleText = item.question.title || "";
-  const numPrefix =
-    item.startNum === item.endNum
-      ? `${item.startNum}`
-      : `${item.startNum}–${item.endNum}`;
-
   return (
     <div className="space-y-4">
-      {titleText ? (
-        <div className="bg-slate-100 border-l-4 border-slate-300 px-4 py-2.5 rounded-r">
-          <p className="text-[15px]">
-            <span className="font-bold mr-2">{numPrefix}</span>
-            {renderFormattedText(titleText)}
-          </p>
-        </div>
-      ) : null}
       {itemsList.map((entry, idx) => {
         const num = item.startNum + idx;
         return (

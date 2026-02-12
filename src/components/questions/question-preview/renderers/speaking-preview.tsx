@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Mic } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import { od, getStr, getArr } from "../helpers";
 import type { QuestionPreviewData } from "../types";
 
@@ -44,14 +44,14 @@ export function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
                   <span className="text-xs font-semibold text-emerald-700">Q{sq.number ? Number(sq.number) : i + 1}</span>
                   {sq.time_limit_seconds ? <span className="text-[10px] text-gray-500">{String(sq.time_limit_seconds)}s</span> : null}
                 </div>
-                <p className="text-sm" dangerouslySetInnerHTML={{ __html: sanitizeHtml(String(sq.text || "")) }} />
+                <p className="text-sm" dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(String(sq.text || "")) }} />
                 <RecordingArea />
               </div>
             ))}
           </div>
         ) : (
           <div className="bg-white rounded-lg border p-6">
-            <p className="text-lg" dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content || "(질문 입력)") }} />
+            <p className="text-lg" dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(data.content || "(질문 입력)") }} />
           </div>
         )}
       </div>
@@ -125,14 +125,14 @@ export function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
                   <span className="text-xs font-semibold text-violet-700">Q{sq.number ? Number(sq.number) : i + 1}</span>
                   {sq.time_limit_seconds ? <span className="text-[10px] text-gray-500">{String(sq.time_limit_seconds)}s</span> : null}
                 </div>
-                <p className="text-sm" dangerouslySetInnerHTML={{ __html: sanitizeHtml(String(sq.text || "")) }} />
+                <p className="text-sm" dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(String(sq.text || "")) }} />
                 <RecordingArea />
               </div>
             ))}
           </div>
         ) : (
           <div className="bg-white rounded-lg border p-6">
-            <p className="text-lg" dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content || "(질문 입력)") }} />
+            <p className="text-lg" dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(data.content || "(질문 입력)") }} />
           </div>
         )}
       </div>
@@ -142,7 +142,7 @@ export function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
   // Fallback
   return (
     <div className="bg-white rounded-lg border p-6 flex-1 overflow-y-auto">
-      <p dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content || "") }} />
+      <p dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(data.content || "") }} />
     </div>
   );
 }

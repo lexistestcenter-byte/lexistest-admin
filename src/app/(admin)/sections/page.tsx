@@ -30,6 +30,7 @@ import { getCdnUrl } from "@/lib/cdn";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/api/client";
+import { stripHtml } from "@/lib/utils/sanitize";
 import { SectionPreview, type PreviewQuestion } from "@/components/sections/section-preview";
 
 const typeFilters = [
@@ -77,10 +78,12 @@ export default function SectionsPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [previewData, setPreviewData] = useState<{
+    instructionTitle: string;
+    instructionHtml: string;
     contentBlocks: { id: string; content_type: "passage" | "audio"; passage_title?: string; passage_content?: string; passage_footnotes?: string; audio_url?: string; audio_transcript?: string }[];
     questionGroups: { id: string; title: string; instructions: string | null; contentBlockId: string | null; startNum: number; endNum: number; questionIds: string[] }[];
     questions: PreviewQuestion[];
-  }>({ contentBlocks: [], questionGroups: [], questions: [] });
+  }>({ instructionTitle: "", instructionHtml: "", contentBlocks: [], questionGroups: [], questions: [] });
 
   // Filters
   const [selectedType, setSelectedType] = useState("all");
@@ -167,10 +170,21 @@ export default function SectionsPage() {
     setIsLoadingPreview(true);
     setShowPreview(true);
     try {
-      const { data: structData, error: structError } = await api.get<{
-        content_blocks: Record<string, unknown>[];
-        question_groups: { id: string; title?: string; instructions?: string; content_block_id?: string; items?: { question_id: string }[] }[];
-      }>(`/api/sections/${section.id}/structure`);
+      // Fetch section detail (for instruction page) and structure in parallel
+      const [sectionDetailRes, structRes] = await Promise.all([
+        api.get<{ instruction_title?: string; instruction_html?: string }>(`/api/sections/${section.id}`),
+        api.get<{
+          content_blocks: Record<string, unknown>[];
+          question_groups: { id: string; title?: string; instructions?: string; content_block_id?: string; items?: { question_id: string }[] }[];
+        }>(`/api/sections/${section.id}/structure`),
+      ]);
+
+      const sectionDetail = sectionDetailRes.data;
+      const instructionTitle = sectionDetail?.instruction_title || "";
+      const instructionHtml = sectionDetail?.instruction_html || "";
+
+      const structData = structRes.data;
+      const structError = structRes.error;
       if (structError || !structData) throw new Error(structError || "Failed to load structure");
 
       const blocks = (structData.content_blocks || []).map((b: Record<string, unknown>) => ({
@@ -230,7 +244,7 @@ export default function SectionsPage() {
         }
       );
 
-      setPreviewData({ contentBlocks: blocks, questionGroups: numberedGroups, questions });
+      setPreviewData({ instructionTitle, instructionHtml, contentBlocks: blocks, questionGroups: numberedGroups, questions });
     } catch (error) {
       console.error("Error loading preview:", error);
       toast.error("미리보기 데이터를 불러오는데 실패했습니다.");
@@ -270,7 +284,7 @@ export default function SectionsPage() {
               {section.title}
             </button>
             <div className="text-sm text-muted-foreground truncate">
-              {section.description || "-"}
+              {section.description ? stripHtml(section.description) : "-"}
             </div>
           </div>
         </div>
@@ -419,6 +433,8 @@ export default function SectionsPage() {
         timeLimit={previewSection?.time_limit_minutes?.toString() || ""}
         isPractice={previewSection?.is_practice || false}
         isLoading={isLoadingPreview}
+        instructionTitle={isLoadingPreview ? undefined : previewData.instructionTitle || undefined}
+        instructionHtml={isLoadingPreview ? undefined : previewData.instructionHtml || undefined}
         contentBlocks={isLoadingPreview ? [] : previewData.contentBlocks}
         questionGroups={isLoadingPreview ? [] : previewData.questionGroups}
         questions={isLoadingPreview ? [] : previewData.questions}

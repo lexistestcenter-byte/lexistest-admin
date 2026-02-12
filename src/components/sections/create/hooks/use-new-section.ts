@@ -11,6 +11,7 @@ import {
 import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
 import { api } from "@/lib/api/client";
 import { uploadFile } from "@/components/ui/file-upload";
+import { uploadEditorImages, stripBlobImages } from "@/components/ui/rich-text-editor";
 import {
   TOTAL_STEPS,
   generateTempId,
@@ -418,8 +419,8 @@ export function useNewSection() {
           display_order: i,
           content_type: block.content_type,
           passage_title: block.passage_title || null,
-          passage_content: block.passage_content || null,
-          passage_footnotes: block.passage_footnotes || null,
+          passage_content: stripBlobImages(block.passage_content) || null,
+          passage_footnotes: stripBlobImages(block.passage_footnotes) || null,
           // deferred 파일이 있으면 URL 제외 (blob URL이므로)
           audio_url: hasPendingFile ? null : (block.audio_url || null),
         });
@@ -441,6 +442,34 @@ export function useNewSection() {
           block_id: pending.blockId,
           audio_url: uploaded.path,
         });
+      }
+
+      // passage/footnotes 에디터 이미지 업로드 (blob URL → R2)
+      const imgContext = `sections/${sectionId}`;
+      for (let i = 0; i < contentBlocks.length; i++) {
+        const block = contentBlocks[i];
+        const serverBlockId = blockIdMap[block.id];
+        if (!serverBlockId) continue;
+
+        const hasBlobContent = block.passage_content?.includes("blob:");
+        const hasBlobFootnotes = block.passage_footnotes?.includes("blob:");
+        if (!hasBlobContent && !hasBlobFootnotes) continue;
+
+        try {
+          const updatePayload: Record<string, string | null> = {};
+          if (hasBlobContent) {
+            updatePayload.passage_content = await uploadEditorImages(block.passage_content, imgContext);
+          }
+          if (hasBlobFootnotes) {
+            updatePayload.passage_footnotes = await uploadEditorImages(block.passage_footnotes, imgContext);
+          }
+          await api.post(`/api/sections/${sectionId}/content-blocks`, {
+            block_id: serverBlockId,
+            ...updatePayload,
+          });
+        } catch {
+          toast.error("지문 이미지 업로드에 실패했습니다. 수정 페이지에서 다시 저장해주세요.");
+        }
       }
 
       // Question groups + items

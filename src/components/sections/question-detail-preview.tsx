@@ -3,7 +3,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 
 interface QuestionDetailPreviewProps {
   question: {
@@ -30,7 +30,7 @@ function renderBlankPlaceholders(text: string): React.ReactNode {
         </span>
       );
     }
-    return <span key={i} dangerouslySetInnerHTML={{ __html: sanitizeHtml(part) }} />;
+    return <span key={i} dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(part) }} />;
   });
 }
 
@@ -43,7 +43,7 @@ function stripBlockTags(html: string): string {
 
 // Render table HTML with [N] replaced by styled blank indicators
 function renderTableHtml(html: string): string {
-  let processed = stripBlockTags(sanitizeHtml(html));
+  let processed = stripBlockTags(sanitizeHtmlForDisplay(html));
   processed = processed.replace(
     /\[(\d+)\]/g,
     (_, num) =>
@@ -130,14 +130,14 @@ export function QuestionDetailPreview({ question }: QuestionDetailPreviewProps) 
       {question.instructions && (
         <div
           className="text-xs text-gray-500 italic bg-gray-50 p-2 rounded prose prose-xs max-w-none [&_p]:my-2 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
-          dangerouslySetInnerHTML={{ __html: sanitizeHtml(question.instructions) }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(question.instructions) }}
         />
       )}
 
       {shouldRenderContentAsHtml && question.content && (
         <div
           className="text-gray-700 leading-relaxed text-xs prose prose-xs max-w-none [&_p]:my-2 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
-          dangerouslySetInnerHTML={{ __html: sanitizeHtml(question.content) }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(question.content) }}
         />
       )}
 
@@ -254,7 +254,7 @@ export function QuestionDetailPreview({ question }: QuestionDetailPreviewProps) 
                 className="text-xs text-gray-600 p-1 flex gap-1"
               >
                 <span className="font-bold shrink-0">{item.number}.</span>
-                <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(String(item.statement)) }} />
+                <span dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(String(item.statement)) }} />
               </div>
             ))
           ) : (
@@ -285,7 +285,7 @@ export function QuestionDetailPreview({ question }: QuestionDetailPreviewProps) 
               {matchItems.map((item) => (
                 <div key={item.number} className="pl-2 text-gray-600 flex gap-1">
                   <span className="font-bold shrink-0">{item.number}.</span>
-                  <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(String(item.statement)) }} />
+                  <span dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(String(item.statement)) }} />
                 </div>
               ))}
             </div>

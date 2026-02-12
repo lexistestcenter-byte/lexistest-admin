@@ -12,13 +12,14 @@ interface TabBarProps {
   removeTab: (idx: number) => void;
   addTab: () => void;
   isSaving: boolean;
-  tabSaved: boolean;
-  handleSave: () => void;
+  saveProgress: { current: number; total: number };
+  unsavedCount: number;
+  handleSaveAll: () => void;
 }
 
 export function TabBar({
   tabs, activeTabIdx, setActiveTabIdx,
-  removeTab, addTab, isSaving, tabSaved, handleSave,
+  removeTab, addTab, isSaving, saveProgress, unsavedCount, handleSaveAll,
 }: TabBarProps) {
   return (
     <div className="flex items-center gap-1 px-4 py-2 bg-slate-100 border-b overflow-x-auto shrink-0">
@@ -61,11 +62,22 @@ export function TabBar({
         <Plus className="h-4 w-4 text-muted-foreground" />
       </button>
 
-      {/* 저장 버튼 — 탭 바 맨 오른쪽 */}
+      {/* 전체 저장 버튼 — 탭 바 맨 오른쪽 */}
       <div className="ml-auto shrink-0">
-        <Button onClick={handleSave} disabled={isSaving || tabSaved} size="sm">
-          {isSaving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}
-          저장
+        <Button onClick={handleSaveAll} disabled={isSaving || unsavedCount === 0} size="sm">
+          {isSaving ? (
+            <>
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+              {saveProgress.total > 1
+                ? `저장 중 ${saveProgress.current}/${saveProgress.total}`
+                : "저장 중..."}
+            </>
+          ) : (
+            <>
+              <Save className="mr-1 h-4 w-4" />
+              {unsavedCount > 1 ? `전체 저장 (${unsavedCount})` : "저장"}
+            </>
+          )}
         </Button>
       </div>
     </div>

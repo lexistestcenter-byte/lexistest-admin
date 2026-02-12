@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import { od, getStr, getArr, stripBlockTags } from "../helpers";
 import type { QuestionPreviewData } from "../types";
 
@@ -38,7 +38,7 @@ export function TableCompletionPreview({ data }: { data: QuestionPreviewData }) 
 
   const getTableHtml = (html: string) => {
     // Sanitize first, then replace [N] with interactive elements (preserving table structure)
-    let processed = stripBlockTags(sanitizeHtml(html));
+    let processed = stripBlockTags(sanitizeHtmlForDisplay(html));
 
     processed = processed.replace(/\[(\d+)\]/g, (_, numStr) => {
       const num = parseInt(numStr);

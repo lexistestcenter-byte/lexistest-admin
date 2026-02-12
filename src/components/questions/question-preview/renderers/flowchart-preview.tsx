@@ -1,12 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import { od, getStr, getArr, stripBlockTags } from "../helpers";
 import type { QuestionPreviewData } from "../types";
 
 /** [N] → input placeholders for static display */
-function renderBlankPlaceholders(text: string): ReactNode {
+function renderBlankPlaceholders(text: string, isMulti: boolean): ReactNode {
   if (!text) return null;
   const inlineText = stripBlockTags(text).replace(/\n/g, "<br>");
   const parts = inlineText.split(/\[(\d+)\]/g);
@@ -14,14 +14,19 @@ function renderBlankPlaceholders(text: string): ReactNode {
     if (index % 2 === 1) {
       const num = parseInt(part);
       return (
-        <span key={index} className="inline-flex items-center mx-1">
-          <span className="w-28 h-7 border-b-2 border-primary mx-1 text-center text-sm text-muted-foreground">
-            ({num})
+        <span key={index} className="relative inline-flex items-center mx-1">
+          {isMulti && (
+            <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[10px] text-gray-400 pointer-events-none z-10">
+              {num}
+            </span>
+          )}
+          <span className="inline-block w-28 h-7 border-b border-dashed border-gray-300 mx-1">
+            {"\u00A0"}
           </span>
         </span>
       );
     }
-    return <span key={index} dangerouslySetInnerHTML={{ __html: sanitizeHtml(part) }} />;
+    return <span key={index} dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(part) }} />;
   });
 }
 
@@ -29,6 +34,9 @@ export function FlowchartPreview({ data }: { data: QuestionPreviewData }) {
   const o = od(data);
   const contentTitle = getStr(o, "title", data.title || "");
   const nodes = getArr(o, "nodes") as { id?: string; label?: string; content?: string; type?: string; row?: number; col?: number }[];
+
+  const totalBlanks = nodes.reduce((count, n) => count + ((n.content || "").match(/\[\d+\]/g) || []).length, 0);
+  const isMulti = totalBlanks > 1;
 
   const rowMap = new Map<number, typeof nodes>();
   for (const n of nodes) {
@@ -72,7 +80,7 @@ export function FlowchartPreview({ data }: { data: QuestionPreviewData }) {
                   {group.map((node) => (
                     <div key={node.id} className="p-4 rounded-lg border-2 border-blue-300 bg-blue-50 min-w-[180px] max-w-[260px] min-h-[80px] flex-1 text-center">
                       {node.label && <div className="font-semibold text-blue-700 mb-1 text-xs">{node.label}</div>}
-                      <div className="text-sm">{renderBlankPlaceholders(node.content || "")}</div>
+                      <div className="text-sm">{renderBlankPlaceholders(node.content || "", isMulti)}</div>
                     </div>
                   ))}
                 </div>
@@ -80,7 +88,7 @@ export function FlowchartPreview({ data }: { data: QuestionPreviewData }) {
                 <div className="flex justify-center">
                   <div className="p-4 rounded-lg border-2 border-slate-300 bg-slate-50 min-w-[200px] max-w-[400px] text-center">
                     {group[0]?.label && <div className="font-semibold text-slate-600 mb-1 text-xs">{group[0].label}</div>}
-                    <div className="text-sm">{renderBlankPlaceholders(group[0]?.content || "")}</div>
+                    <div className="text-sm">{renderBlankPlaceholders(group[0]?.content || "", isMulti)}</div>
                   </div>
                 </div>
               )}

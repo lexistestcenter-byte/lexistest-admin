@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { getCdnUrl } from "@/lib/cdn";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import { od, getStr, getArr } from "../helpers";
 import type { QuestionPreviewData } from "../types";
 
@@ -30,7 +30,7 @@ export function MapLabelingPreview({ data }: { data: QuestionPreviewData }) {
     <div className="space-y-4 flex-1 min-h-0 flex flex-col overflow-y-auto">
       {contentTitle && <h2 className="text-lg font-bold shrink-0">{contentTitle}</h2>}
       {passage && passage.trim() && (
-        <div className="text-sm text-muted-foreground leading-relaxed shrink-0" dangerouslySetInnerHTML={{ __html: sanitizeHtml(passage) }} />
+        <div className="text-sm text-muted-foreground leading-relaxed shrink-0" dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(passage) }} />
       )}
       <div className="grid grid-cols-2 gap-6 flex-1 min-h-0">
         {/* 왼쪽: 이미지 */}

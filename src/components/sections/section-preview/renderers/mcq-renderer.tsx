@@ -84,32 +84,19 @@ export function MCQRenderer({ item, answers, setAnswer, toggleMultiAnswer }: MCQ
     ? `${item.startNum}`
     : `${item.startNum}–${item.endNum}`;
 
-  // IELTS-style: title in colored sub-header bar, question text below
-  const titleText = item.question.title || "";
-
   return (
     <div className="space-y-3">
-      {/* Sub-header with colored background (when question has a title) */}
-      {titleText ? (
-        <div className="bg-slate-100 border-l-4 border-slate-300 px-4 py-2.5 rounded-r">
-          <p className="text-[15px]">
-            <span className="font-bold mr-2">{numPrefix}</span>
-            {renderFormattedText(titleText)}
-          </p>
-        </div>
-      ) : null}
-
       {/* Question/instruction text */}
       {questionText ? (
-        <p className={cn("text-[15px] leading-relaxed", titleText && "pl-8")}>
-          {!titleText && <span className="font-bold mr-1.5">{numPrefix}</span>}
+        <p className="text-[15px] leading-relaxed">
+          <span className="font-bold mr-1.5">{numPrefix}</span>
           {renderFormattedText(questionText)}
         </p>
-      ) : !titleText ? (
+      ) : (
         <p className="text-[15px] leading-relaxed">
           <span className="font-bold mr-1.5">{numPrefix}</span>
         </p>
-      ) : null}
+      )}
 
       <div className="space-y-1.5">
         {options.map((opt) => {

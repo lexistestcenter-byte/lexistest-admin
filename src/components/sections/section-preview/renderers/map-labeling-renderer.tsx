@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { getCdnUrl } from "@/lib/cdn";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import type { RendererProps } from "../types";
 
 export function MapLabelingRenderer({ item, answers, setAnswer }: RendererProps) {
@@ -72,7 +72,7 @@ export function MapLabelingRenderer({ item, answers, setAnswer }: RendererProps)
                 return (
                   <tr key={num} className="border-t">
                     <td className="px-2 py-1.5 font-bold">{num}</td>
-                    <td className="px-2 py-1.5" dangerouslySetInnerHTML={{ __html: sanitizeHtml(String(entry.statement)) }} />
+                    <td className="px-2 py-1.5" dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(String(entry.statement)) }} />
                     {labels.map((label) => (
                       <td key={label} className="px-1 py-1.5 text-center">
                         <button

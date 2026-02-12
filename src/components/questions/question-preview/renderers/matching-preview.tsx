@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import { od, getStr, getArr, getBool, stripBlockTags } from "../helpers";
 import type { QuestionPreviewData } from "../types";
 
@@ -36,7 +36,7 @@ export function MatchingPreview({ data }: { data: QuestionPreviewData }) {
     : options.filter((opt) => !usedOptions.has(opt.text || ""));
 
   const renderContentWithSlots = () => {
-    const html = stripBlockTags(sanitizeHtml(data.content || ""));
+    const html = stripBlockTags(sanitizeHtmlForDisplay(data.content || ""));
     const parts = html.split(/(\[\d+\])/g);
     return parts.map((part, index) => {
       const slotMatch = part.match(/^\[(\d+)\]$/);
@@ -63,7 +63,7 @@ export function MatchingPreview({ data }: { data: QuestionPreviewData }) {
           </div>
         );
       }
-      return <span key={index} dangerouslySetInnerHTML={{ __html: sanitizeHtml(part) }} />;
+      return <span key={index} dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(part) }} />;
     });
   };
 

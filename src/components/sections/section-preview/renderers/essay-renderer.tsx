@@ -1,7 +1,7 @@
 "use client";
 
 import { getCdnUrl } from "@/lib/cdn";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import type { RendererProps } from "../types";
 
 export function EssayRenderer({ item, answers, setAnswer }: RendererProps) {
@@ -17,7 +17,7 @@ export function EssayRenderer({ item, answers, setAnswer }: RendererProps) {
       {item.question.content ? (
         <div
           className="text-sm leading-relaxed prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em] [&_strong]:font-bold"
-          dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.question.content) }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(item.question.content) }}
         />
       ) : null}
       {od.image_url ? (

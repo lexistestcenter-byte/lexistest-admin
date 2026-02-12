@@ -256,13 +256,13 @@ export default function QuestionsPage() {
       key: "content",
       header: "내용",
       cell: (q) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           {q.is_practice && (
             <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 shrink-0">
               연습
             </Badge>
           )}
-          <span className="text-sm">
+          <span className="text-sm truncate">
             {(() => {
               const displayText = q.title || (q.options_data?.title as string) || stripHtml(q.content || "");
               return displayText.length > 80 ? displayText.substring(0, 80) + "..." : displayText;
@@ -270,6 +270,7 @@ export default function QuestionsPage() {
           </span>
         </div>
       ),
+      className: "overflow-hidden",
     },
     {
       key: "actions",

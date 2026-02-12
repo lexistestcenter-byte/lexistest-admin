@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import type { QuestionItem } from "../types";
 
 interface HeadingMatchingPassageProps {
@@ -33,7 +33,7 @@ export function HeadingMatchingPassage({ item, answers, setAnswer }: HeadingMatc
         <div className="text-sm leading-[1.8] text-gray-700 prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]">
           {parts.map((part, i) => {
             if (i % 2 === 0) {
-              return <span key={i} dangerouslySetInnerHTML={{ __html: sanitizeHtml(part) }} />;
+              return <span key={i} dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(part) }} />;
             }
             const blankNum = parseInt(part, 10);
             const num = item.startNum + blankNum - 1;

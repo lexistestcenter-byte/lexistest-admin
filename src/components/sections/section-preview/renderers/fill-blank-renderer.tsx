@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import type { RendererProps } from "../types";
 
 export function FillBlankTypingRenderer({ item, answers, setAnswer }: RendererProps) {
@@ -9,28 +9,30 @@ export function FillBlankTypingRenderer({ item, answers, setAnswer }: RendererPr
   const content = String(od.content || item.question.content || "");
   if (!content) return <p className="text-sm text-gray-500">No content available.</p>;
 
+  const isMulti = (item.question.item_count || 1) > 1;
   const parts = content.split(/\[(\d+)\]/);
   return (
     <div className="text-sm leading-relaxed">
       <div>
         {parts.map((part, i) => {
-          if (i % 2 === 0) return <span key={i} dangerouslySetInnerHTML={{ __html: sanitizeHtml(part) }} />;
+          if (i % 2 === 0) return <span key={i} dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(part) }} />;
           const blankNum = parseInt(part, 10);
           const num = item.startNum + blankNum - 1;
           return (
-            <span key={i} className="inline-flex items-center mx-0.5 align-baseline">
-              <span className="text-xs font-bold text-blue-600 mr-0.5">{num}</span>
+            <span key={i} className="relative inline-flex items-center mx-0.5 align-baseline">
+              {isMulti && !answers[num] && (
+                <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[10px] text-gray-400 pointer-events-none z-10">
+                  {num}
+                </span>
+              )}
               <input
                 type="text"
                 className={cn(
-                  "border-b-2 bg-transparent px-1 py-0 w-28 text-center text-sm focus:outline-none",
-                  answers[num]
-                    ? "border-blue-500"
-                    : "border-gray-400 focus:border-blue-500"
+                  "border-b border-dashed border-gray-300 bg-transparent px-1 py-0 w-28 text-center text-sm focus:outline-none focus:border-blue-400",
+                  answers[num] ? "text-blue-600 border-blue-400 border-solid" : ""
                 )}
                 value={answers[num] || ""}
                 onChange={(e) => setAnswer(num, e.target.value)}
-                placeholder="________"
               />
             </span>
           );
@@ -51,6 +53,7 @@ export function FillBlankDragRenderer({ item, answers, setAnswer }: RendererProp
       : [];
   if (!content) return <p className="text-sm text-gray-500">No content available.</p>;
 
+  const isMulti = (item.question.item_count || 1) > 1;
   const parts = content.split(/\[(\d+)\]/);
   return (
     <div className="space-y-4">
@@ -92,22 +95,26 @@ export function FillBlankDragRenderer({ item, answers, setAnswer }: RendererProp
       )}
       <div className="text-sm leading-relaxed">
         {parts.map((part, i) => {
-          if (i % 2 === 0) return <span key={i} dangerouslySetInnerHTML={{ __html: sanitizeHtml(part) }} />;
+          if (i % 2 === 0) return <span key={i} dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(part) }} />;
           const blankNum = parseInt(part, 10);
           const num = item.startNum + blankNum - 1;
           return (
-            <span key={i} className="inline-flex items-center mx-0.5 align-baseline">
-              <span className="text-xs font-bold text-blue-600 mr-0.5">{num}</span>
+            <span key={i} className="relative inline-flex items-center mx-0.5 align-baseline">
+              {isMulti && !answers[num] && (
+                <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[10px] text-gray-400 pointer-events-none z-10">
+                  {num}
+                </span>
+              )}
               <span
                 className={cn(
-                  "inline-block min-w-[80px] border-b-2 px-2 py-0.5 text-center text-sm cursor-pointer select-none",
+                  "inline-block min-w-[80px] border-b border-dashed border-gray-300 px-2 py-0.5 text-center text-sm cursor-pointer select-none",
                   answers[num]
-                    ? "border-blue-500 bg-blue-50 text-blue-700"
-                    : "border-gray-400"
+                    ? "border-blue-500 border-solid bg-blue-50 text-blue-700"
+                    : ""
                 )}
                 onClick={() => answers[num] && setAnswer(num, "")}
               >
-                {answers[num] || "________"}
+                {answers[num] || "\u00A0"}
               </span>
             </span>
           );

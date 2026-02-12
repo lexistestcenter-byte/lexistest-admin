@@ -173,6 +173,9 @@ export function useQuestionSave(
       return;
     }
 
+    // Confirmation
+    if (!window.confirm(`${tabs.length}개의 문제를 저장하시겠습니까?`)) return;
+
     setIsSaving(true);
 
     try {

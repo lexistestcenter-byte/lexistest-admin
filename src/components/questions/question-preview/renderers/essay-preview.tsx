@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { getCdnUrl } from "@/lib/cdn";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import { od, getStr } from "../helpers";
 import type { QuestionPreviewData } from "../types";
 
@@ -28,7 +28,7 @@ export function EssayPreview({ data }: { data: QuestionPreviewData }) {
           {data.content ? (
             <div
               className="prose prose-sm max-w-none text-sm [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em] [&_strong]:font-bold"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content) }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(data.content) }}
             />
           ) : (
             <p className="text-sm text-muted-foreground">(작문 주제 입력)</p>

@@ -40,7 +40,7 @@ export function CreateQuestionModal({
   const formats = questionFormats[questionType] || [];
 
   const form = useModalForm(open, onOpenChange, questionType);
-  const { isSaving, handleSave } = useModalSave(form, questionType, onCreated);
+  const { isSaving, saveProgress, unsavedCount, handleSaveAll } = useModalSave(form, questionType, onCreated);
 
   const { tab, updateTab, tabs } = form;
   const fmt = tab.selectedFormat;
@@ -76,8 +76,9 @@ export function CreateQuestionModal({
             removeTab={form.removeTab}
             addTab={form.addTab}
             isSaving={isSaving}
-            tabSaved={tab.saved}
-            handleSave={handleSave}
+            saveProgress={saveProgress}
+            unsavedCount={unsavedCount}
+            handleSaveAll={handleSaveAll}
           />
         )}
 

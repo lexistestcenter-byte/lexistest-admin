@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import type { RendererProps } from "../types";
 
 export function FlowchartRenderer({ item, answers, setAnswer }: RendererProps) {
@@ -27,6 +27,8 @@ export function FlowchartRenderer({ item, answers, setAnswer }: RendererProps) {
     return <p className="text-sm text-gray-500">No flowchart data available.</p>;
   }
 
+  const isMulti = (item.question.item_count || 1) > 1;
+
   const rows = new Map<number, typeof nodes>();
   for (const node of nodes) {
     const list = rows.get(node.row) || [];
@@ -37,17 +39,25 @@ export function FlowchartRenderer({ item, answers, setAnswer }: RendererProps) {
   const renderContent = (text: string) => {
     const parts = text.split(/\[(\d+)\]/);
     return parts.map((part, i) => {
-      if (i % 2 === 0) return <span key={i} dangerouslySetInnerHTML={{ __html: sanitizeHtml(part) }} />;
+      if (i % 2 === 0) return <span key={i} dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(part) }} />;
       const num = item.startNum + parseInt(part, 10) - 1;
       return (
-        <input
-          key={i}
-          type="text"
-          className="border-b-2 border-gray-400 focus:border-blue-500 bg-transparent px-1 w-24 text-center text-sm mx-0.5 focus:outline-none"
-          value={answers[num] || ""}
-          onChange={(e) => setAnswer(num, e.target.value)}
-          placeholder={`(${num})`}
-        />
+        <span key={i} className="relative inline-flex items-center mx-0.5">
+          {isMulti && !answers[num] && (
+            <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[10px] text-gray-400 pointer-events-none z-10">
+              {num}
+            </span>
+          )}
+          <input
+            type="text"
+            className={cn(
+              "border-b border-dashed border-gray-300 bg-transparent px-1 w-24 text-center text-sm focus:outline-none focus:border-blue-400",
+              answers[num] ? "text-blue-600 border-blue-400 border-solid" : ""
+            )}
+            value={answers[num] || ""}
+            onChange={(e) => setAnswer(num, e.target.value)}
+          />
+        </span>
       );
     });
   };

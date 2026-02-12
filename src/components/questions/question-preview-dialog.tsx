@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCdnUrl } from "@/lib/cdn";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import { api } from "@/lib/api/client";
 import {
   QuestionPreview,
@@ -123,7 +123,7 @@ export function QuestionPreviewDialog({
                 <div className="mx-8 mt-8 mb-2 p-4 bg-blue-50 border border-blue-200 rounded-lg shrink-0">
                   <div
                     className="font-medium text-blue-900 prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
-                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(question.instructions) }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(question.instructions) }}
                   />
                 </div>
               )}

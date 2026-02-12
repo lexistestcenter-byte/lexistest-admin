@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import { od, getArr } from "../helpers";
 import type { QuestionPreviewData } from "../types";
 
@@ -24,7 +24,7 @@ export function TFNGPreview({ data }: { data: QuestionPreviewData }) {
     return (
       <div className="bg-white rounded-lg border p-6 space-y-4 flex-1 overflow-y-auto">
         <div className="p-4 border rounded-lg">
-          <p className="mb-4" dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content || "(진술문 입력)") }} />
+          <p className="mb-4" dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(data.content || "(진술문 입력)") }} />
           <div className="flex gap-4">
             {["TRUE", "FALSE", "NOT GIVEN"].map((label) => (
               <button
@@ -58,7 +58,7 @@ export function TFNGPreview({ data }: { data: QuestionPreviewData }) {
             <span className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
               {idx + 1}
             </span>
-            <p className="flex-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.statement || "(진술문)") }} />
+            <p className="flex-1" dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(item.statement || "(진술문)") }} />
           </div>
           <div className="flex gap-4 mt-3 ml-9">
             {["TRUE", "FALSE", "NOT GIVEN"].map((label) => (

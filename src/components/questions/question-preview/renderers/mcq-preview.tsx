@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import { od, getStr, getArr, getBool } from "../helpers";
 import type { QuestionPreviewData } from "../types";
 
@@ -34,7 +34,7 @@ export function MCQPreview({ data }: { data: QuestionPreviewData }) {
 
   return (
     <div className="bg-white rounded-lg border p-6 space-y-4 flex-1 overflow-y-auto">
-      <p className="text-lg" dangerouslySetInnerHTML={{ __html: sanitizeHtml(question || "(문제 입력)") }} />
+      <p className="text-lg" dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(question || "(문제 입력)") }} />
       {isMultiple && (
         <p className="text-sm text-blue-600">Choose {maxSelections} answers.</p>
       )}

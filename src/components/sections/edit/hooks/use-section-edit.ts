@@ -12,6 +12,7 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
 import { api } from "@/lib/api/client";
+import { uploadEditorImages, stripBlobImages } from "@/components/ui/rich-text-editor";
 import type { PreviewQuestion } from "@/components/sections/section-preview";
 import {
   TOTAL_STEPS,
@@ -485,12 +486,39 @@ export function useSectionEdit(id: string) {
       const { error } = await api.put(`/api/sections/${id}`, updateData);
       if (error) throw new Error(error);
 
-      // 2. Save content blocks
+      // 2. Save content blocks (strip blob URLs first)
       for (let i = 0; i < contentBlocks.length; i++) {
-        await handleUpdateContentBlock(contentBlocks[i].id, {
-          ...contentBlocks[i],
+        const block = contentBlocks[i];
+        await handleUpdateContentBlock(block.id, {
+          ...block,
           display_order: i,
+          passage_content: stripBlobImages(block.passage_content || "") || null,
+          passage_footnotes: stripBlobImages(block.passage_footnotes || "") || null,
         });
+      }
+
+      // 2.5 Upload passage/footnotes editor images (blob URL → R2)
+      const imgContext = `sections/${id}`;
+      for (const block of contentBlocks) {
+        const hasBlobContent = block.passage_content?.includes("blob:");
+        const hasBlobFootnotes = block.passage_footnotes?.includes("blob:");
+        if (!hasBlobContent && !hasBlobFootnotes) continue;
+
+        try {
+          const updatePayload: Record<string, string | null> = {};
+          if (hasBlobContent) {
+            updatePayload.passage_content = await uploadEditorImages(block.passage_content!, imgContext);
+          }
+          if (hasBlobFootnotes) {
+            updatePayload.passage_footnotes = await uploadEditorImages(block.passage_footnotes!, imgContext);
+          }
+          await api.post(`/api/sections/${id}/content-blocks`, {
+            block_id: block.id,
+            ...updatePayload,
+          });
+        } catch {
+          toast.error("지문 이미지 업로드에 실패했습니다. 다시 저장해주세요.");
+        }
       }
 
       // 3. Save group ordering + item numbering

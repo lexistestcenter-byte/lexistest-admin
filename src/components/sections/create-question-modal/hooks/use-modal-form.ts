@@ -36,6 +36,11 @@ export function useModalForm(
     setTabs((prev) => prev.map((t, i) => (i === activeTabIdx ? { ...t, ...updates } : t)));
   }, [activeTabIdx]);
 
+  // Update specific tab by index (for batch save)
+  const updateTabByIdx = useCallback((idx: number, updates: Partial<TabState>) => {
+    setTabs((prev) => prev.map((t, i) => (i === idx ? { ...t, ...updates } : t)));
+  }, []);
+
   // Speaking data load (Part 2 questions for Part 3 linking)
   useEffect(() => {
     if (open && questionType === "speaking" && part2Questions.length === 0) {
@@ -264,7 +269,7 @@ export function useModalForm(
   };
 
   return {
-    tabs, activeTabIdx, setActiveTabIdx, tab, updateTab,
+    tabs, activeTabIdx, setActiveTabIdx, tab, updateTab, updateTabByIdx,
     part2Questions, isLoadingSpeakingData,
     expandedSpeakingCards, setExpandedSpeakingCards,
     resetAll, handlePanelClose, addTab, removeTab,
