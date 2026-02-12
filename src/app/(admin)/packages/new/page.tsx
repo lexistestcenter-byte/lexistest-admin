@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import {
   Select,
   SelectContent,
@@ -34,14 +34,31 @@ import {
 import {
   Trash2,
   Upload,
-  GripVertical,
   Save,
   ArrowLeft,
   Search,
   Loader2,
+  Eye,
 } from "lucide-react";
 import Link from "next/link";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+  arrayMove,
+} from "@dnd-kit/sortable";
 import { api } from "@/lib/api/client";
+import { PackagePreview } from "@/components/packages/package-preview";
+import { SortableSectionItem } from "@/components/packages/sortable-section-item";
 
 /* ─── Types ─── */
 
@@ -87,6 +104,10 @@ export default function NewPackagePage() {
   const [description, setDescription] = useState("");
   const [examType, setExamType] = useState("full");
 
+  // Instruction page
+  const [instructionTitle, setInstructionTitle] = useState("");
+  const [instructionContent, setInstructionContent] = useState("");
+
   // Sections
   const [selectedSections, setSelectedSections] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -98,6 +119,9 @@ export default function NewPackagePage() {
   // Save state
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Preview
+  const [showPreview, setShowPreview] = useState(false);
 
   /* ─── Fetch ─── */
 
@@ -141,12 +165,38 @@ export default function NewPackagePage() {
     setSelectedSections((prev) => prev.filter((sId) => sId !== id));
   };
 
-  const selectedSectionDetails = sections.filter((s) => selectedSections.includes(s.id));
+  const selectedSectionDetails = useMemo(
+    () =>
+      selectedSections
+        .map((id) => sections.find((s) => s.id === id))
+        .filter((s): s is SectionItem => s !== undefined),
+    [selectedSections, sections]
+  );
   const totalTime = selectedSectionDetails.reduce((sum, s) => sum + (s.time_limit_minutes || 0), 0);
   const sectionSummary = selectedSectionDetails.reduce((acc, s) => {
     acc[s.section_type] = (acc[s.section_type] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
+
+  /* ─── DnD ─── */
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setSelectedSections((prev) => {
+      const oldIndex = prev.indexOf(String(active.id));
+      const newIndex = prev.indexOf(String(over.id));
+      if (oldIndex === -1 || newIndex === -1) return prev;
+      return arrayMove(prev, oldIndex, newIndex);
+    });
+  }, []);
 
   /* ─── Save ─── */
 
@@ -163,6 +213,8 @@ export default function NewPackagePage() {
         title: title.trim(),
         description: description.trim() || null,
         exam_type: examType,
+        instruction_title: instructionTitle.trim() || null,
+        instruction_content: instructionContent.trim() || null,
         section_ids: selectedSections,
       });
       if (apiError) throw new Error(apiError);
@@ -188,6 +240,14 @@ export default function NewPackagePage() {
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 목록으로
               </Link>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowPreview(true)}
+              disabled={selectedSections.length === 0}
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              미리보기
             </Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -223,11 +283,11 @@ export default function NewPackagePage() {
               </div>
               <div className="space-y-2">
                 <Label>설명</Label>
-                <Textarea
+                <RichTextEditor
                   placeholder="패키지에 대한 설명을 입력하세요..."
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
+                  onChange={setDescription}
+                  minHeight="80px"
                 />
               </div>
               <div className="space-y-2">
@@ -249,6 +309,35 @@ export default function NewPackagePage() {
                   {examType === "practice" && "연습 전용 시험들로만 구성할 수 있습니다."}
                   {examType === "free" && "무료로 제공되는 패키지입니다."}
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 안내 페이지 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>안내 페이지</CardTitle>
+              <CardDescription>
+                패키지 시작 시 학생에게 처음 보여지는 안내 내용입니다. (선택)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>안내 제목</Label>
+                <Input
+                  placeholder="예: IELTS Test Instructions"
+                  value={instructionTitle}
+                  onChange={(e) => setInstructionTitle(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>안내 내용</Label>
+                <RichTextEditor
+                  placeholder="시험 시작 전 표시될 안내 내용..."
+                  value={instructionContent}
+                  onChange={setInstructionContent}
+                  minHeight="120px"
+                />
               </div>
             </CardContent>
           </Card>
@@ -367,6 +456,7 @@ export default function NewPackagePage() {
                           <TableCell>
                             <Checkbox
                               checked={selectedSections.includes(section.id)}
+                              onClick={(e) => e.stopPropagation()}
                               onCheckedChange={() => toggleSection(section.id)}
                             />
                           </TableCell>
@@ -408,24 +498,31 @@ export default function NewPackagePage() {
             </CardHeader>
             <CardContent>
               {selectedSectionDetails.length > 0 ? (
-                <div className="space-y-2">
-                  {selectedSectionDetails.map((section, index) => (
-                    <div key={section.id} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                      <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
-                      <span className="text-sm font-medium w-6">{index + 1}.</span>
-                      <span className={`px-2 py-0.5 text-xs rounded ${typeColors[section.section_type] || ""}`}>
-                        {section.section_type.charAt(0).toUpperCase()}
-                      </span>
-                      <span className="flex-1 font-medium text-sm">{section.title}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {section.time_limit_minutes ? `${section.time_limit_minutes}분` : "-"}
-                      </span>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeSection(section.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={selectedSections}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-2">
+                      {selectedSectionDetails.map((section, index) => (
+                        <SortableSectionItem
+                          key={section.id}
+                          id={section.id}
+                          index={index}
+                          title={section.title}
+                          sectionType={section.section_type}
+                          timeLimitMinutes={section.time_limit_minutes}
+                          typeColors={typeColors}
+                          onRemove={() => removeSection(section.id)}
+                        />
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </SortableContext>
+                </DndContext>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">위 목록에서 시험을 선택하세요.</div>
               )}
@@ -433,6 +530,17 @@ export default function NewPackagePage() {
           </Card>
         </div>
       </div>
+
+      {/* Package Preview */}
+      <PackagePreview
+        open={showPreview}
+        onOpenChange={setShowPreview}
+        packageTitle={title || "새 패키지"}
+        sectionIds={selectedSections}
+        allSections={sections}
+        instructionTitle={instructionTitle}
+        instructionContent={instructionContent}
+      />
     </div>
   );
 }

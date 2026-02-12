@@ -104,7 +104,7 @@ export async function PUT(
     }
 
     // SQL Injection 체크
-    const textFields = ["title", "description"];
+    const textFields = ["title", "description", "instruction_title", "instruction_content"];
     for (const field of textFields) {
       if (body[field] && containsSqlInjection(body[field])) {
         return NextResponse.json(
@@ -129,6 +129,14 @@ export async function PUT(
     if (body.access_type !== undefined) updateData.access_type = body.access_type;
     if (body.display_order !== undefined) updateData.display_order = body.display_order;
     if (body.tags !== undefined) updateData.tags = body.tags;
+    if (body.instruction_title !== undefined)
+      updateData.instruction_title = body.instruction_title
+        ? sanitizeHtml(body.instruction_title)
+        : null;
+    if (body.instruction_content !== undefined)
+      updateData.instruction_content = body.instruction_content
+        ? sanitizeHtml(body.instruction_content)
+        : null;
 
     if (Object.keys(updateData).length === 0 && !body.section_ids) {
       return NextResponse.json(

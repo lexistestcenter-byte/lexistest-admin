@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
     }
 
     // SQL Injection 체크
-    const textFields = ["title", "description"];
+    const textFields = ["title", "description", "instruction_title", "instruction_content"];
     for (const field of textFields) {
       if (body[field] && containsSqlInjection(body[field])) {
         return NextResponse.json(
@@ -152,6 +152,8 @@ export async function POST(request: NextRequest) {
       access_type: body.access_type || "public",
       display_order: body.display_order || 0,
       tags: body.tags || null,
+      instruction_title: body.instruction_title ? sanitizeHtml(body.instruction_title) : null,
+      instruction_content: body.instruction_content ? sanitizeHtml(body.instruction_content) : null,
       created_by: user.id,
     };
 

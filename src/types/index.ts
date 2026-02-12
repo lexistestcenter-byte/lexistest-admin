@@ -226,6 +226,8 @@ export interface Package {
   is_free: boolean;
   display_order: number;
   tags?: string[] | null;
+  instruction_title?: string | null;
+  instruction_content?: string | null;
   created_by?: string | null;
   created_at: string;
   updated_at: string;

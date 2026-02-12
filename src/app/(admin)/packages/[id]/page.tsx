@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import {
   Select,
   SelectContent,
@@ -49,12 +49,28 @@ import {
   ArrowLeft,
   Search,
   Loader2,
-  ArrowUp,
-  ArrowDown,
+  Eye,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+  arrayMove,
+} from "@dnd-kit/sortable";
 import { api } from "@/lib/api/client";
+import { PackagePreview } from "@/components/packages/package-preview";
+import { SortableSectionItem } from "@/components/packages/sortable-section-item";
 
 interface SectionItem {
   id: string;
@@ -87,6 +103,8 @@ interface PackageData {
   is_free: boolean;
   display_order: number | null;
   tags: string[] | null;
+  instruction_title: string | null;
+  instruction_content: string | null;
   package_sections: PackageSectionItem[];
 }
 
@@ -124,6 +142,10 @@ export default function EditPackagePage() {
   const [isPractice, setIsPractice] = useState(false);
   const [accessType, setAccessType] = useState("public");
 
+  // Instruction page
+  const [instructionTitle, setInstructionTitle] = useState("");
+  const [instructionContent, setInstructionContent] = useState("");
+
   // Sections
   const [selectedSectionIds, setSelectedSectionIds] = useState<string[]>([]);
   const [allSections, setAllSections] = useState<SectionItem[]>([]);
@@ -134,6 +156,9 @@ export default function EditPackagePage() {
   // Save/Delete states
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Preview
+  const [showPreview, setShowPreview] = useState(false);
 
   // Load package data
   const loadPackage = useCallback(async () => {
@@ -153,6 +178,8 @@ export default function EditPackagePage() {
       setIsFree(pkg.is_free);
       setIsPractice(pkg.is_practice);
       setAccessType(pkg.access_type || "public");
+      setInstructionTitle(pkg.instruction_title || "");
+      setInstructionContent(pkg.instruction_content || "");
 
       // Sort package_sections by display_order and extract section IDs
       const sorted = (pkg.package_sections || [])
@@ -204,29 +231,33 @@ export default function EditPackagePage() {
     setSelectedSectionIds((prev) => prev.filter((id) => id !== sectionId));
   };
 
-  // Move section up/down
-  const moveSectionUp = (index: number) => {
-    if (index <= 0) return;
-    setSelectedSectionIds((prev) => {
-      const next = [...prev];
-      [next[index - 1], next[index]] = [next[index], next[index - 1]];
-      return next;
-    });
-  };
-
-  const moveSectionDown = (index: number) => {
-    setSelectedSectionIds((prev) => {
-      if (index >= prev.length - 1) return prev;
-      const next = [...prev];
-      [next[index], next[index + 1]] = [next[index + 1], next[index]];
-      return next;
-    });
-  };
-
   // Get selected section details in order
-  const selectedSectionDetails = selectedSectionIds
-    .map((sId) => allSections.find((s) => s.id === sId))
-    .filter((s): s is SectionItem => s !== undefined);
+  const selectedSectionDetails = useMemo(
+    () =>
+      selectedSectionIds
+        .map((sId) => allSections.find((s) => s.id === sId))
+        .filter((s): s is SectionItem => s !== undefined),
+    [selectedSectionIds, allSections]
+  );
+
+  // DnD
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setSelectedSectionIds((prev) => {
+      const oldIndex = prev.indexOf(String(active.id));
+      const newIndex = prev.indexOf(String(over.id));
+      if (oldIndex === -1 || newIndex === -1) return prev;
+      return arrayMove(prev, oldIndex, newIndex);
+    });
+  }, []);
 
   // Calculate totals
   const totalTime = selectedSectionDetails.reduce(
@@ -262,6 +293,8 @@ export default function EditPackagePage() {
         is_published: isPublished,
         is_free: isFree,
         access_type: accessType,
+        instruction_title: instructionTitle.trim() || null,
+        instruction_content: instructionContent.trim() || null,
         section_ids: selectedSectionIds,
       });
       if (apiError) throw new Error(apiError);
@@ -353,6 +386,14 @@ export default function EditPackagePage() {
                 목록으로
               </Link>
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowPreview(true)}
+              disabled={selectedSectionIds.length === 0}
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              미리보기
+            </Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -385,11 +426,11 @@ export default function EditPackagePage() {
 
               <div className="space-y-2">
                 <Label>설명</Label>
-                <Textarea
+                <RichTextEditor
                   placeholder="패키지에 대한 설명을 입력하세요..."
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
+                  onChange={setDescription}
+                  minHeight="80px"
                 />
               </div>
 
@@ -464,6 +505,35 @@ export default function EditPackagePage() {
                   </div>
                   <Switch checked={isFree} onCheckedChange={setIsFree} />
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 안내 페이지 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>안내 페이지</CardTitle>
+              <CardDescription>
+                패키지 시작 시 학생에게 처음 보여지는 안내 내용입니다. (선택)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>안내 제목</Label>
+                <Input
+                  placeholder="예: IELTS Test Instructions"
+                  value={instructionTitle}
+                  onChange={(e) => setInstructionTitle(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>안내 내용</Label>
+                <RichTextEditor
+                  placeholder="시험 시작 전 표시될 안내 내용..."
+                  value={instructionContent}
+                  onChange={setInstructionContent}
+                  minHeight="120px"
+                />
               </div>
             </CardContent>
           </Card>
@@ -575,6 +645,7 @@ export default function EditPackagePage() {
                           <TableCell>
                             <Checkbox
                               checked={selectedSectionIds.includes(section.id)}
+                              onClick={(e) => e.stopPropagation()}
                               onCheckedChange={() => toggleSection(section.id)}
                             />
                           </TableCell>
@@ -617,55 +688,35 @@ export default function EditPackagePage() {
           <Card>
             <CardHeader>
               <CardTitle>시험 구성 순서 ({selectedSectionIds.length})</CardTitle>
-              <CardDescription>화살표 버튼으로 시험 순서를 변경하세요. 위에서부터 시험 순서입니다.</CardDescription>
+              <CardDescription>드래그하여 순서를 변경할 수 있습니다.</CardDescription>
             </CardHeader>
             <CardContent>
               {selectedSectionDetails.length > 0 ? (
-                <div className="space-y-2">
-                  {selectedSectionDetails.map((section, index) => (
-                    <div
-                      key={section.id}
-                      className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg"
-                    >
-                      <div className="flex flex-col gap-0.5">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5"
-                          disabled={index === 0}
-                          onClick={() => moveSectionUp(index)}
-                        >
-                          <ArrowUp className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5"
-                          disabled={index === selectedSectionDetails.length - 1}
-                          onClick={() => moveSectionDown(index)}
-                        >
-                          <ArrowDown className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <span className="text-sm font-medium w-6 text-muted-foreground">{index + 1}.</span>
-                      <span className={`px-2 py-0.5 text-xs rounded ${typeColors[section.section_type] || ""}`}>
-                        {section.section_type.charAt(0).toUpperCase()}
-                      </span>
-                      <span className="flex-1 font-medium text-sm truncate">{section.title}</span>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {section.time_limit_minutes ? `${section.time_limit_minutes}분` : "-"}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        onClick={() => removeSection(section.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={selectedSectionIds}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-2">
+                      {selectedSectionDetails.map((section, index) => (
+                        <SortableSectionItem
+                          key={section.id}
+                          id={section.id}
+                          index={index}
+                          title={section.title}
+                          sectionType={section.section_type}
+                          timeLimitMinutes={section.time_limit_minutes}
+                          typeColors={typeColors}
+                          onRemove={() => removeSection(section.id)}
+                        />
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </SortableContext>
+                </DndContext>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   위 목록에서 시험을 선택하세요.
@@ -675,6 +726,17 @@ export default function EditPackagePage() {
           </Card>
         </div>
       </div>
+
+      {/* Package Preview */}
+      <PackagePreview
+        open={showPreview}
+        onOpenChange={setShowPreview}
+        packageTitle={title || "패키지"}
+        sectionIds={selectedSectionIds}
+        allSections={allSections}
+        instructionTitle={instructionTitle}
+        instructionContent={instructionContent}
+      />
     </div>
   );
 }
