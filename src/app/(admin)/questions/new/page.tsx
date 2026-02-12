@@ -275,8 +275,6 @@ export default function NewQuestionPage() {
                 updateBlank={(id, field, value) => {
                   updateCurrentTab("flowchartBlanks", currentTab.flowchartBlanks.map(b => b.id === id ? { ...b, [field]: value } : b));
                 }}
-                instructions={currentTab.instructions}
-                setInstructions={(v) => updateCurrentTab("instructions", v)}
               />
             )}
 

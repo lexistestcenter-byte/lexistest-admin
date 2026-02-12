@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
 import {
   Plus,
   X,
@@ -33,8 +32,6 @@ interface FlowchartEditorProps {
   blanks: Blank[];
   setBlanks: (v: Blank[]) => void;
   updateBlank: (id: string, field: keyof Blank, value: unknown) => void;
-  instructions: string;
-  setInstructions: (v: string) => void;
 }
 
 // =============================================================================
@@ -104,8 +101,6 @@ export function FlowchartEditor({
   blanks,
   setBlanks,
   updateBlank,
-  instructions,
-  setInstructions,
 }: FlowchartEditorProps) {
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);

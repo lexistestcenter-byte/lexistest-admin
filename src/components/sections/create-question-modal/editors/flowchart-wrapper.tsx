@@ -32,8 +32,6 @@ export function ModalFlowchartEditor({ tab, updateTab, addFlowchartNode }: Modal
             }),
           });
         }}
-        instructions={tab.instructions}
-        setInstructions={(v) => updateTab({ instructions: v })}
       />
     </div>
   );

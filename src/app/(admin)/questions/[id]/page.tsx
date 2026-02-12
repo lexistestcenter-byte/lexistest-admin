@@ -42,7 +42,7 @@ export default function EditQuestionPage({
 
   const {
     selectedQuestionType, selectedFormat,
-    questionCode, instructions,
+    questionCode,
     isPreviewOpen, setIsPreviewOpen,
   } = form;
 
@@ -255,8 +255,6 @@ export default function EditQuestionPage({
                 updateBlank={(blankId, field, value) => {
                   form.setFlowchartBlanks(form.flowchartBlanks.map(b => b.id === blankId ? { ...b, [field]: value } : b));
                 }}
-                instructions={instructions}
-                setInstructions={form.setInstructions}
               />
             )}
 

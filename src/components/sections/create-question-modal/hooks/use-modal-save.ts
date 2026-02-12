@@ -333,34 +333,40 @@ export function useModalSave(
       }
     }
 
-    // Confirmation
-    if (!window.confirm(`${unsavedTabs.length}개의 문제를 저장하시겠습니까?`)) return;
+    // Confirmation via toast action
+    toast.warning(`${unsavedTabs.length}개의 문제를 저장하시겠습니까?`, {
+      action: {
+        label: "저장",
+        onClick: async () => {
+          setIsSaving(true);
+          setSaveProgress({ current: 0, total: unsavedTabs.length });
 
-    setIsSaving(true);
-    setSaveProgress({ current: 0, total: unsavedTabs.length });
+          let savedCount = 0;
+          for (const { tab, idx } of unsavedTabs) {
+            try {
+              await saveSingleTab(tab, idx);
+              savedCount++;
+              setSaveProgress({ current: savedCount, total: unsavedTabs.length });
+            } catch (error) {
+              console.error(`Save error (tab ${idx + 1}):`, error);
+              form.setActiveTabIdx(idx);
+              toast.error(`문제 ${idx + 1}: ${error instanceof Error ? error.message : "저장에 실패했습니다."}`);
+              break;
+            }
+          }
 
-    let savedCount = 0;
-    for (const { tab, idx } of unsavedTabs) {
-      try {
-        await saveSingleTab(tab, idx);
-        savedCount++;
-        setSaveProgress({ current: savedCount, total: unsavedTabs.length });
-      } catch (error) {
-        console.error(`Save error (tab ${idx + 1}):`, error);
-        form.setActiveTabIdx(idx);
-        toast.error(`문제 ${idx + 1}: ${error instanceof Error ? error.message : "저장에 실패했습니다."}`);
-        break;
-      }
-    }
+          if (savedCount === unsavedTabs.length) {
+            toast.success(`${savedCount}개 문제가 저장되었습니다.`);
+          } else if (savedCount > 0) {
+            toast.warning(`${unsavedTabs.length}개 중 ${savedCount}개만 저장되었습니다.`);
+          }
 
-    if (savedCount === unsavedTabs.length) {
-      toast.success(`${savedCount}개 문제가 저장되었습니다.`);
-    } else if (savedCount > 0) {
-      toast.warning(`${unsavedTabs.length}개 중 ${savedCount}개만 저장되었습니다.`);
-    }
-
-    setIsSaving(false);
-    setSaveProgress({ current: 0, total: 0 });
+          setIsSaving(false);
+          setSaveProgress({ current: 0, total: 0 });
+        },
+      },
+      cancel: { label: "취소", onClick: () => {} },
+    });
   };
 
   return { isSaving, saveProgress, unsavedCount, handleSaveAll };
