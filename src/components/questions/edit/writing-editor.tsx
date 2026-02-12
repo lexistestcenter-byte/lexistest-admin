@@ -40,7 +40,7 @@ export function WritingEditor({
 
         {/* 최소 단어 수 */}
         <div className="space-y-2">
-          <Label>최소 단어 수 (선택)</Label>
+          <RequiredLabel required>최소 단어 수</RequiredLabel>
           <Input
             type="text"
             inputMode="numeric"
@@ -60,9 +60,9 @@ export function WritingEditor({
         </div>
       </div>
 
-      {/* 조건 (시간/단어수) */}
+      {/* 조건 (선택) */}
       <div className="space-y-2">
-        <RequiredLabel required>조건 (시간/단어수)</RequiredLabel>
+        <Label>조건 (선택)</Label>
         <Input
           value={condition}
           onChange={(e) => setCondition(e.target.value)}

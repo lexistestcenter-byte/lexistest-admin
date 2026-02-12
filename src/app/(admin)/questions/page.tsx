@@ -264,7 +264,11 @@ export default function QuestionsPage() {
           )}
           <span className="text-sm truncate">
             {(() => {
-              const displayText = q.title || (q.options_data?.title as string) || stripHtml(q.content || "");
+              let displayText = q.title || (q.options_data?.title as string) || "";
+              if (!displayText && q.question_format === "flowchart") {
+                try { displayText = JSON.parse(q.content).title || "Flowchart"; } catch { displayText = "Flowchart"; }
+              }
+              if (!displayText) displayText = stripHtml(q.content || "");
               return displayText.length > 80 ? displayText.substring(0, 80) + "..." : displayText;
             })()}
           </span>
@@ -438,7 +442,16 @@ export default function QuestionsPage() {
               <strong className="text-foreground">
                 {deleteTarget?.question_code}
               </strong>{" "}
-              - {stripHtml(deleteTarget?.title || deleteTarget?.content || "")}
+              -{" "}
+              {(() => {
+                const t = deleteTarget;
+                if (!t) return "";
+                if (t.title) return stripHtml(t.title);
+                if (t.question_format === "flowchart") {
+                  try { return JSON.parse(t.content).title || "Flowchart"; } catch { return "Flowchart"; }
+                }
+                return stripHtml(t.content || "");
+              })()}
               <br />
               <br />
               <span className="text-amber-600">

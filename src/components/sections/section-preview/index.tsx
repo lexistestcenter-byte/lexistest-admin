@@ -73,6 +73,15 @@ export function SectionPreview({
     : false;
   const showLeftPanel = true;
 
+  // Writing questions: show question.content in the left panel instead of content blocks
+  const isWritingQuestion = activeItem
+    ? ["essay_task1", "essay_task2", "essay"].includes(activeItem.question.question_format)
+    : false;
+  const writingContent = isWritingQuestion ? activeItem?.question.content : null;
+  const writingImageUrl = isWritingQuestion
+    ? String(activeItem?.question.options_data?.image_url || "") || null
+    : null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="!max-w-none !w-screen !h-screen !rounded-none !p-0 !gap-0 !inset-0 !translate-x-0 !translate-y-0 !top-0 !left-0 flex flex-col overflow-hidden [&>button]:hidden">
@@ -150,7 +159,7 @@ export function SectionPreview({
                   <div className="col-span-1 border-r border-slate-300 bg-slate-100 overflow-y-auto">
                     {activeIsHeadingMatching && activeItem
                       ? <HeadingMatchingPassage item={activeItem} answers={answers} setAnswer={setAnswer} />
-                      : <ContentPanel activeBlock={activeBlock} contentBlocks={contentBlocks} />}
+                      : <ContentPanel activeBlock={activeBlock} contentBlocks={contentBlocks} writingContent={writingContent} writingImageUrl={writingImageUrl} />}
                   </div>
                 )}
                 <div

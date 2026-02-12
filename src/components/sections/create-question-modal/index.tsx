@@ -134,8 +134,8 @@ export function CreateQuestionModal({
                     </div>
                   )}
 
-                  {/* Instructions (공통, MCQ/T/F/NG/flowchart 제외) */}
-                  {fmt !== "mcq" && fmt !== "true_false_ng" && fmt !== "flowchart" && (
+                  {/* Instructions (공통, MCQ/T/F/NG/flowchart/essay 제외) */}
+                  {fmt !== "mcq" && fmt !== "true_false_ng" && fmt !== "flowchart" && fmt !== "essay" && (
                     <div>
                       <Label className="text-sm font-medium">지시문 (Instructions)</Label>
                       <Textarea

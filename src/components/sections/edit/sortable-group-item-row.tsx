@@ -65,7 +65,16 @@ export function SortableGroupItemRow({
           {formatLabels[info.question_format] || info.question_format}
         </Badge>
         <span className="flex-1 text-xs text-muted-foreground truncate min-w-0">
-          {stripHtml(info.title || info.content)}
+          {info.question_format === "flowchart"
+            ? (() => {
+                try {
+                  const parsed = JSON.parse(info.content);
+                  return parsed.title || "Flowchart";
+                } catch {
+                  return stripHtml(info.title || info.content);
+                }
+              })()
+            : stripHtml(info.title || info.content)}
         </span>
         <Button
           variant="ghost"

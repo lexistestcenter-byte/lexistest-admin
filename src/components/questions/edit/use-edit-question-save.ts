@@ -113,6 +113,10 @@ export function useEditQuestionSave(id: string, form: EditQuestionForm) {
 
     // Writing(에세이) 유효성 검사
     if (selectedFormat === "essay") {
+      if (!form.writingMinWords.trim()) {
+        toast.error("최소 단어 수를 입력해주세요.");
+        return;
+      }
       if (!form.writingPrompt.trim()) {
         toast.error("작문 프롬프트를 입력해주세요.");
         return;

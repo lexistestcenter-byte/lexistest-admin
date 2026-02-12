@@ -17,7 +17,9 @@ interface QuestionDetailPreviewProps {
 
 // Replace [N] markers with styled blank placeholders
 function renderBlankPlaceholders(text: string): React.ReactNode {
-  const parts = text.split(/(\[\d+\])/g);
+  // Convert \n to <br> so line breaks render in dangerouslySetInnerHTML
+  const processed = text.replace(/\n/g, "<br>");
+  const parts = processed.split(/(\[\d+\])/g);
   return parts.map((part, i) => {
     const match = part.match(/^\[(\d+)\]$/);
     if (match) {
