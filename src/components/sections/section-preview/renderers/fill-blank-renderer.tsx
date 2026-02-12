@@ -21,7 +21,7 @@ export function FillBlankTypingRenderer({ item, answers, setAnswer }: RendererPr
           return (
             <span key={i} className="relative inline-flex items-center mx-0.5 align-baseline">
               {isMulti && !answers[num] && (
-                <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[10px] text-gray-400 pointer-events-none z-10">
+                <span className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-400 pointer-events-none z-10">
                   {num}
                 </span>
               )}
@@ -101,7 +101,7 @@ export function FillBlankDragRenderer({ item, answers, setAnswer }: RendererProp
           return (
             <span key={i} className="relative inline-flex items-center mx-0.5 align-baseline">
               {isMulti && !answers[num] && (
-                <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[10px] text-gray-400 pointer-events-none z-10">
+                <span className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-400 pointer-events-none z-10">
                   {num}
                 </span>
               )}

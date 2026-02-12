@@ -16,7 +16,7 @@ function renderBlankPlaceholders(text: string, isMulti: boolean): ReactNode {
       return (
         <span key={index} className="relative inline-flex items-center mx-1">
           {isMulti && (
-            <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[10px] text-gray-400 pointer-events-none z-10">
+            <span className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-400 pointer-events-none z-10">
               {num}
             </span>
           )}
