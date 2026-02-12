@@ -27,7 +27,7 @@ interface StepStructureProps {
   setActiveGroupId: (id: string) => void;
   setAddDrawerGroupId: (id: string | null) => void;
   handleAddContentBlock: () => void;
-  handleUpdateContentBlock: (id: string, data: Partial<ContentBlock>) => void;
+  handleUpdateContentBlockLocal: (id: string, data: Partial<ContentBlock>) => void;
   handleRemoveContentBlock: (id: string) => void;
   handleAddGroup: () => void;
   handleUpdateGroup: (id: string, data: Record<string, unknown>) => void;
@@ -48,7 +48,7 @@ export function StepStructure({
   setActiveGroupId,
   setAddDrawerGroupId,
   handleAddContentBlock,
-  handleUpdateContentBlock,
+  handleUpdateContentBlockLocal,
   handleRemoveContentBlock,
   handleAddGroup,
   handleUpdateGroup,
@@ -91,7 +91,7 @@ export function StepStructure({
                       key={block.id}
                       block={block}
                       index={idx}
-                      onUpdate={handleUpdateContentBlock}
+                      onUpdate={handleUpdateContentBlockLocal}
                       onRemove={handleRemoveContentBlock}
                       sectionId={sectionId}
                     />

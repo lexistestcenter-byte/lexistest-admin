@@ -35,25 +35,22 @@ export function ContentBlockEditor({
       ? block.passage_title || `Passage ${index + 1}`
       : block.passage_title || `Audio ${index + 1}`;
 
-  // Debounced save
+  // 즉시 부모 state 반영 (debounce 제거 — blob URL이 저장 시점에 누락되는 문제 방지)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (block.content_type === "passage") {
-        onUpdate(block.id, {
-          passage_title: localTitle || null,
-          passage_content: localContent || null,
-          passage_footnotes: localFootnotes || null,
-        } as Partial<ContentBlock>);
-      } else {
-        onUpdate(block.id, {
-          audio_url: localAudioUrl || null,
-          passage_title: localTitle || null,
-          passage_content: localContent || null,
-          passage_footnotes: localFootnotes || null,
-        } as Partial<ContentBlock>);
-      }
-    }, 1000);
-    return () => clearTimeout(timer);
+    if (block.content_type === "passage") {
+      onUpdate(block.id, {
+        passage_title: localTitle || null,
+        passage_content: localContent || null,
+        passage_footnotes: localFootnotes || null,
+      } as Partial<ContentBlock>);
+    } else {
+      onUpdate(block.id, {
+        audio_url: localAudioUrl || null,
+        passage_title: localTitle || null,
+        passage_content: localContent || null,
+        passage_footnotes: localFootnotes || null,
+      } as Partial<ContentBlock>);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localTitle, localContent, localFootnotes, localAudioUrl]);
 

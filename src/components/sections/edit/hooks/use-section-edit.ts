@@ -12,7 +12,7 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
 import { api } from "@/lib/api/client";
-import { uploadEditorImages, stripBlobImages } from "@/components/ui/rich-text-editor";
+import { uploadEditorImages } from "@/components/ui/rich-text-editor";
 import type { PreviewQuestion } from "@/components/sections/section-preview";
 import {
   TOTAL_STEPS,
@@ -240,7 +240,18 @@ export function useSectionEdit(id: string) {
     }
   };
 
-  const handleUpdateContentBlock = async (
+  // Local-only state update (no API call) — used during editing to preserve blob URLs
+  const handleUpdateContentBlockLocal = (
+    blockId: string,
+    data: Partial<ContentBlock>
+  ) => {
+    setContentBlocks((prev) =>
+      prev.map((b) => (b.id === blockId ? { ...b, ...data } : b))
+    );
+  };
+
+  // API call to persist a content block — used only during save
+  const saveContentBlockToApi = async (
     blockId: string,
     data: Partial<ContentBlock>
   ) => {
@@ -486,39 +497,35 @@ export function useSectionEdit(id: string) {
       const { error } = await api.put(`/api/sections/${id}`, updateData);
       if (error) throw new Error(error);
 
-      // 2. Save content blocks (strip blob URLs first)
+      // 2. Save content blocks (upload blob images first, then save)
+      const imgContext = `sections/${id}`;
       for (let i = 0; i < contentBlocks.length; i++) {
         const block = contentBlocks[i];
-        await handleUpdateContentBlock(block.id, {
-          ...block,
-          display_order: i,
-          passage_content: stripBlobImages(block.passage_content || "") || null,
-          passage_footnotes: stripBlobImages(block.passage_footnotes || "") || null,
-        });
-      }
 
-      // 2.5 Upload passage/footnotes editor images (blob URL → R2)
-      const imgContext = `sections/${id}`;
-      for (const block of contentBlocks) {
-        const hasBlobContent = block.passage_content?.includes("blob:");
-        const hasBlobFootnotes = block.passage_footnotes?.includes("blob:");
-        if (!hasBlobContent && !hasBlobFootnotes) continue;
+        // 항상 uploadEditorImages 호출 (blob 없으면 내부에서 즉시 return)
+        let passageContent = block.passage_content || null;
+        let passageFootnotes = block.passage_footnotes || null;
+        console.log("[IMG-DEBUG] edit save block", block.id, ": passageContent hasBlob=", passageContent?.includes("blob:"), "content=", passageContent?.substring(0, 200));
+        console.log("[IMG-DEBUG] edit save block", block.id, ": passageFootnotes hasBlob=", passageFootnotes?.includes("blob:"));
 
         try {
-          const updatePayload: Record<string, string | null> = {};
-          if (hasBlobContent) {
-            updatePayload.passage_content = await uploadEditorImages(block.passage_content!, imgContext);
+          if (passageContent) {
+            passageContent = await uploadEditorImages(passageContent, imgContext);
           }
-          if (hasBlobFootnotes) {
-            updatePayload.passage_footnotes = await uploadEditorImages(block.passage_footnotes!, imgContext);
+          if (passageFootnotes) {
+            passageFootnotes = await uploadEditorImages(passageFootnotes, imgContext);
           }
-          await api.post(`/api/sections/${id}/content-blocks`, {
-            block_id: block.id,
-            ...updatePayload,
-          });
-        } catch {
+        } catch (e) {
+          console.error("Section passage image upload failed:", e);
           toast.error("지문 이미지 업로드에 실패했습니다. 다시 저장해주세요.");
         }
+
+        await saveContentBlockToApi(block.id, {
+          ...block,
+          display_order: i,
+          passage_content: passageContent,
+          passage_footnotes: passageFootnotes,
+        });
       }
 
       // 3. Save group ordering + item numbering
@@ -556,6 +563,7 @@ export function useSectionEdit(id: string) {
       setPendingItemDeletes([]);
 
       toast.success("시험이 저장되었습니다.");
+      router.push("/sections");
     } catch (error) {
       console.error("Error saving section:", error);
       toast.error(
@@ -718,7 +726,7 @@ export function useSectionEdit(id: string) {
 
     // Actions
     handleAddContentBlock,
-    handleUpdateContentBlock,
+    handleUpdateContentBlockLocal,
     handleRemoveContentBlock,
     handleAddGroup,
     handleUpdateGroup,

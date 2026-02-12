@@ -46,9 +46,24 @@ export function sanitizeHtml(html: string): string {
 }
 
 // sanitizeHtml + 상대 이미지 경로를 CDN URL로 변환 (미리보기/표시용)
+// blob: 스킴도 허용하여 에디터 미리보기에서 로컬 이미지 표시 가능
 export function sanitizeHtmlForDisplay(html: string): string {
   if (!html) return "";
-  const sanitized = sanitizeHtml(html);
+  const sanitized = sanitize(html, {
+    allowedTags: [
+      "p", "br", "b", "i", "u", "strong", "em", "ul", "ol", "li",
+      "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "code", "pre",
+      "table", "thead", "tbody", "tr", "th", "td", "span", "div", "a",
+      "img", "sub", "sup",
+    ],
+    allowedAttributes: {
+      "*": ["class", "style", "id"],
+      a: ["href", "target"],
+      img: ["src", "alt"],
+    },
+    allowedSchemes: ["http", "https", "ftp", "mailto", "tel", "blob"],
+    disallowedTagsMode: "discard",
+  });
   const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || "";
   if (!cdnUrl) return sanitized;
   return sanitized.replace(

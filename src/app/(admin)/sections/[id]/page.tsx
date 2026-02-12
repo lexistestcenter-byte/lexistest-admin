@@ -119,7 +119,7 @@ export default function SectionEditPage({
           setActiveGroupId={s.setActiveGroupId}
           setAddDrawerGroupId={s.setAddDrawerGroupId}
           handleAddContentBlock={s.handleAddContentBlock}
-          handleUpdateContentBlock={s.handleUpdateContentBlock}
+          handleUpdateContentBlockLocal={s.handleUpdateContentBlockLocal}
           handleRemoveContentBlock={s.handleRemoveContentBlock}
           handleAddGroup={s.handleAddGroup}
           handleUpdateGroup={s.handleUpdateGroup}

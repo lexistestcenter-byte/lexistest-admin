@@ -86,18 +86,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 파일 경로 생성
+    // 파일 경로 생성: UUID + YYYYMMDD
     const fileExt = ext || (type === "image" ? "jpg" : "mp3");
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 8);
+    const uuid = crypto.randomUUID();
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
 
     let filePath: string;
     if (context) {
-      // context가 있으면: audio/questions/Q-L-0001/1706123456-abc123.mp3
-      filePath = `${type}/${context}/${timestamp}-${random}.${fileExt}`;
+      filePath = `${type}/${context}/${uuid}_${dateStr}.${fileExt}`;
     } else {
-      // context 없으면: audio/1706123456-abc123.mp3
-      filePath = `${type}/${timestamp}-${random}.${fileExt}`;
+      filePath = `${type}/${uuid}_${dateStr}.${fileExt}`;
     }
 
     // 파일을 ArrayBuffer로 변환
