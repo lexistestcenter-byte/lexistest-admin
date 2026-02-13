@@ -73,6 +73,8 @@ export function useSectionEdit(id: string) {
   const [pendingBlockDeletes, setPendingBlockDeletes] = useState<string[]>([]);
   const [pendingGroupDeletes, setPendingGroupDeletes] = useState<string[]>([]);
   const [pendingItemDeletes, setPendingItemDeletes] = useState<string[]>([]);
+  // Track removed questions so they can be re-added before save
+  const [pendingDeletedQuestions, setPendingDeletedQuestions] = useState<AvailableQuestion[]>([]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -179,14 +181,31 @@ export function useSectionEdit(id: string) {
         `/api/sections/${id}/available-questions?${params.toString()}`
       );
       if (error) throw new Error(error);
-      setAvailableQuestions(Array.isArray(data) ? data : []);
+      let questions = Array.isArray(data) ? data : [];
+
+      // Merge back questions pending deletion (removed locally but not yet saved)
+      if (pendingDeletedQuestions.length > 0) {
+        const existingIds = new Set(questions.map((q) => q.id));
+        // Also exclude questions currently in groups (to avoid duplicates)
+        const currentQuestionIds = new Set(
+          questionGroups.flatMap((g) => g.items.map((i) => i.question_id))
+        );
+        const toMerge = pendingDeletedQuestions.filter(
+          (q) => !existingIds.has(q.id) && !currentQuestionIds.has(q.id)
+        );
+        if (toMerge.length > 0) {
+          questions = [...toMerge, ...questions];
+        }
+      }
+
+      setAvailableQuestions(questions);
     } catch (error) {
       console.error("Error loading available questions:", error);
       toast.error("문제 목록을 불러오는데 실패했습니다.");
     } finally {
       setIsLoadingQuestions(false);
     }
-  }, [id, section, searchQuery]);
+  }, [id, section, searchQuery, pendingDeletedQuestions, questionGroups]);
 
   useEffect(() => {
     if (addDrawerGroupId && section) {
@@ -364,6 +383,32 @@ export function useSectionEdit(id: string) {
   // ─── Remove item from group ────────────────────────────────
 
   const handleRemoveItem = (itemId: string) => {
+    // Capture question info before removing so it can appear in "available questions" list
+    for (const g of questionGroups) {
+      const item = g.items.find((i) => i.item_id === itemId);
+      if (item) {
+        setPendingDeletedQuestions((prev) => {
+          if (prev.some((q) => q.id === item.question_id)) return prev;
+          const qi = item.question_info;
+          return [...prev, {
+            id: item.question_id,
+            question_code: qi.question_code,
+            question_type: qi.question_type,
+            question_format: qi.question_format,
+            content: qi.content,
+            title: qi.title,
+            instructions: qi.instructions,
+            difficulty: null,
+            is_active: true,
+            item_count: qi.item_count,
+            options_data: qi.options_data,
+            answer_data: qi.answer_data,
+          }];
+        });
+        break;
+      }
+    }
+
     if (!itemId.startsWith("temp-")) {
       setPendingItemDeletes((prev) => [...prev, itemId]);
     }
@@ -561,6 +606,7 @@ export function useSectionEdit(id: string) {
       setPendingBlockDeletes([]);
       setPendingGroupDeletes([]);
       setPendingItemDeletes([]);
+      setPendingDeletedQuestions([]);
 
       toast.success("시험이 저장되었습니다.");
       router.push("/sections");

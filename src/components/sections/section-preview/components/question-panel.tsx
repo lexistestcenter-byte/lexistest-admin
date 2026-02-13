@@ -86,9 +86,9 @@ export function QuestionPanel({
       <div className="bg-slate-200 px-5 py-4 shrink-0 border-b border-slate-300">
         <p className="text-base font-bold text-gray-900">{groupLabel}</p>
         {activeGroup.instructions && (
-          <p className="text-sm text-gray-700 mt-2 leading-relaxed">
+          <div className="text-sm text-gray-700 mt-2 leading-relaxed">
             {renderFormattedText(activeGroup.instructions)}
-          </p>
+          </div>
         )}
       </div>
 

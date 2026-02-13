@@ -67,16 +67,16 @@ export function QuestionRouter({
     <div className="space-y-3">
       {titleText && (
         <div className="bg-slate-100 border-l-4 border-slate-300 px-4 py-2.5 rounded-r">
-          <p className="text-[15px]">
+          <div className="text-[15px]">
             <span className="font-bold mr-2">{numPrefix}</span>
             {renderFormattedText(titleText)}
-          </p>
+          </div>
         </div>
       )}
       {instructionsText && (
-        <p className="text-sm text-gray-600 leading-relaxed italic">
+        <div className="text-sm text-gray-600 leading-relaxed italic">
           {renderFormattedText(instructionsText)}
-        </p>
+        </div>
       )}
       {content}
     </div>

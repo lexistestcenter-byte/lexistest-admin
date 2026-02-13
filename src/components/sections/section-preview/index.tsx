@@ -17,6 +17,7 @@ import { QuestionPanel } from "./components/question-panel";
 import { ContentPanel } from "./components/content-panel";
 import { Navigator } from "./components/navigator";
 import { HeadingMatchingPassage } from "./components/heading-matching-passage";
+import { WritingPanel } from "./components/writing-panel";
 
 export type { PreviewQuestion } from "./types";
 
@@ -73,13 +74,12 @@ export function SectionPreview({
     : false;
   const showLeftPanel = true;
 
-  // Writing questions: show question.content in the left panel instead of content blocks
+  // Writing questions: dedicated layout
   const isWritingQuestion = activeItem
     ? ["essay_task1", "essay_task2", "essay"].includes(activeItem.question.question_format)
     : false;
-  const writingContent = isWritingQuestion ? activeItem?.question.content : null;
-  const writingImageUrl = isWritingQuestion
-    ? String(activeItem?.question.options_data?.image_url || "") || null
+  const activeGroup = activeItem
+    ? questionGroups.find((g) => g.id === activeItem.groupId) ?? null
     : null;
 
   return (
@@ -143,6 +143,13 @@ export function SectionPreview({
                 </div>
               </div>
             </div>
+          ) : isWritingQuestion && activeItem ? (
+            <WritingPanel
+              item={activeItem}
+              group={activeGroup}
+              answers={answers}
+              setAnswer={setAnswer}
+            />
           ) : (
             <>
               {hasAudioContent && !showLeftPanel && (
@@ -159,7 +166,7 @@ export function SectionPreview({
                   <div className="col-span-1 border-r border-slate-300 bg-slate-100 overflow-y-auto">
                     {activeIsHeadingMatching && activeItem
                       ? <HeadingMatchingPassage item={activeItem} answers={answers} setAnswer={setAnswer} />
-                      : <ContentPanel activeBlock={activeBlock} contentBlocks={contentBlocks} writingContent={writingContent} writingImageUrl={writingImageUrl} />}
+                      : <ContentPanel activeBlock={activeBlock} contentBlocks={contentBlocks} />}
                   </div>
                 )}
                 <div

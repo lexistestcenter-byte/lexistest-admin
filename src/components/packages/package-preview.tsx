@@ -34,6 +34,7 @@ import { isHeadingMatchingQuestion } from "@/components/sections/section-preview
 import { QuestionPanel } from "@/components/sections/section-preview/components/question-panel";
 import { ContentPanel } from "@/components/sections/section-preview/components/content-panel";
 import { HeadingMatchingPassage } from "@/components/sections/section-preview/components/heading-matching-passage";
+import { WritingPanel } from "@/components/sections/section-preview/components/writing-panel";
 
 /* ─── Types ─── */
 
@@ -345,9 +346,8 @@ export function PackagePreview({
   const isWritingQuestion = activeItem
     ? ["essay_task1", "essay_task2", "essay"].includes(activeItem.question.question_format)
     : false;
-  const writingContent = isWritingQuestion ? activeItem?.question.content : null;
-  const writingImageUrl = isWritingQuestion
-    ? String(activeItem?.question.options_data?.image_url || "") || null
+  const activeGroup = activeItem && currentData
+    ? currentData.questionGroups.find((g) => g.id === activeItem.groupId) ?? null
     : null;
   const activeIsHeadingMatching = activeItem ? isHeadingMatchingQuestion(activeItem.question) : false;
 
@@ -462,6 +462,13 @@ export function PackagePreview({
                   </div>
                 </div>
               </div>
+            ) : isWritingQuestion && activeItem ? (
+              <WritingPanel
+                item={activeItem}
+                group={activeGroup}
+                answers={answers}
+                setAnswer={setAnswer}
+              />
             ) : (
               <>
                 <div className="flex-1 overflow-hidden min-h-0 grid grid-cols-2">
@@ -472,8 +479,6 @@ export function PackagePreview({
                       <ContentPanel
                         activeBlock={activeBlock}
                         contentBlocks={currentData.contentBlocks}
-                        writingContent={writingContent}
-                        writingImageUrl={writingImageUrl}
                       />
                     )}
                   </div>

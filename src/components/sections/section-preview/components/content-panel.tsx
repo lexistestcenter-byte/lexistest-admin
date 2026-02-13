@@ -7,13 +7,9 @@ import type { ContentBlockPreview } from "../types";
 interface ContentPanelProps {
   activeBlock: ContentBlockPreview | null;
   contentBlocks: ContentBlockPreview[];
-  /** Writing question passage content (shown when no content blocks) */
-  writingContent?: string | null;
-  /** Writing question image URL */
-  writingImageUrl?: string | null;
 }
 
-export function ContentPanel({ activeBlock, contentBlocks, writingContent, writingImageUrl }: ContentPanelProps) {
+export function ContentPanel({ activeBlock, contentBlocks }: ContentPanelProps) {
   if (activeBlock) {
     if (activeBlock.content_type === "passage") {
       return (
@@ -96,27 +92,6 @@ export function ContentPanel({ activeBlock, contentBlocks, writingContent, writi
         </div>
       );
     }
-  }
-
-  // Writing question: show question.content + image in left panel
-  if (writingContent || writingImageUrl) {
-    return (
-      <div className="p-4 min-h-full flex flex-col">
-        <div className="bg-white rounded-lg border p-6 flex-1 space-y-4">
-          {writingContent && (
-            <div
-              className="text-sm leading-[1.8] text-gray-700 prose prose-sm max-w-none [&_p]:my-3 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em] [&_strong]:font-bold"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(writingContent) }}
-            />
-          )}
-          {writingImageUrl && (
-            <div className="p-3 bg-slate-50 rounded border">
-              <img src={getCdnUrl(String(writingImageUrl))} alt="Task" className="max-w-full h-auto rounded" />
-            </div>
-          )}
-        </div>
-      </div>
-    );
   }
 
   return (
