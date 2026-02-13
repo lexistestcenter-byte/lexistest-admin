@@ -152,25 +152,31 @@ export function ContentBlockModal({
             </div>
           </div>
 
-          {/* RIGHT: Dummy questions preview */}
-          <div className="col-span-1 bg-slate-100 overflow-y-auto">
-            <div className="p-4">
-              <div className="bg-white rounded-lg border p-6 opacity-50 pointer-events-none select-none">
-                <p className="text-sm font-bold text-gray-800 mb-1">Questions 1–4</p>
-                <p className="text-xs text-gray-500 mb-5 leading-relaxed">
-                  Choose the correct letter, A, B, C or D.
-                </p>
+          {/* RIGHT: Group header + Dummy questions preview */}
+          <div className="col-span-1 bg-white overflow-hidden flex flex-col">
+            {/* Group header - question-panel.tsx style */}
+            <div className="bg-slate-200 px-5 py-4 shrink-0 border-b border-slate-300">
+              <p className="text-base font-bold text-gray-900">Questions 1–4</p>
+              <p className="text-sm text-gray-700 mt-2">Choose the correct letter, A, B, C or D.</p>
+            </div>
 
+            {/* Dummy questions */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 opacity-50 pointer-events-none select-none">
+              <div className="space-y-5">
                 <DummyQuestion num={1} text="The main purpose of the passage is to..." />
                 <DummyQuestion num={2} text="According to the author, the most significant factor was..." />
                 <DummyQuestion num={3} text="The writer suggests that the process involved..." />
                 <DummyQuestion num={4} text="What conclusion can be drawn from the passage?" />
+              </div>
 
-                <div className="mt-8 border-t pt-4">
-                  <p className="text-sm font-bold text-gray-800 mb-1">Questions 5–8</p>
-                  <p className="text-xs text-gray-500 mb-5 leading-relaxed">
+              <div className="mt-8 pt-4 border-t">
+                <div className="bg-slate-200 -mx-5 px-5 py-4 border-b border-slate-300 -mt-4">
+                  <p className="text-base font-bold text-gray-900">Questions 5–8</p>
+                  <p className="text-sm text-gray-700 mt-2">
                     Do the following statements agree with the information given in the passage?
                   </p>
+                </div>
+                <div className="space-y-3 pt-4">
                   <DummyTFNG num={5} text="The discovery was made in the early twentieth century." />
                   <DummyTFNG num={6} text="Initial experiments produced unexpected results." />
                   <DummyTFNG num={7} text="The technique was later adopted by other researchers." />

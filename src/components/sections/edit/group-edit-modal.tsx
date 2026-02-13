@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { X } from "lucide-react";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import type { ContentBlock, QuestionGroupData } from "./types";
 
 interface GroupEditModalProps {
@@ -152,23 +153,30 @@ function ReadingLayout({
   contentBlocks: ContentBlock[];
   hasContentBlocks: boolean;
 }) {
+  const selectedBlock = contentBlocks.find(b => b.id === localContentBlockId);
+
   return (
     <div className="flex-1 overflow-hidden grid grid-cols-2 min-h-0">
-      {/* LEFT: Dummy passage */}
-      <div className="col-span-1 border-r border-slate-300 bg-slate-100 overflow-y-auto">
-        <div className="p-4 min-h-full flex flex-col">
-          <div className="bg-white rounded-lg border p-6 flex-1 opacity-50 pointer-events-none select-none">
-            <h2 className="text-lg font-bold mb-4 text-gray-800">The Development of Modern Agriculture</h2>
-            <div className="text-sm leading-[1.8] text-gray-700 space-y-3">
-              <p>The history of agriculture is a story of gradual transformation, from the earliest cultivation of wild grains to the sophisticated farming systems we see today. Archaeological evidence suggests that the first deliberate planting of crops occurred approximately 10,000 years ago in the Fertile Crescent, a region spanning parts of modern-day Iraq, Syria, and Turkey.</p>
-              <p>As populations grew and societies became more complex, agricultural practices evolved to meet increasing demands for food. The introduction of irrigation systems in ancient Mesopotamia represented a significant advancement, allowing farmers to cultivate land that would otherwise have been too arid for crop production. These early innovations laid the groundwork for the development of settled communities and, eventually, the first cities.</p>
-              <p>The medieval period saw further refinements in farming techniques, including the widespread adoption of the three-field rotation system in Europe. This approach, which involved rotating crops between three fields while leaving one fallow each season, helped to maintain soil fertility and increase overall yields. The practice demonstrated an early understanding of soil management principles that would later be validated by modern agricultural science.</p>
-              <p>The Industrial Revolution of the 18th and 19th centuries brought dramatic changes to agriculture. Mechanisation replaced much of the manual labour that had characterised farming for millennia, while advances in chemistry led to the development of synthetic fertilisers. These innovations dramatically increased productivity but also raised concerns about environmental sustainability that continue to be debated today.</p>
-            </div>
-            <div className="mt-4 pt-3 border-t text-xs text-gray-500 italic">
-              *Fertile Crescent: a crescent-shaped region in the Middle East
-            </div>
-          </div>
+      {/* LEFT: Passage from selected content block */}
+      <div className="col-span-1 border-r border-slate-300 bg-slate-100 overflow-y-auto p-4">
+        <div className="bg-white rounded-lg border p-6">
+          {selectedBlock ? (
+            <>
+              {selectedBlock.passage_title && (
+                <h2 className="text-lg font-bold mb-4">{selectedBlock.passage_title}</h2>
+              )}
+              {selectedBlock.passage_content ? (
+                <div
+                  className="text-sm leading-[1.8] text-gray-700 prose prose-sm max-w-none [&_p]:my-3"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(selectedBlock.passage_content) }}
+                />
+              ) : (
+                <p className="text-sm text-gray-400 italic">지문 내용이 없습니다.</p>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-gray-400 italic">콘텐츠 블록을 선택하면 지문이 여기에 표시됩니다.</p>
+          )}
         </div>
       </div>
 
