@@ -28,6 +28,7 @@ export interface QuestionTabLike {
   mcqOptions: { id: string; label: string; text: string; isCorrect: boolean }[];
   mcqIsMultiple: boolean;
   mcqMaxSelections: number;
+  mcqDisplayAlphabet?: boolean;
   // TFNG
   tfngStatement: string;
   // Matching
@@ -86,6 +87,9 @@ export function tabToPreviewData(
       label: o.label,
       text: o.text,
     }));
+    if (tab.mcqDisplayAlphabet) {
+      options_data.displayMode = "alphabet";
+    }
   } else if (fmt === "true_false_ng") {
     content = tab.tfngStatement;
   } else if (fmt === "matching") {

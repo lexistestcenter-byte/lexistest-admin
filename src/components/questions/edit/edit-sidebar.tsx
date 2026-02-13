@@ -16,6 +16,8 @@ export function EditSidebar({
   separateNumbers,
   setSeparateNumbers,
   mcqIsMultiple,
+  mcqDisplayAlphabet,
+  setMcqDisplayAlphabet,
   audioUrl,
   setAudioUrl,
   questionCode,
@@ -35,6 +37,8 @@ export function EditSidebar({
   separateNumbers: boolean;
   setSeparateNumbers: (v: boolean) => void;
   mcqIsMultiple: boolean;
+  mcqDisplayAlphabet: boolean;
+  setMcqDisplayAlphabet: (v: boolean) => void;
   audioUrl: string;
   setAudioUrl: (v: string) => void;
   questionCode: string;
@@ -87,6 +91,19 @@ export function EditSidebar({
               </div>
             )}
 
+          {/* MCQ 표시 방식: 알파벳 버튼 */}
+          {selectedFormat === "mcq" && (
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-xs">알파벳 버튼 표시</Label>
+                <p className="text-xs text-muted-foreground">A, B, C 알파벳 버튼으로 표시</p>
+              </div>
+              <Switch
+                checked={mcqDisplayAlphabet}
+                onCheckedChange={setMcqDisplayAlphabet}
+              />
+            </div>
+          )}
         </div>
 
         {/* Audio Settings (Listening & Speaking Part 2) */}

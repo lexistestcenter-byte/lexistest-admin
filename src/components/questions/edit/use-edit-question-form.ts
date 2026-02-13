@@ -46,6 +46,7 @@ export function useEditQuestionForm() {
   ]);
   const [mcqIsMultiple, setMcqIsMultiple] = useState(false);
   const [mcqMaxSelections, setMcqMaxSelections] = useState(2);
+  const [mcqDisplayAlphabet, setMcqDisplayAlphabet] = useState(false);
 
   // T/F/NG (단일 진술문)
   const [tfngStatement, setTfngStatement] = useState("");
@@ -269,6 +270,7 @@ export function useEditQuestionForm() {
     mcqOptions, setMcqOptions,
     mcqIsMultiple, setMcqIsMultiple,
     mcqMaxSelections, setMcqMaxSelections,
+    mcqDisplayAlphabet, setMcqDisplayAlphabet,
     tfngStatement, setTfngStatement,
     tfngAnswer, setTfngAnswer,
     matchingTitle, setMatchingTitle,

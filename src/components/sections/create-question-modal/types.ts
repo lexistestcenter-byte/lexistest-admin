@@ -63,6 +63,7 @@ export interface TabState {
   mcqIsMultiple: boolean;
   mcqMaxSelections: number;
   mcqSeparateNumbers: boolean;
+  mcqDisplayAlphabet: boolean;
   mcqOptions: MCQOptionItem[];
   // T/F/NG
   tfngStatement: string;
@@ -148,6 +149,7 @@ export function createEmptyTab(): TabState {
     mcqIsMultiple: false,
     mcqMaxSelections: 2,
     mcqSeparateNumbers: false,
+    mcqDisplayAlphabet: false,
     mcqOptions: [
       { id: "a", label: "A", text: "", isCorrect: false },
       { id: "b", label: "B", text: "", isCorrect: false },

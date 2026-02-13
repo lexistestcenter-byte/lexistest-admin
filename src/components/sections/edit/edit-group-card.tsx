@@ -1,18 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronRight, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DndContext,
@@ -22,7 +13,6 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { SortableGroupItemRow } from "./sortable-group-item-row";
 import type { EditGroupCardProps } from "./types";
 
@@ -31,33 +21,18 @@ export function EditGroupCard({
   isActive,
   isAddingQuestions,
   autoTitle,
-  contentBlocks,
-  sectionType,
   sensors,
   onActivate,
-  onUpdate,
   onRemove,
   onRemoveItem,
   onItemDragEnd,
   onAddQuestions,
-}: EditGroupCardProps) {
-  const [expanded, setExpanded] = useState(true);
-  const [localTitle, setLocalTitle] = useState(group.title || "");
-  const [localInstructions, setLocalInstructions] = useState(
-    group.instructions || ""
-  );
+  onEditGroup,
+}: EditGroupCardProps & { onEditGroup?: () => void }) {
+  const [expanded, setExpanded] = useState(false);
 
-  // Debounced save for title/instructions
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      onUpdate(group.id, {
-        title: localTitle || null,
-        instructions: localInstructions || null,
-      });
-    }, 1000);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localTitle, localInstructions]);
+  const displayTitle = group.title || autoTitle;
+  const hasInstructions = !!(group.instructions && group.instructions.replace(/<[^>]*>/g, "").trim());
 
   return (
     <div
@@ -82,16 +57,36 @@ export function EditGroupCard({
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           )}
         </button>
-        <span className="text-sm font-semibold flex-1">
-          {autoTitle}
-        </span>
-        <Badge variant="outline" className="text-[10px]">
+        <div className="flex-1 min-w-0">
+          <span className="text-sm font-semibold block truncate">
+            {displayTitle}
+          </span>
+          {hasInstructions && (
+            <span className="text-xs text-muted-foreground block truncate">
+              지시문 입력됨
+            </span>
+          )}
+        </div>
+        <Badge variant="outline" className="text-[10px] shrink-0">
           {group.numberedItems.length}문제
         </Badge>
+        {onEditGroup && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditGroup();
+            }}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+        )}
         <Button
           variant={isAddingQuestions ? "secondary" : "outline"}
           size="sm"
-          className="h-7 text-xs"
+          className="h-7 text-xs shrink-0"
           onClick={(e) => {
             e.stopPropagation();
             onAddQuestions();
@@ -103,7 +98,7 @@ export function EditGroupCard({
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7"
+          className="h-7 w-7 shrink-0"
           onClick={(e) => {
             e.stopPropagation();
             onRemove(group.id);
@@ -114,58 +109,7 @@ export function EditGroupCard({
       </div>
 
       {expanded && (
-        <div className="p-3 space-y-3" onClick={(e) => e.stopPropagation()}>
-          {/* Content block selector (reading/listening only) */}
-          {(sectionType === "reading" || sectionType === "listening") && contentBlocks.length > 0 && (
-            <div className="space-y-1">
-              <Label className="text-xs">콘텐츠 블록</Label>
-              <Select
-                value={group.content_block_id || "none"}
-                onValueChange={(v) =>
-                  onUpdate(group.id, {
-                    content_block_id: v === "none" ? null : v,
-                  })
-                }
-              >
-                <SelectTrigger className="h-8 text-xs max-w-full [&>span]:truncate">
-                  <SelectValue placeholder="콘텐츠 선택..." />
-                </SelectTrigger>
-                <SelectContent className="max-w-[300px]">
-                  <SelectItem value="none">없음</SelectItem>
-                  {contentBlocks.map((b, i) => (
-                    <SelectItem key={b.id} value={b.id} className="truncate">
-                      {b.content_type === "passage"
-                        ? b.passage_title || `Passage ${i + 1}`
-                        : `Audio ${i + 1}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Group title */}
-          <div className="space-y-1">
-            <Label className="text-xs">그룹 제목 (자동 생성 — 직접 입력 시 오버라이드, 예: &quot;Questions 1–5&quot;)</Label>
-            <Input
-              className="h-8 text-xs"
-              placeholder={autoTitle || "문제 추가 시 자동 생성"}
-              value={localTitle}
-              onChange={(e) => setLocalTitle(e.target.value)}
-            />
-          </div>
-
-          {/* Instructions */}
-          <div className="space-y-1">
-            <Label className="text-xs">지시문</Label>
-            <RichTextEditor
-              placeholder="예: Choose the correct letter A, B, C or D."
-              minHeight="80px"
-              value={localInstructions}
-              onChange={(val) => setLocalInstructions(val)}
-            />
-          </div>
-
+        <div className="p-3" onClick={(e) => e.stopPropagation()}>
           {/* Items */}
           {group.numberedItems.length > 0 ? (
             <DndContext

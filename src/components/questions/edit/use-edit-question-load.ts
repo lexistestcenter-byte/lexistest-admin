@@ -91,6 +91,7 @@ export function useEditQuestionLoad(id: string, form: EditQuestionForm) {
             if (optionsData.maxSelections) {
               form.setMcqMaxSelections(optionsData.maxSelections);
             }
+            form.setMcqDisplayAlphabet(optionsData.displayMode === "alphabet");
             if (Array.isArray(optionsData.options)) {
               form.setMcqOptions(optionsData.options.map((o: { label: string; text: string; isCorrect: boolean }, idx: number) => ({
                 id: `o${idx}`,

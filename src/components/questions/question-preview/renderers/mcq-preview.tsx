@@ -10,6 +10,7 @@ export function MCQPreview({ data }: { data: QuestionPreviewData }) {
   const o = od(data);
   const isMultiple = data.question_format === "mcq_multiple" || getBool(o, "isMultiple");
   const maxSelections = Number(o.maxSelections || 1);
+  const displayAlphabet = o.displayMode === "alphabet";
   const options = getArr(o, "options") as { id?: string; label?: string; text?: string }[];
   const question = getStr(o, "question", data.content);
 
@@ -38,49 +39,74 @@ export function MCQPreview({ data }: { data: QuestionPreviewData }) {
       {isMultiple && (
         <p className="text-sm text-blue-600">Choose {maxSelections} answers.</p>
       )}
-      <div className="space-y-3 mt-4">
-        {options.map((option, idx) => {
-          const optId = option.id || String(idx);
-          const isSelected = selected.has(optId);
-          const label = option.label || String.fromCharCode(65 + idx);
-          return (
-            <button
-              key={optId}
-              type="button"
-              onClick={() => toggleOption(optId)}
-              className={cn(
-                "flex items-center gap-3 p-3 border rounded-lg cursor-pointer w-full text-left transition-colors",
-                isSelected ? "bg-primary/10 border-primary" : "hover:bg-slate-50"
-              )}
-            >
-              {isMultiple ? (
-                <div
-                  className={cn(
-                    "w-5 h-5 border-2 rounded flex items-center justify-center shrink-0 transition-colors",
-                    isSelected ? "border-primary bg-primary text-white" : "border-gray-300"
-                  )}
-                >
-                  {isSelected && (
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                </div>
-              ) : (
-                <div
-                  className={cn(
-                    "w-5 h-5 border-2 rounded-full flex items-center justify-center shrink-0 transition-colors",
-                    isSelected ? "border-primary" : "border-gray-300"
-                  )}
-                >
-                  {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
-                </div>
-              )}
-              <span>{option.text || `(선택지 ${label})`}</span>
-            </button>
-          );
-        })}
-      </div>
+      {displayAlphabet ? (
+        <div className="flex flex-wrap gap-2 mt-4">
+          {options.map((option, idx) => {
+            const optId = option.id || String(idx);
+            const isSelected = selected.has(optId);
+            const label = option.label || String.fromCharCode(65 + idx);
+            return (
+              <button
+                key={optId}
+                type="button"
+                onClick={() => toggleOption(optId)}
+                className={cn(
+                  "w-10 h-10 rounded-full border-2 font-bold text-sm transition-colors",
+                  isSelected
+                    ? "border-primary bg-primary text-white"
+                    : "border-gray-300 hover:border-primary hover:bg-primary/10"
+                )}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-3 mt-4">
+          {options.map((option, idx) => {
+            const optId = option.id || String(idx);
+            const isSelected = selected.has(optId);
+            const label = option.label || String.fromCharCode(65 + idx);
+            return (
+              <button
+                key={optId}
+                type="button"
+                onClick={() => toggleOption(optId)}
+                className={cn(
+                  "flex items-center gap-3 p-3 border rounded-lg cursor-pointer w-full text-left transition-colors",
+                  isSelected ? "bg-primary/10 border-primary" : "hover:bg-slate-50"
+                )}
+              >
+                {isMultiple ? (
+                  <div
+                    className={cn(
+                      "w-5 h-5 border-2 rounded flex items-center justify-center shrink-0 transition-colors",
+                      isSelected ? "border-primary bg-primary text-white" : "border-gray-300"
+                    )}
+                  >
+                    {isSelected && (
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                ) : (
+                  <div
+                    className={cn(
+                      "w-5 h-5 border-2 rounded-full flex items-center justify-center shrink-0 transition-colors",
+                      isSelected ? "border-primary" : "border-gray-300"
+                    )}
+                  >
+                    {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                  </div>
+                )}
+                <span>{option.text || `(선택지 ${label})`}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

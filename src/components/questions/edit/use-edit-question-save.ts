@@ -218,6 +218,7 @@ export function useEditQuestionSave(id: string, form: EditQuestionForm) {
         optionsData = {
           isMultiple: form.mcqIsMultiple,
           ...(form.mcqIsMultiple ? { maxSelections: form.mcqMaxSelections } : {}),
+          displayMode: form.mcqDisplayAlphabet ? "alphabet" : "default",
           options: form.mcqOptions.map(o => ({
             label: o.label,
             text: o.text,

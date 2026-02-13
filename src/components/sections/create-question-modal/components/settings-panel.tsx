@@ -111,6 +111,13 @@ export function SettingsPanel({
               복수선택 (체크박스)
             </button>
           </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-xs">알파벳 버튼 표시</Label>
+              <p className="text-[10px] text-muted-foreground">A, B, C 알파벳 버튼으로 표시</p>
+            </div>
+            <Switch checked={tab.mcqDisplayAlphabet} onCheckedChange={(v) => updateTab({ mcqDisplayAlphabet: v })} disabled={tab.saved} />
+          </div>
           {tab.mcqIsMultiple && (
             <div className="space-y-1">
               <Label className="text-xs">정답 개수</Label>

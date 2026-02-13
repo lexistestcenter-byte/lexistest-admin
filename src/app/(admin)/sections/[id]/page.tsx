@@ -121,11 +121,13 @@ export default function SectionEditPage({
           handleAddContentBlock={s.handleAddContentBlock}
           handleUpdateContentBlockLocal={s.handleUpdateContentBlockLocal}
           handleRemoveContentBlock={s.handleRemoveContentBlock}
+          handleSaveContentBlockFromModal={s.handleSaveContentBlockFromModal}
           handleAddGroup={s.handleAddGroup}
           handleUpdateGroup={s.handleUpdateGroup}
           handleRemoveGroup={s.handleRemoveGroup}
           handleRemoveItem={s.handleRemoveItem}
           handleItemDragEnd={s.handleItemDragEnd}
+          handleSaveGroupFromModal={s.handleSaveGroupFromModal}
         />
       )}
 

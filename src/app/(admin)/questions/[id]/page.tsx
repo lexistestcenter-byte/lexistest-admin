@@ -131,6 +131,8 @@ export default function EditQuestionPage({
           separateNumbers={form.separateNumbers}
           setSeparateNumbers={form.setSeparateNumbers}
           mcqIsMultiple={form.mcqIsMultiple}
+          mcqDisplayAlphabet={form.mcqDisplayAlphabet}
+          setMcqDisplayAlphabet={form.setMcqDisplayAlphabet}
           audioUrl={form.audioUrl}
           setAudioUrl={form.setAudioUrl}
           questionCode={questionCode}
@@ -338,7 +340,7 @@ export default function EditQuestionPage({
         questionType={selectedQuestionType}
         previewData={selectedFormat ? tabToPreviewData({
           format: selectedFormat,
-          mcqQuestion: form.mcqQuestion, mcqOptions: form.mcqOptions, mcqIsMultiple: form.mcqIsMultiple, mcqMaxSelections: form.mcqMaxSelections,
+          mcqQuestion: form.mcqQuestion, mcqOptions: form.mcqOptions, mcqIsMultiple: form.mcqIsMultiple, mcqMaxSelections: form.mcqMaxSelections, mcqDisplayAlphabet: form.mcqDisplayAlphabet,
           tfngStatement: form.tfngStatement,
           matchingTitle: form.matchingTitle, matchingAllowDuplicate: form.matchingAllowDuplicate, matchingOptions: form.matchingOptions,
           contentTitle: form.contentTitle, contentHtml: form.contentHtml, blanks: form.blanks, wordBank: form.wordBank,

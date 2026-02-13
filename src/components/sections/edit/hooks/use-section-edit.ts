@@ -259,6 +259,39 @@ export function useSectionEdit(id: string) {
     }
   };
 
+  // Modal-based content block save:
+  //   existingId = null → create new block via API
+  //   existingId = string → update local state only (persisted during global save)
+  const handleSaveContentBlockFromModal = async (
+    data: Partial<ContentBlock>,
+    existingId: string | null
+  ) => {
+    if (existingId) {
+      // Update existing block locally
+      handleUpdateContentBlockLocal(existingId, data);
+    } else {
+      // Create new block with data
+      if (!section) return;
+      const contentType = section.section_type === "listening" ? "audio" : "passage";
+      try {
+        const { error } = await api.post(`/api/sections/${id}/content-blocks`, {
+          display_order: contentBlocks.length,
+          content_type: contentType,
+          passage_title: data.passage_title || null,
+          passage_content: data.passage_content || null,
+          passage_footnotes: data.passage_footnotes || null,
+          audio_url: data.audio_url || null,
+        });
+        if (error) throw new Error(error);
+        toast.success("콘텐츠 블록이 추가되었습니다.");
+        await loadStructure({ preservePendingDeletes: true });
+      } catch (error) {
+        console.error("Error adding content block:", error);
+        toast.error("콘텐츠 블록 추가에 실패했습니다.");
+      }
+    }
+  };
+
   // Local-only state update (no API call) — used during editing to preserve blob URLs
   const handleUpdateContentBlockLocal = (
     blockId: string,
@@ -319,6 +352,36 @@ export function useSectionEdit(id: string) {
     } catch (error) {
       console.error("Error adding group:", error);
       toast.error("그룹 추가에 실패했습니다.");
+    }
+  };
+
+  // Modal-based group save:
+  //   existingId = null → create new group via API
+  //   existingId = string → update local state only
+  const handleSaveGroupFromModal = async (
+    data: { title: string | null; instructions: string | null; content_block_id: string | null },
+    existingId: string | null
+  ) => {
+    if (existingId) {
+      // Update existing group locally
+      handleUpdateGroup(existingId, data);
+    } else {
+      // Create new group with data
+      try {
+        const { error } = await api.post(`/api/sections/${id}/groups`, {
+          display_order: questionGroups.length,
+          content_block_id: data.content_block_id || (contentBlocks.length > 0 ? contentBlocks[0].id : null),
+          question_number_start: totalItemCount + 1,
+          title: data.title || null,
+          instructions: data.instructions || null,
+        });
+        if (error) throw new Error(error);
+        toast.success("시험 구조가 추가되었습니다.");
+        await loadStructure({ preservePendingDeletes: true });
+      } catch (error) {
+        console.error("Error adding group:", error);
+        toast.error("그룹 추가에 실패했습니다.");
+      }
     }
   };
 
@@ -771,9 +834,11 @@ export function useSectionEdit(id: string) {
     handleAddContentBlock,
     handleUpdateContentBlockLocal,
     handleRemoveContentBlock,
+    handleSaveContentBlockFromModal,
     handleAddGroup,
     handleUpdateGroup,
     handleRemoveGroup,
+    handleSaveGroupFromModal,
     handleAddQuestionsToGroup,
     handleRemoveItem,
     handleItemDragEnd,

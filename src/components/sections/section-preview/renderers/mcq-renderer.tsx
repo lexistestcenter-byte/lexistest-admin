@@ -12,6 +12,7 @@ export function MCQRenderer({ item, answers, setAnswer, toggleMultiAnswer }: MCQ
   const od = item.question.options_data || {};
   const questionText = String(od.question || item.question.content || "");
   const isMultiple = item.question.question_format === 'mcq_multiple' || Boolean(od.isMultiple);
+  const displayAlphabet = od.displayMode === "alphabet";
   const options = Array.isArray(od.options)
     ? (od.options as { label: string; text: string }[])
     : [];
@@ -98,61 +99,88 @@ export function MCQRenderer({ item, answers, setAnswer, toggleMultiAnswer }: MCQ
         </p>
       )}
 
-      <div className="space-y-1.5">
-        {options.map((opt) => {
-          const isSelected = selectedLabels.includes(opt.label);
-          const isDisabled = isMultiple && !isSelected && selectionCount >= maxSelectable;
+      {displayAlphabet ? (
+        <div className="flex flex-wrap gap-2">
+          {options.map((opt) => {
+            const isSelected = selectedLabels.includes(opt.label);
+            const isDisabled = isMultiple && !isSelected && selectionCount >= maxSelectable;
+            return (
+              <button
+                key={opt.label}
+                type="button"
+                disabled={isDisabled}
+                className={cn(
+                  "w-10 h-10 rounded-full border-2 font-bold text-sm transition-colors",
+                  isSelected
+                    ? "border-blue-500 bg-blue-500 text-white"
+                    : isDisabled
+                      ? "border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed"
+                      : "border-gray-300 hover:border-blue-400 hover:bg-blue-50"
+                )}
+                onClick={() => handleOptionClick(opt.label)}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {options.map((opt) => {
+            const isSelected = selectedLabels.includes(opt.label);
+            const isDisabled = isMultiple && !isSelected && selectionCount >= maxSelectable;
 
-          return (
-            <button
-              key={opt.label}
-              type="button"
-              disabled={isDisabled}
-              className={cn(
-                "w-full flex items-start gap-3 p-2.5 rounded-lg border text-left transition-colors text-sm",
-                isSelected
-                  ? "border-blue-500 bg-blue-50"
-                  : isDisabled
-                    ? "border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed"
-                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-              )}
-              onClick={() => handleOptionClick(opt.label)}
-            >
-              {/* 단일선택: 라디오 버튼 / 복수선택: 체크박스 */}
-              {isMultiple ? (
-                <span
-                  className={cn(
-                    "flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5",
-                    isSelected
-                      ? "border-blue-500 bg-blue-500"
-                      : "border-gray-300"
-                  )}
-                >
-                  {isSelected && (
-                    <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
-                      <path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </span>
-              ) : (
-                <span
-                  className={cn(
-                    "flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5",
-                    isSelected
-                      ? "border-blue-500"
-                      : "border-gray-300"
-                  )}
-                >
-                  {isSelected && (
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                  )}
-                </span>
-              )}
-              <span>{String(opt.text)}</span>
-            </button>
-          );
-        })}
-      </div>
+            return (
+              <button
+                key={opt.label}
+                type="button"
+                disabled={isDisabled}
+                className={cn(
+                  "w-full flex items-start gap-3 p-2.5 rounded-lg border text-left transition-colors text-sm",
+                  isSelected
+                    ? "border-blue-500 bg-blue-50"
+                    : isDisabled
+                      ? "border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed"
+                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                )}
+                onClick={() => handleOptionClick(opt.label)}
+              >
+                {/* 단일선택: 라디오 버튼 / 복수선택: 체크박스 */}
+                {isMultiple ? (
+                  <span
+                    className={cn(
+                      "flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5",
+                      isSelected
+                        ? "border-blue-500 bg-blue-500"
+                        : "border-gray-300"
+                    )}
+                  >
+                    {isSelected && (
+                      <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
+                        <path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </span>
+                ) : (
+                  <span
+                    className={cn(
+                      "flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5",
+                      isSelected
+                        ? "border-blue-500"
+                        : "border-gray-300"
+                    )}
+                  >
+                    {isSelected && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                    )}
+                  </span>
+                )}
+                <span>{String(opt.text)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* 복수선택 별도 번호: 각 번호별 선택 현황 */}
       {useSeparateNumbers && (

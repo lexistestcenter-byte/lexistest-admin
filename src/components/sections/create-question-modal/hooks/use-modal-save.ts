@@ -66,6 +66,7 @@ function buildPayload(tab: TabState): TabPayload {
       isMultiple: tab.mcqIsMultiple,
       maxSelections: tab.mcqIsMultiple ? tab.mcqMaxSelections : undefined,
       separateNumbers: tab.mcqIsMultiple ? tab.mcqSeparateNumbers : undefined,
+      displayMode: tab.mcqDisplayAlphabet ? "alphabet" : "default",
       options: tab.mcqOptions.map((o) => ({ label: o.label, text: o.text, isCorrect: o.isCorrect })),
     };
     if (tab.mcqIsMultiple) {
