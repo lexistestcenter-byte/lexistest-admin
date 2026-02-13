@@ -19,7 +19,7 @@ import {
 import { X } from "lucide-react";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
-import type { ContentBlock, QuestionGroupData } from "./types";
+import type { ContentBlock, QuestionGroupData, NumberedItem } from "./types";
 
 interface GroupEditModalProps {
   open: boolean;
@@ -28,6 +28,7 @@ interface GroupEditModalProps {
   group: QuestionGroupData | null;
   sectionType: string;
   contentBlocks: ContentBlock[];
+  items?: NumberedItem[];
   onSave: (
     data: { title: string | null; instructions: string | null; content_block_id: string | null },
     existingId: string | null
@@ -40,6 +41,7 @@ export function GroupEditModal({
   group,
   sectionType,
   contentBlocks,
+  items,
   onSave,
 }: GroupEditModalProps) {
   const [localTitle, setLocalTitle] = useState("");
@@ -111,6 +113,7 @@ export function GroupEditModal({
               setLocalTitle={setLocalTitle}
               localInstructions={localInstructions}
               setLocalInstructions={setLocalInstructions}
+              items={items}
             />
           ) : (
             <ReadingLayout
@@ -122,6 +125,7 @@ export function GroupEditModal({
               setLocalContentBlockId={setLocalContentBlockId}
               contentBlocks={contentBlocks}
               hasContentBlocks={hasContentBlocks}
+              items={items}
             />
           )}
         </div>
@@ -143,6 +147,7 @@ function ReadingLayout({
   setLocalContentBlockId,
   contentBlocks,
   hasContentBlocks,
+  items,
 }: {
   localTitle: string;
   setLocalTitle: (v: string) => void;
@@ -152,6 +157,7 @@ function ReadingLayout({
   setLocalContentBlockId: (v: string | null) => void;
   contentBlocks: ContentBlock[];
   hasContentBlocks: boolean;
+  items?: NumberedItem[];
 }) {
   const selectedBlock = contentBlocks.find(b => b.id === localContentBlockId);
 
@@ -230,13 +236,32 @@ function ReadingLayout({
           </div>
         </div>
 
-        {/* Dummy questions */}
+        {/* Questions */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
           <div className="opacity-50 pointer-events-none select-none space-y-4">
-            <DummyMCQ num={1} text="The passage mentions the Fertile Crescent primarily to..." />
-            <DummyMCQ num={2} text="According to the author, irrigation systems were important because they..." />
-            <DummyMCQ num={3} text="The three-field rotation system helped farmers to..." />
-            <DummyMCQ num={4} text="What does the writer suggest about the Industrial Revolution?" />
+            {items && items.length > 0 ? (
+              items.map((item) => {
+                const qi = item.question_info;
+                const numLabel = item.startNum === item.endNum
+                  ? `Q${item.startNum}`
+                  : `Q${item.startNum}–${item.endNum}`;
+                const label = qi.title || qi.question_format;
+                return (
+                  <div key={item.item_id} className="flex items-center gap-2 py-1.5">
+                    <span className="text-xs font-bold text-gray-700 shrink-0 w-14">{numLabel}</span>
+                    <span className="text-sm text-gray-600 truncate">{label}</span>
+                    <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">{qi.question_format}</span>
+                  </div>
+                );
+              })
+            ) : (
+              <>
+                <DummyMCQ num={1} text="The passage mentions the Fertile Crescent primarily to..." />
+                <DummyMCQ num={2} text="According to the author, irrigation systems were important because they..." />
+                <DummyMCQ num={3} text="The three-field rotation system helped farmers to..." />
+                <DummyMCQ num={4} text="What does the writer suggest about the Industrial Revolution?" />
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -253,12 +278,15 @@ function WritingLayout({
   setLocalTitle,
   localInstructions,
   setLocalInstructions,
+  items,
 }: {
   localTitle: string;
   setLocalTitle: (v: string) => void;
   localInstructions: string;
   setLocalInstructions: (v: string) => void;
+  items?: NumberedItem[];
 }) {
+  const firstQuestion = items?.[0]?.question_info;
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-h-0">
       {/* Top: Title + Instructions editor (bg-sky-50, matches writing-panel.tsx) */}
@@ -286,23 +314,31 @@ function WritingLayout({
       </div>
 
       {/* Bottom: 2-column dummy (passage + answer area) */}
-      <div className="flex-1 grid grid-cols-2 overflow-hidden min-h-0 opacity-50 pointer-events-none select-none">
-        {/* Left: Dummy passage */}
+      <div className="flex-1 grid grid-cols-2 overflow-hidden min-h-0">
+        {/* Left: Passage from question or dummy */}
         <div className="col-span-1 border-r border-slate-300 bg-slate-100 overflow-y-auto p-4">
           <div className="bg-slate-50 rounded-lg border border-slate-200 p-6">
-            <div className="text-sm leading-[1.8] text-gray-700 space-y-3">
-              <p>The graph below shows the number of visitors to three London museums between 2007 and 2012.</p>
-              <p>Summarise the information by selecting and reporting the main features, and make comparisons where relevant.</p>
-              <p className="text-xs text-gray-500 italic mt-4">Write at least 150 words.</p>
-            </div>
+            {firstQuestion?.content ? (
+              <div
+                className="text-sm leading-[1.8] text-gray-700 prose prose-sm max-w-none [&_p]:my-3"
+                dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(firstQuestion.content) }}
+              />
+            ) : (
+              <div className="text-sm leading-[1.8] text-gray-700 space-y-3">
+                <p>The graph below shows the number of visitors to three London museums between 2007 and 2012.</p>
+                <p>Summarise the information by selecting and reporting the main features, and make comparisons where relevant.</p>
+                <p className="text-xs text-gray-500 italic mt-4">Write at least 150 words.</p>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Right: Dummy textarea */}
+        {/* Right: Textarea */}
         <div className="col-span-1 bg-white overflow-y-auto p-4 flex flex-col">
-          <div className="w-full flex-1 min-h-[300px] text-sm border border-slate-300 rounded-lg p-4 text-gray-400">
-            Write your answer here...
-          </div>
+          <textarea
+            className="w-full flex-1 min-h-[300px] text-sm border border-slate-300 rounded-lg p-4 text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-slate-300"
+            placeholder="Write your answer here..."
+          />
           <div className="mt-2 text-right text-xs text-gray-400">
             Word Count: 0
           </div>

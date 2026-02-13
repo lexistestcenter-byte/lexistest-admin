@@ -252,6 +252,7 @@ export function StepStructure({
         group={editingGroup}
         sectionType={sectionType}
         contentBlocks={contentBlocks}
+        items={numberedGroups.find(g => g.id === editingGroup?.id)?.numberedItems}
         onSave={(data, existingId) => handleSaveGroupFromModal(data, existingId)}
       />
     </>

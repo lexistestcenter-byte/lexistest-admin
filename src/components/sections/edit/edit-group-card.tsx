@@ -21,8 +21,10 @@ export function EditGroupCard({
   isActive,
   isAddingQuestions,
   autoTitle,
+  sectionType,
   sensors,
   onActivate,
+  onUpdate: _onUpdate,
   onRemove,
   onRemoveItem,
   onItemDragEnd,
@@ -58,13 +60,21 @@ export function EditGroupCard({
           )}
         </button>
         <div className="flex-1 min-w-0">
-          <span className="text-sm font-semibold block truncate">
-            {displayTitle}
-          </span>
-          {hasInstructions && (
-            <span className="text-xs text-muted-foreground block truncate">
-              지시문 입력됨
+          {sectionType === "writing" ? (
+            <span className="text-sm font-semibold block truncate">
+              {group.title || <span className="text-muted-foreground font-normal">제목 없음</span>}
             </span>
+          ) : (
+            <>
+              <span className="text-sm font-semibold block truncate">
+                {displayTitle}
+              </span>
+              {hasInstructions && (
+                <span className="text-xs text-muted-foreground block truncate">
+                  지시문 입력됨
+                </span>
+              )}
+            </>
           )}
         </div>
         <Badge variant="outline" className="text-[10px] shrink-0">

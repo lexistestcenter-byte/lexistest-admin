@@ -24,13 +24,16 @@ export function WritingPanel({ item, group, answers, setAnswer }: WritingPanelPr
   const subtitle = condition || groupInstructions;
   const isCondition = !!condition;
 
+  // Main title: question title takes priority, group title as fallback
+  const mainTitle = titleText || group?.title || null;
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-h-0">
       {/* Top: Title + Condition or Instructions */}
       <div className="bg-sky-50 border-b border-sky-200 px-6 py-4 shrink-0">
-        {titleText && (
-          <div className="text-lg font-bold text-gray-900">
-            {renderFormattedText(titleText)}
+        {mainTitle && (
+          <div className="text-base font-bold text-gray-900">
+            {renderFormattedText(mainTitle)}
           </div>
         )}
         {subtitle && (
