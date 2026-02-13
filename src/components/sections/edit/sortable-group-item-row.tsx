@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { GripVertical, Eye, Trash2 } from "lucide-react";
+import { GripVertical, Eye, Pencil, X } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
@@ -84,8 +84,16 @@ export function SortableGroupItemRow({
         >
           <Eye className="h-3 w-3" />
         </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={() => window.open(`/questions/${item.question_id}`, "_blank")}
+        >
+          <Pencil className="h-3 w-3" />
+        </Button>
         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onRemove}>
-          <Trash2 className="h-3 w-3" />
+          <X className="h-3 w-3" />
         </Button>
       </div>
       {expanded && info.options_data !== undefined && (

@@ -134,12 +134,24 @@ export function StepStructure({
               <div className="space-y-3">
                 {numberedGroups.map((group) => {
                   const isActive = activeGroupId === group.id;
-                  const autoTitle =
-                    group.groupEndNum >= group.groupStartNum
-                      ? group.groupStartNum === group.groupEndNum
-                        ? `Question ${group.groupStartNum}`
-                        : `Questions ${group.groupStartNum}–${group.groupEndNum}`
-                      : "Empty Group";
+                  const autoTitle = (() => {
+                    if (group.numberedItems.length === 0) return "Empty Group";
+                    const ranges: string[] = [];
+                    let totalNums = 0;
+                    for (const item of group.numberedItems) {
+                      totalNums += item.endNum - item.startNum + 1;
+                      ranges.push(
+                        item.startNum === item.endNum
+                          ? `${item.startNum}`
+                          : `${item.startNum}–${item.endNum}`
+                      );
+                    }
+                    const prefix = totalNums === 1 ? "Question" : "Questions";
+                    if (ranges.length === 1) return `${prefix} ${ranges[0]}`;
+                    if (ranges.length === 2) return `${prefix} ${ranges[0]} and ${ranges[1]}`;
+                    const last = ranges.pop()!;
+                    return `${prefix} ${ranges.join(", ")} and ${last}`;
+                  })();
 
                   return (
                     <EditGroupCard

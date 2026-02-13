@@ -1,7 +1,7 @@
 "use client";
 
 import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
-import { renderFormattedText } from "../types";
+import { renderFormattedText, renderBlockHtml } from "../types";
 import type { QuestionItem, QuestionGroupPreview } from "../types";
 
 interface WritingPanelProps {
@@ -40,7 +40,7 @@ export function WritingPanel({ item, group, answers, setAnswer }: WritingPanelPr
             </p>
           ) : (
             <div className="text-sm text-gray-700 mt-2 leading-relaxed">
-              {renderFormattedText(subtitle)}
+              {renderBlockHtml(subtitle)}
             </div>
           )
         )}

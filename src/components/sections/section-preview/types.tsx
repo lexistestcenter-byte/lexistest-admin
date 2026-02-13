@@ -90,12 +90,22 @@ export function isHeadingMatchingQuestion(q: PreviewQuestion): boolean {
   );
 }
 
-/** Render as sanitized HTML span (supports rich text from editor) */
+/** Render as sanitized HTML span — inline mode for titles (paragraphs collapsed) */
 export function renderFormattedText(text: string) {
   return (
     <span
       className="[&_p]:inline [&_p]:m-0 [&_br]:content-[''] [&_br]:block"
       dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(text) }}
+    />
+  );
+}
+
+/** Render as sanitized HTML div — block mode for instructions (preserves paragraph breaks) */
+export function renderBlockHtml(html: string) {
+  return (
+    <div
+      className="prose prose-sm max-w-none [&_p]:my-2 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
+      dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(html) }}
     />
   );
 }

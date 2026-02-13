@@ -1,7 +1,7 @@
 "use client";
 
 import type { QuestionItem } from "../types";
-import { renderFormattedText } from "../types";
+import { renderFormattedText, renderBlockHtml } from "../types";
 import { MCQRenderer } from "./mcq-renderer";
 import { TFNGRenderer } from "./tfng-renderer";
 import { FillBlankTypingRenderer, FillBlankDragRenderer } from "./fill-blank-renderer";
@@ -75,7 +75,7 @@ export function QuestionRouter({
       )}
       {instructionsText && (
         <div className="text-sm text-gray-600 leading-relaxed italic">
-          {renderFormattedText(instructionsText)}
+          {renderBlockHtml(instructionsText)}
         </div>
       )}
       {content}

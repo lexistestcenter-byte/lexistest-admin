@@ -2,7 +2,7 @@
 
 import { getCdnUrl } from "@/lib/cdn";
 import type { QuestionItem, QuestionGroupPreview } from "../types";
-import { renderFormattedText, getCollapsedLabel } from "../types";
+import { renderFormattedText, renderBlockHtml, getCollapsedLabel } from "../types";
 import { QuestionRouter } from "../renderers/question-router";
 
 interface QuestionPanelProps {
@@ -87,7 +87,7 @@ export function QuestionPanel({
         <p className="text-base font-bold text-gray-900">{groupLabel}</p>
         {activeGroup.instructions && (
           <div className="text-sm text-gray-700 mt-2 leading-relaxed">
-            {renderFormattedText(activeGroup.instructions)}
+            {renderBlockHtml(activeGroup.instructions)}
           </div>
         )}
       </div>
