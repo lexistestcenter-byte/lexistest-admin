@@ -275,17 +275,14 @@ export function useSectionEdit(id: string) {
     data: Partial<ContentBlock>
   ) => {
     try {
-      const block = contentBlocks.find((b) => b.id === blockId);
-      if (!block) return;
-
       const { error } = await api.post(`/api/sections/${id}/content-blocks`, {
         block_id: blockId,
-        display_order: data.display_order ?? block.display_order,
-        content_type: data.content_type ?? block.content_type,
-        passage_title: data.passage_title ?? block.passage_title,
-        passage_content: data.passage_content ?? block.passage_content,
-        passage_footnotes: data.passage_footnotes ?? block.passage_footnotes,
-        audio_url: data.audio_url ?? block.audio_url,
+        display_order: data.display_order ?? 0,
+        content_type: data.content_type || "passage",
+        passage_title: data.passage_title || null,
+        passage_content: data.passage_content || null,
+        passage_footnotes: data.passage_footnotes || null,
+        audio_url: data.audio_url || null,
       });
       if (error) throw new Error(error);
     } catch (error) {
@@ -507,9 +504,9 @@ export function useSectionEdit(id: string) {
       return;
     }
 
-    const hasValidGroup = questionGroups.some((g) => g.items.length > 0);
-    if (!hasValidGroup) {
-      toast.error("최소 1개 섹션에 문제가 1개 이상 추가되어야 저장할 수 있습니다.");
+    const allGroupsValid = questionGroups.every((g) => g.items.length > 0);
+    if (!allGroupsValid) {
+      toast.error("모든 섹션에 최소 1개 이상의 문제가 추가되어야 합니다.");
       return;
     }
 

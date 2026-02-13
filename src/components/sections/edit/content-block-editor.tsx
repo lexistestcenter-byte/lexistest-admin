@@ -32,8 +32,8 @@ export function ContentBlockEditor({
 
   const label =
     block.content_type === "passage"
-      ? block.passage_title || `Passage ${index + 1}`
-      : block.passage_title || `Audio ${index + 1}`;
+      ? localTitle || `Passage ${index + 1}`
+      : localTitle || `Audio ${index + 1}`;
 
   // 즉시 부모 state 반영 (debounce 제거 — blob URL이 저장 시점에 누락되는 문제 방지)
   useEffect(() => {
