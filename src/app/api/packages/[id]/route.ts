@@ -35,7 +35,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from("packages")
-      .select("*, package_sections(id, section_id, display_order, custom_time_limit_minutes, sections(id, title, section_type, difficulty, is_practice, time_limit_minutes))")
+      .select("*, package_sections(id, section_id, display_order, custom_time_limit_minutes, sections(id, title, section_type, difficulty, is_practice, time_limit_minutes)), package_bundles(id, child_package_id, display_order, child_package:packages!package_bundles_child_package_id_fkey(id, title, exam_type, is_practice, is_bundle))")
       .eq("id", id)
       .single();
 
@@ -137,8 +137,13 @@ export async function PUT(
       updateData.instruction_content = body.instruction_content
         ? sanitizeHtml(body.instruction_content)
         : null;
+    if (body.is_bundle !== undefined) updateData.is_bundle = body.is_bundle;
+    if (body.is_published !== undefined) updateData.is_published = body.is_published;
+    if (body.is_free !== undefined) updateData.is_free = body.is_free;
+    if (body.is_practice !== undefined) updateData.is_practice = body.is_practice;
+    if (body.difficulty !== undefined) updateData.difficulty = body.difficulty;
 
-    if (Object.keys(updateData).length === 0 && !body.section_ids) {
+    if (Object.keys(updateData).length === 0 && !body.section_ids && !body.child_package_ids) {
       return NextResponse.json(
         { error: "No fields to update" },
         { status: 400 }
@@ -165,15 +170,41 @@ export async function PUT(
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 
+      // 번들 연결 업데이트 (전체 교체)
+      if (body.child_package_ids && Array.isArray(body.child_package_ids)) {
+        await supabase
+          .from("package_bundles")
+          .delete()
+          .eq("bundle_id", id);
+
+        if (body.child_package_ids.length > 0) {
+          const bundleItems = body.child_package_ids.map((childId: string, index: number) => ({
+            bundle_id: id,
+            child_package_id: childId,
+            display_order: index,
+          }));
+
+          const { error: bundleError } = await supabase
+            .from("package_bundles")
+            .insert(bundleItems);
+
+          if (bundleError) {
+            console.error("Error updating bundle children:", bundleError);
+            return NextResponse.json(
+              { ...data, warning: "Package updated but bundle linking failed: " + bundleError.message },
+              { status: 200 }
+            );
+          }
+        }
+      }
+
       // 섹션 연결 업데이트 (전체 교체)
       if (body.section_ids && Array.isArray(body.section_ids)) {
-        // 기존 연결 삭제
         await supabase
           .from("package_sections")
           .delete()
           .eq("package_id", id);
 
-        // 새 연결 추가
         if (body.section_ids.length > 0) {
           const packageSections = body.section_ids.map((sectionId: string, index: number) => ({
             package_id: id,

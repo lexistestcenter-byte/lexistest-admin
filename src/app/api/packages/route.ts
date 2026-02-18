@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     const examType = searchParams.get("exam_type");
+    const isBundle = searchParams.get("is_bundle");
     const search = searchParams.get("search");
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
@@ -45,6 +46,9 @@ export async function GET(request: NextRequest) {
 
     if (examType) {
       query = query.eq("exam_type", examType);
+    }
+    if (isBundle === "true") {
+      query = query.eq("is_bundle", true);
     }
     if (search) {
       query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
@@ -148,6 +152,7 @@ export async function POST(request: NextRequest) {
       description: body.description ? sanitizeHtml(body.description) : null,
       image_url: body.image_url || null,
       exam_type: body.exam_type || "full",
+      is_bundle: body.is_bundle || false,
       time_limit_minutes: body.time_limit_minutes || null,
       access_type: body.access_type || "public",
       display_order: body.display_order || 0,
@@ -168,8 +173,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // 섹션 연결이 있으면 package_sections에도 추가
-    if (body.section_ids && Array.isArray(body.section_ids) && body.section_ids.length > 0) {
+    // 번들 패키지: child_package_ids로 package_bundles 연결
+    if (body.is_bundle && body.child_package_ids && Array.isArray(body.child_package_ids) && body.child_package_ids.length > 0) {
+      const bundleItems = body.child_package_ids.map((childId: string, index: number) => ({
+        bundle_id: data.id,
+        child_package_id: childId,
+        display_order: index,
+      }));
+
+      const { error: bundleError } = await supabase
+        .from("package_bundles")
+        .insert(bundleItems);
+
+      if (bundleError) {
+        console.error("Error linking bundle children:", bundleError);
+        return NextResponse.json(
+          { ...data, warning: "Package created but bundle linking failed: " + bundleError.message },
+          { status: 201 }
+        );
+      }
+    }
+
+    // 일반 패키지: section_ids로 package_sections 연결
+    if (!body.is_bundle && body.section_ids && Array.isArray(body.section_ids) && body.section_ids.length > 0) {
       const packageSections = body.section_ids.map((sectionId: string, index: number) => ({
         package_id: data.id,
         section_id: sectionId,
@@ -182,7 +208,6 @@ export async function POST(request: NextRequest) {
 
       if (sectionsError) {
         console.error("Error linking sections:", sectionsError);
-        // 패키지는 이미 생성됨 - 섹션 연결 실패를 경고로 반환
         return NextResponse.json(
           { ...data, warning: "Package created but section linking failed: " + sectionsError.message },
           { status: 201 }

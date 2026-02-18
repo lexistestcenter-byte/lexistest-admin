@@ -114,7 +114,7 @@ export default function AssignmentsPage() {
   const [assignmentType, setAssignmentType] = useState<"group" | "individual">("group");
   const [selectedPackageId, setSelectedPackageId] = useState("");
   const [selectedGroupId, setSelectedGroupId] = useState("");
-  const [selectedUserId, setSelectedUserId] = useState("");
+  const [selectedUsers, setSelectedUsers] = useState<StudentOption[]>([]);
   const [dateRange, setDateRange] = useState<DateRange>({ from: null, to: null });
   const [memo, setMemo] = useState("");
 
@@ -204,7 +204,8 @@ export default function AssignmentsPage() {
       );
       if (error) throw new Error(error);
       setStudents(data?.students || []);
-    } catch {
+    } catch (err) {
+      console.error("Student search error:", err);
       setStudents([]);
     } finally {
       setIsStudentsLoading(false);
@@ -223,7 +224,7 @@ export default function AssignmentsPage() {
     setAssignmentType("group");
     setSelectedPackageId("");
     setSelectedGroupId("");
-    setSelectedUserId("");
+    setSelectedUsers([]);
     setDateRange({ from: null, to: null });
     setMemo("");
     setStudentSearch("");
@@ -240,27 +241,49 @@ export default function AssignmentsPage() {
       toast.error("그룹을 선택해주세요.");
       return;
     }
-    if (assignmentType === "individual" && !selectedUserId) {
+    if (assignmentType === "individual" && selectedUsers.length === 0) {
       toast.error("학생을 선택해주세요.");
       return;
     }
 
     setIsSaving(true);
     try {
-      const payload: Record<string, unknown> = {
+      const basePayload: Record<string, unknown> = {
         package_id: selectedPackageId,
         assignment_type: assignmentType,
       };
-      if (assignmentType === "group") payload.group_id = selectedGroupId;
-      if (assignmentType === "individual") payload.user_id = selectedUserId;
-      if (dateRange.from) payload.scheduled_start = format(dateRange.from, "yyyy-MM-dd'T'HH:mm");
-      if (dateRange.to) payload.scheduled_end = format(dateRange.to, "yyyy-MM-dd'T'HH:mm");
-      if (memo.trim()) payload.memo = memo.trim();
+      if (dateRange.from) basePayload.scheduled_start = format(dateRange.from, "yyyy-MM-dd'T'HH:mm");
+      if (dateRange.to) basePayload.scheduled_end = format(dateRange.to, "yyyy-MM-dd'T'HH:mm");
+      if (memo.trim()) basePayload.memo = memo.trim();
 
-      const { error } = await api.post("/api/assignments", payload);
-      if (error) throw new Error(error);
+      if (assignmentType === "group") {
+        basePayload.group_id = selectedGroupId;
+        const { error } = await api.post("/api/assignments", basePayload);
+        if (error) throw new Error(error);
+      } else {
+        // 개별 학생: 각각 할당 생성
+        const errors: string[] = [];
+        for (const user of selectedUsers) {
+          const { error } = await api.post("/api/assignments", {
+            ...basePayload,
+            user_id: user.id,
+          });
+          if (error) errors.push(`${user.name}: ${error}`);
+        }
+        if (errors.length > 0) {
+          const successCount = selectedUsers.length - errors.length;
+          if (successCount > 0) {
+            toast.success(`${successCount}명 할당 성공`);
+          }
+          throw new Error(`${errors.length}건 실패: ${errors[0]}`);
+        }
+      }
 
-      toast.success("할당이 생성되었습니다.");
+      toast.success(
+        assignmentType === "individual" && selectedUsers.length > 1
+          ? `${selectedUsers.length}명에게 할당되었습니다.`
+          : "할당이 생성되었습니다."
+      );
       setIsCreateOpen(false);
       resetForm();
       loadAssignments();
@@ -321,9 +344,6 @@ export default function AssignmentsPage() {
       badgeClass: "bg-violet-100 text-violet-700",
     };
   };
-
-  // Selected student display
-  const selectedStudent = students.find((s) => s.id === selectedUserId);
 
   const columns: Column<PackageAssignment>[] = [
     {
@@ -554,7 +574,7 @@ export default function AssignmentsPage() {
                 onValueChange={(v) => {
                   setAssignmentType(v as "group" | "individual");
                   setSelectedGroupId("");
-                  setSelectedUserId("");
+                  setSelectedUsers([]);
                   setStudentSearch("");
                   setStudents([]);
                 }}
@@ -597,7 +617,7 @@ export default function AssignmentsPage() {
                 </Select>
               )}
 
-              {/* Target Selection - Individual */}
+              {/* Target Selection - Individual (multi-select) */}
               {assignmentType === "individual" && (
                 <div className="space-y-2">
                   <div className="relative">
@@ -609,24 +629,31 @@ export default function AssignmentsPage() {
                       onChange={(e) => setStudentSearch(e.target.value)}
                     />
                   </div>
-                  {selectedStudent && (
-                    <div className="flex items-center gap-2 p-2.5 bg-muted rounded-lg text-sm">
-                      <User className="h-4 w-4 text-violet-500" />
-                      <span className="font-medium">{selectedStudent.name}</span>
-                      <span className="text-muted-foreground">
-                        {selectedStudent.email}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="ml-auto h-6 w-6 p-0"
-                        onClick={() => setSelectedUserId("")}
-                      >
-                        &times;
-                      </Button>
+                  {/* 선택된 학생 칩 목록 */}
+                  {selectedUsers.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedUsers.map((user) => (
+                        <span
+                          key={user.id}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-violet-100 text-violet-700 rounded-full text-xs font-medium"
+                        >
+                          {user.name}
+                          <button
+                            className="hover:text-violet-900 ml-0.5"
+                            onClick={() =>
+                              setSelectedUsers((prev) =>
+                                prev.filter((u) => u.id !== user.id)
+                              )
+                            }
+                          >
+                            &times;
+                          </button>
+                        </span>
+                      ))}
                     </div>
                   )}
-                  {!selectedUserId && studentSearch.trim() && (
+                  {/* 검색 결과 드롭다운 */}
+                  {studentSearch.trim() && (
                     <div className="border rounded-lg max-h-[150px] overflow-y-auto">
                       {isStudentsLoading ? (
                         <div className="flex items-center justify-center py-4">
@@ -637,21 +664,29 @@ export default function AssignmentsPage() {
                         </div>
                       ) : students.length > 0 ? (
                         <div className="divide-y">
-                          {students.map((s) => (
-                            <button
-                              key={s.id}
-                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-left text-sm"
-                              onClick={() => {
-                                setSelectedUserId(s.id);
-                                setStudentSearch("");
-                              }}
-                            >
-                              <span className="font-medium">{s.name}</span>
-                              <span className="text-muted-foreground">
-                                {s.email}
-                              </span>
-                            </button>
-                          ))}
+                          {students
+                            .filter((s) => !selectedUsers.some((u) => u.id === s.id))
+                            .map((s) => (
+                              <button
+                                key={s.id}
+                                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-left text-sm"
+                                onClick={() => {
+                                  setSelectedUsers((prev) => [...prev, { id: s.id, name: s.name, email: s.email }]);
+                                  setStudentSearch("");
+                                  setStudents([]);
+                                }}
+                              >
+                                <span className="font-medium">{s.name}</span>
+                                <span className="text-muted-foreground">
+                                  {s.email}
+                                </span>
+                              </button>
+                            ))}
+                          {students.filter((s) => !selectedUsers.some((u) => u.id === s.id)).length === 0 && (
+                            <div className="text-center text-muted-foreground py-4 text-sm">
+                              모든 검색 결과가 이미 선택됨
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="text-center text-muted-foreground py-4 text-sm">

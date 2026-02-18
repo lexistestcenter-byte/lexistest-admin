@@ -217,10 +217,12 @@ export interface Package {
   title: string;
   description?: string | null;
   image_url?: string | null;
+  unique_code?: string;
   exam_type: "full" | "section_only";
   difficulty?: "easy" | "medium" | "hard" | null;
   time_limit_minutes?: number | null;
   is_practice: boolean;
+  is_bundle: boolean;
   access_type: "public" | "groups" | "individuals" | "groups_and_individuals";
   is_published: boolean;
   is_free: boolean;
@@ -234,6 +236,19 @@ export interface Package {
   // Computed/joined
   sections?: PackageSection[];
   section_count?: number;
+  bundle_children?: PackageBundleItem[];
+}
+
+// =============================================
+// Package Bundle (bundle ↔ child package many-to-many)
+// =============================================
+export interface PackageBundleItem {
+  id: string;
+  bundle_id: string;
+  child_package_id: string;
+  display_order: number;
+  // Joined
+  child_package?: Package;
 }
 
 // =============================================
@@ -251,28 +266,23 @@ export interface PackageSection {
 }
 
 // =============================================
-// Coupon Types (based on coupons table)
+// Coupon (이용권/결제) Types (based on coupons table)
 // =============================================
+export type CouponStatus = "paid" | "expired" | "refunded";
+
 export interface Coupon {
   id: string;
-  code: string;
-  name: string;
-  description?: string | null;
-  package_ids: string[];
-  usage_limit?: number | null;
-  used_count: number;
-  redemptions: CouponRedemption[];
-  is_active: boolean;
+  user_id: string;
+  package_id: string;
+  wp_order_id: string;
+  amount: number;
+  status: CouponStatus;
   expires_at?: string | null;
-  created_by?: string | null;
   created_at: string;
   updated_at: string;
-}
-
-export interface CouponRedemption {
-  user_id: string;
-  wp_order_id?: string;
-  redeemed_at: string;
+  // Joined
+  user?: User;
+  package?: Package;
 }
 
 // =============================================

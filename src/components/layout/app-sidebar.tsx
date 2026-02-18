@@ -122,7 +122,7 @@ const navigationGroups: NavGroup[] = [
     title: "Access & Coupons",
     items: [
       {
-        title: "쿠폰 관리",
+        title: "이용권 관리",
         href: "/coupons",
         icon: Ticket,
         permission: "coupons",

@@ -32,7 +32,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MoreHorizontal, Eye, Package, Users, Loader2 } from "lucide-react";
+import {
+  DateRangePicker,
+  DateRange,
+} from "@/components/ui/date-range-picker";
+import { format } from "date-fns";
+import { MoreHorizontal, Eye, Package, Users, Loader2, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api/client";
 
@@ -46,10 +51,9 @@ interface StudentRow {
   name: string;
   email: string;
   phone?: string;
-  target_score?: number;
   avatar_url?: string;
   groups: StudentGroup[];
-  package_count: number;
+  package_access_count: number;
   last_login_at?: string;
   created_at: string;
 }
@@ -103,6 +107,7 @@ export default function StudentsPage() {
   // Access modal
   const [selectedPackage, setSelectedPackage] = useState("");
   const [packages, setPackages] = useState<PackageOption[]>([]);
+  const [dateRange, setDateRange] = useState<DateRange>({ from: null, to: null });
 
   // Group modal
   const [selectedGroup, setSelectedGroup] = useState("");
@@ -123,11 +128,11 @@ export default function StudentsPage() {
         // Fallback: /api/students가 없으면 /api/users 사용
         const { data: usersData, error: usersError } = await api.get<{ users: Array<{ id: string; name: string; email: string; created_at: string }>; pagination: { total: number } }>(`/api/users?${params.toString()}`);
         if (usersError) throw new Error(usersError);
-        // /api/users는 groups, package_count 등이 없으므로 기본값 설정
+        // /api/users는 groups, package_access_count 등이 없으므로 기본값 설정
         const mapped: StudentRow[] = (usersData?.users || []).map((u) => ({
           ...u,
           groups: [],
-          package_count: 0,
+          package_access_count: 0,
         }));
         setStudents(mapped);
         setTotalItems(usersData?.pagination?.total || 0);
@@ -186,6 +191,7 @@ export default function StudentsPage() {
   const openAccessModal = (student: StudentRow) => {
     setSelectedStudent(student);
     setSelectedPackage("");
+    setDateRange({ from: null, to: null });
     setIsAccessOpen(true);
     loadPackages();
   };
@@ -201,9 +207,13 @@ export default function StudentsPage() {
     if (!selectedStudent || !selectedPackage) return;
     setIsSaving(true);
     try {
-      const { error } = await api.post(`/api/students/${selectedStudent.id}/packages`, {
-        package_id: selectedPackage,
-      });
+      const payload: Record<string, unknown> = {
+        package_ids: [selectedPackage],
+      };
+      if (dateRange.from) payload.available_from = format(dateRange.from, "yyyy-MM-dd'T'HH:mm");
+      if (dateRange.to) payload.available_until = format(dateRange.to, "yyyy-MM-dd'T'HH:mm");
+
+      const { error } = await api.post(`/api/students/${selectedStudent.id}/packages`, payload);
       if (error) throw new Error(error);
 
       toast.success("패키지가 배정되었습니다.");
@@ -264,15 +274,6 @@ export default function StudentsPage() {
       ),
     },
     {
-      key: "target_score",
-      header: "목표 점수",
-      cell: (student) => (
-        <span className="text-muted-foreground">
-          {student.target_score ? `Band ${student.target_score}` : "-"}
-        </span>
-      ),
-    },
-    {
       key: "groups",
       header: "소속 그룹",
       cell: (student) => (
@@ -290,10 +291,10 @@ export default function StudentsPage() {
       ),
     },
     {
-      key: "package_count",
+      key: "package_access_count",
       header: "패키지",
       cell: (student) => (
-        <span className="text-muted-foreground">{student.package_count}개</span>
+        <span className="text-muted-foreground">{student.package_access_count}개</span>
       ),
     },
     {
@@ -392,12 +393,6 @@ export default function StudentsPage() {
                   <p className="font-medium">{selectedStudent.phone || "-"}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground text-xs">목표 점수</Label>
-                  <p className="font-medium">
-                    {selectedStudent.target_score ? `Band ${selectedStudent.target_score}` : "-"}
-                  </p>
-                </div>
-                <div>
                   <Label className="text-muted-foreground text-xs">가입일</Label>
                   <p className="font-medium">
                     {new Date(selectedStudent.created_at).toLocaleDateString("ko-KR")}
@@ -430,7 +425,7 @@ export default function StudentsPage() {
 
               <div className="pt-4 border-t">
                 <Label className="text-muted-foreground text-xs">패키지 접근권한</Label>
-                <p className="font-medium">{selectedStudent.package_count}개 패키지 이용 가능</p>
+                <p className="font-medium">{selectedStudent.package_access_count}개 패키지 이용 가능</p>
               </div>
             </div>
           )}
@@ -445,7 +440,7 @@ export default function StudentsPage() {
 
       {/* Package Access Modal */}
       <Dialog open={isAccessOpen} onOpenChange={setIsAccessOpen}>
-        <DialogContent className="max-w-[400px]">
+        <DialogContent className="max-w-[500px]">
           <DialogHeader>
             <DialogTitle>패키지 배정</DialogTitle>
             <DialogDescription>
@@ -468,6 +463,17 @@ export default function StudentsPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                <Label>이용 기간 (선택)</Label>
+              </div>
+              <DateRangePicker
+                value={dateRange}
+                onChange={setDateRange}
+              />
             </div>
           </div>
 

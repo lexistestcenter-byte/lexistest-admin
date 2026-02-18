@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { api } from "@/lib/api/client";
-import { MoreHorizontal, Pencil, Trash2, Copy, Layers, FileCheck, LayoutGrid, BookMarked, Loader2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Copy, Layers, FileCheck, LayoutGrid, BookMarked, PackageOpen, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { getCdnUrl } from "@/lib/cdn";
 
@@ -42,6 +42,7 @@ const typeFilters = [
   { id: "full", label: "Full Test", icon: FileCheck, color: "text-blue-500" },
   { id: "section_only", label: "시험별", icon: LayoutGrid, color: "text-emerald-500" },
   { id: "practice", label: "연습", icon: BookMarked, color: "text-amber-500" },
+  { id: "bundle", label: "번들", icon: PackageOpen, color: "text-purple-500" },
 ];
 
 interface PackageRow {
@@ -49,8 +50,10 @@ interface PackageRow {
   title: string;
   description: string;
   image_url?: string;
+  unique_code?: string;
   exam_type: "full" | "section_only";
   is_practice: boolean;
+  is_bundle: boolean;
   section_count: number;
   is_published: boolean;
   is_free: boolean;
@@ -90,9 +93,11 @@ export default function PackagesPage() {
       params.set("limit", pageSize.toString());
       params.set("offset", ((currentPage - 1) * pageSize).toString());
 
-      // "practice" 필터는 is_practice 기반, 나머지는 exam_type 기반
+      // "practice" 필터는 is_practice 기반, "bundle"은 is_bundle 기반, 나머지는 exam_type 기반
       if (selectedType === "practice") {
         params.set("is_practice", "true");
+      } else if (selectedType === "bundle") {
+        params.set("is_bundle", "true");
       } else if (selectedType !== "all") {
         params.set("exam_type", selectedType);
       }
@@ -169,6 +174,11 @@ export default function PackagesPage() {
           )}
           <div>
             <div className="font-medium">{pkg.title}</div>
+            {pkg.unique_code && (
+              <div className="text-xs text-muted-foreground font-mono">
+                {pkg.unique_code}
+              </div>
+            )}
             <div className="text-sm text-muted-foreground">{pkg.description}</div>
           </div>
         </div>
@@ -182,6 +192,11 @@ export default function PackagesPage() {
           <Badge variant={examTypeColors[pkg.exam_type]}>
             {examTypeLabels[pkg.exam_type]}
           </Badge>
+          {pkg.is_bundle && (
+            <Badge variant="outline" className="text-purple-600">
+              번들
+            </Badge>
+          )}
           {pkg.is_practice && (
             <Badge variant="outline" className="text-amber-600">
               연습

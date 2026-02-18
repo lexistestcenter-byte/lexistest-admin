@@ -5,16 +5,9 @@ import {
   apiSuccess,
   getSupabase,
 } from "@/lib/api/server";
-import { sanitizeText, containsSqlInjection } from "@/lib/utils/sanitize";
-import { rateLimit } from "@/lib/utils/rate-limit";
+import { containsSqlInjection } from "@/lib/utils/sanitize";
 
-const createCouponLimiter = rateLimit({
-  interval: 60000,
-  uniqueTokenPerInterval: 500,
-  limit: 20,
-});
-
-// GET: 쿠폰 목록 조회
+// GET: 이용권(결제) 목록 조회
 export async function GET(request: NextRequest) {
   const validation = await validateApiRequest(request);
   if (!validation.valid) {
@@ -25,7 +18,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
 
   const search = searchParams.get("search");
-  const isActive = searchParams.get("is_active");
+  const status = searchParams.get("status");
   const limit = parseInt(searchParams.get("limit") || "20");
   const offset = parseInt(searchParams.get("offset") || "0");
 
@@ -35,18 +28,34 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from("coupons")
-    .select("*", { count: "exact" })
+    .select(
+      "*, user:users!coupons_user_id_fkey(id, name, email), package:packages!coupons_package_id_fkey(id, title, unique_code)",
+      { count: "exact" }
+    )
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (isActive !== null && isActive !== undefined) {
-    query = query.eq("is_active", isActive === "true");
+  if (status && status !== "all") {
+    query = query.eq("status", status);
   }
 
   if (search) {
-    query = query.or(
-      `code.ilike.%${search}%,name.ilike.%${search}%`
-    );
+    // 주문번호로 직접 검색
+    // 사용자명/이메일 검색은 먼저 users 테이블에서 ID를 찾아서 필터
+    const { data: matchingUsers } = await supabase
+      .from("users")
+      .select("id")
+      .or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+
+    const userIds = matchingUsers?.map((u) => u.id) || [];
+
+    if (userIds.length > 0) {
+      query = query.or(
+        `wp_order_id.ilike.%${search}%,user_id.in.(${userIds.join(",")})`
+      );
+    } else {
+      query = query.ilike("wp_order_id", `%${search}%`);
+    }
   }
 
   const { data, error, count } = await query;
@@ -65,76 +74,4 @@ export async function GET(request: NextRequest) {
       hasMore: (count || 0) > offset + (data?.length || 0),
     },
   });
-}
-
-// POST: 쿠폰 생성
-export async function POST(request: NextRequest) {
-  const ip =
-    request.headers.get("x-forwarded-for") ||
-    request.headers.get("x-real-ip") ||
-    "anonymous";
-  const { success: rateLimitOk } = await createCouponLimiter.check(ip);
-  if (!rateLimitOk) {
-    return apiError("Too many requests. Please try again later.", 429);
-  }
-
-  const validation = await validateApiRequest(request);
-  if (!validation.valid) {
-    return apiError(validation.error!, 401);
-  }
-
-  const supabase = await getSupabase();
-  const body = await request.json();
-
-  // 필수 필드 검증
-  if (!body.code || !body.name) {
-    return apiError("code and name are required", 400);
-  }
-
-  // SQL Injection 체크
-  const textFields = ["code", "name", "description"];
-  for (const field of textFields) {
-    if (body[field] && containsSqlInjection(body[field])) {
-      return apiError(`Invalid ${field}`, 400);
-    }
-  }
-
-  // usage_limit 검증
-  if (body.usage_limit !== undefined && body.usage_limit !== null) {
-    if (typeof body.usage_limit !== "number" || body.usage_limit < 1) {
-      return apiError("usage_limit must be a positive number", 400);
-    }
-  }
-
-  // package_ids 검증
-  if (body.package_ids && !Array.isArray(body.package_ids)) {
-    return apiError("package_ids must be an array", 400);
-  }
-
-  const couponData = {
-    code: sanitizeText(body.code).toUpperCase(),
-    name: sanitizeText(body.name),
-    description: body.description ? sanitizeText(body.description) : null,
-    package_ids: body.package_ids || [],
-    usage_limit: body.usage_limit || null,
-    is_active: body.is_active !== undefined ? body.is_active : true,
-    expires_at: body.expires_at || null,
-    created_by: validation.userId,
-  };
-
-  const { data, error } = await supabase
-    .from("coupons")
-    .insert(couponData)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Error creating coupon:", error);
-    if (error.code === "23505") {
-      return apiError("Coupon code already exists", 409);
-    }
-    return apiError(error.message, 500);
-  }
-
-  return apiSuccess(data, 201);
 }

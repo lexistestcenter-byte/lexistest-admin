@@ -24,7 +24,7 @@ const pathNameMap: Record<string, string> = {
   passages: "지문 관리",
   audio: "오디오 관리",
   assignments: "패키지 할당",
-  coupons: "쿠폰 관리",
+  coupons: "이용권 관리",
   access: "접근 권한",
   sessions: "응시 현황",
   scores: "성적 관리",

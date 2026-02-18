@@ -5,19 +5,13 @@ import { PageHeader } from "@/components/common/page-header";
 import { DataTable, Column } from "@/components/common/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,29 +32,45 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   MoreHorizontal,
-  Pencil,
-  Trash2,
-  Copy,
   RefreshCw,
   Loader2,
-  Plus,
+  Undo2,
+  Copy,
 } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { api } from "@/lib/api/client";
 
+type CouponStatus = "paid" | "expired" | "refunded";
+
 interface CouponRow {
   id: string;
-  code: string;
-  name: string;
-  description?: string | null;
-  package_ids: string[];
-  usage_limit?: number | null;
-  used_count: number;
-  is_active: boolean;
+  user_id: string;
+  package_id: string;
+  wp_order_id: string;
+  amount: number;
+  status: CouponStatus;
   expires_at?: string | null;
   created_at: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+  package?: {
+    id: string;
+    title: string;
+    unique_code: string;
+  } | null;
 }
+
+const statusConfig: Record<
+  CouponStatus,
+  { label: string; variant: "default" | "secondary" | "destructive" }
+> = {
+  paid: { label: "결제완료", variant: "default" },
+  expired: { label: "만료", variant: "secondary" },
+  refunded: { label: "환불", variant: "destructive" },
+};
 
 export default function CouponsPage() {
   const [coupons, setCoupons] = useState<CouponRow[]>([]);
@@ -69,23 +79,11 @@ export default function CouponsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  // Create/Edit dialog
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<CouponRow | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [formData, setFormData] = useState({
-    code: "",
-    name: "",
-    description: "",
-    usage_limit: "",
-    is_active: true,
-    expires_at: "",
-  });
-
-  // Delete dialog
-  const [deleteTarget, setDeleteTarget] = useState<CouponRow | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  // Refund dialog
+  const [refundTarget, setRefundTarget] = useState<CouponRow | null>(null);
+  const [isRefunding, setIsRefunding] = useState(false);
 
   const loadCoupons = useCallback(async () => {
     setIsLoading(true);
@@ -94,6 +92,7 @@ export default function CouponsPage() {
       params.set("limit", pageSize.toString());
       params.set("offset", ((currentPage - 1) * pageSize).toString());
       if (search) params.set("search", search);
+      if (statusFilter !== "all") params.set("status", statusFilter);
 
       const { data, error } = await api.get<{
         coupons: CouponRow[];
@@ -106,11 +105,11 @@ export default function CouponsPage() {
       setTotalItems(data?.pagination?.total || 0);
     } catch (error) {
       console.error("Error loading coupons:", error);
-      toast.error("쿠폰 목록을 불러오는데 실패했습니다.");
+      toast.error("이용권 목록을 불러오는데 실패했습니다.");
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, pageSize, search]);
+  }, [currentPage, pageSize, search, statusFilter]);
 
   useEffect(() => {
     loadCoupons();
@@ -119,167 +118,108 @@ export default function CouponsPage() {
   useEffect(() => {
     const timer = setTimeout(() => setCurrentPage(1), 300);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, statusFilter]);
 
-  const resetForm = () => {
-    setFormData({
-      code: "",
-      name: "",
-      description: "",
-      usage_limit: "",
-      is_active: true,
-      expires_at: "",
-    });
-    setEditTarget(null);
-  };
+  const handleRefund = async () => {
+    if (!refundTarget) return;
 
-  const openCreate = () => {
-    resetForm();
-    setIsDialogOpen(true);
-  };
-
-  const openEdit = (coupon: CouponRow) => {
-    setEditTarget(coupon);
-    setFormData({
-      code: coupon.code,
-      name: coupon.name,
-      description: coupon.description || "",
-      usage_limit: coupon.usage_limit?.toString() || "",
-      is_active: coupon.is_active,
-      expires_at: coupon.expires_at
-        ? new Date(coupon.expires_at).toISOString().slice(0, 16)
-        : "",
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleSave = async () => {
-    if (!formData.code.trim() || !formData.name.trim()) {
-      toast.error("코드와 이름은 필수입니다.");
-      return;
-    }
-
-    setIsSaving(true);
+    setIsRefunding(true);
     try {
-      const payload = {
-        code: formData.code.trim(),
-        name: formData.name.trim(),
-        description: formData.description.trim() || null,
-        usage_limit: formData.usage_limit
-          ? parseInt(formData.usage_limit)
-          : null,
-        is_active: formData.is_active,
-        expires_at: formData.expires_at || null,
-      };
+      const { error } = await api.patch(`/api/coupons/${refundTarget.id}`, {
+        status: "refunded",
+      });
 
-      let result;
-      if (editTarget) {
-        result = await api.put(`/api/coupons/${editTarget.id}`, payload);
-      } else {
-        result = await api.post(`/api/coupons`, payload);
-      }
+      if (error) throw new Error(error);
 
-      if (result.error) {
-        throw new Error(result.error);
-      }
-
-      toast.success(editTarget ? "쿠폰이 수정되었습니다." : "쿠폰이 생성되었습니다.");
-      setIsDialogOpen(false);
-      resetForm();
+      toast.success("환불 처리가 완료되었습니다.");
       loadCoupons();
     } catch (error) {
-      console.error("Error saving coupon:", error);
+      console.error("Error refunding coupon:", error);
       toast.error(
-        error instanceof Error ? error.message : "쿠폰 저장에 실패했습니다."
+        error instanceof Error ? error.message : "환불 처리에 실패했습니다."
       );
     } finally {
-      setIsSaving(false);
+      setIsRefunding(false);
+      setRefundTarget(null);
     }
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-
-    setIsDeleting(true);
-    try {
-      const { error } = await api.delete(`/api/coupons/${deleteTarget.id}`);
-
-      if (error) {
-        throw new Error(error);
-      }
-
-      toast.success("쿠폰이 비활성화되었습니다.");
-      loadCoupons();
-    } catch (error) {
-      console.error("Error deleting coupon:", error);
-      toast.error(
-        error instanceof Error ? error.message : "쿠폰 비활성화에 실패했습니다."
-      );
-    } finally {
-      setIsDeleting(false);
-      setDeleteTarget(null);
-    }
-  };
-
-  const handleCopyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    toast.success("쿠폰 코드가 복사되었습니다.");
+  const handleCopyOrderId = (orderId: string) => {
+    navigator.clipboard.writeText(orderId);
+    toast.success("주문번호가 복사되었습니다.");
   };
 
   const columns: Column<CouponRow>[] = [
     {
-      key: "coupon",
-      header: "쿠폰",
+      key: "user",
+      header: "사용자",
       cell: (coupon) => (
         <div>
-          <div className="font-medium">{coupon.name}</div>
+          <div className="font-medium">{coupon.user?.name || "-"}</div>
+          <div className="text-sm text-muted-foreground">
+            {coupon.user?.email || "-"}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "package",
+      header: "패키지",
+      cell: (coupon) => (
+        <div>
+          <div className="font-medium">{coupon.package?.title || "-"}</div>
           <div className="text-sm text-muted-foreground font-mono">
-            {coupon.code}
+            {coupon.package?.unique_code || "-"}
           </div>
         </div>
       ),
     },
     {
-      key: "packages",
-      header: "패키지 수",
+      key: "amount",
+      header: "결제금액",
       cell: (coupon) => (
-        <Badge variant="outline">{coupon.package_ids?.length || 0}개</Badge>
-      ),
-    },
-    {
-      key: "usage",
-      header: "사용 현황",
-      cell: (coupon) => (
-        <div className="space-y-1 min-w-[120px]">
-          <div className="flex justify-between text-sm">
-            <span>{coupon.used_count}회</span>
-            <span className="text-muted-foreground">
-              {coupon.usage_limit ? `/ ${coupon.usage_limit}` : "무제한"}
-            </span>
-          </div>
-          {coupon.usage_limit && (
-            <Progress
-              value={(coupon.used_count / coupon.usage_limit) * 100}
-              className="h-2"
-            />
-          )}
-        </div>
+        <span className="font-medium tabular-nums">
+          {coupon.amount?.toLocaleString("ko-KR") || 0}원
+        </span>
       ),
     },
     {
       key: "status",
       header: "상태",
+      cell: (coupon) => {
+        const config = statusConfig[coupon.status];
+        return (
+          <Badge variant={config?.variant || "secondary"}>
+            {config?.label || coupon.status}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: "wp_order_id",
+      header: "WP 주문번호",
       cell: (coupon) => (
-        <Badge variant={coupon.is_active ? "default" : "secondary"}>
-          {coupon.is_active ? "활성" : "비활성"}
-        </Badge>
+        <span className="text-sm font-mono text-muted-foreground">
+          {coupon.wp_order_id || "-"}
+        </span>
       ),
     },
     {
-      key: "expires",
+      key: "created_at",
+      header: "결제일",
+      cell: (coupon) => (
+        <span className="text-sm text-muted-foreground">
+          {coupon.created_at
+            ? new Date(coupon.created_at).toLocaleDateString("ko-KR")
+            : "-"}
+        </span>
+      ),
+    },
+    {
+      key: "expires_at",
       header: "만료일",
       cell: (coupon) => (
-        <span className="text-muted-foreground text-sm">
+        <span className="text-sm text-muted-foreground">
           {coupon.expires_at
             ? new Date(coupon.expires_at).toLocaleDateString("ko-KR")
             : "없음"}
@@ -299,22 +239,24 @@ export default function CouponsPage() {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>작업</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => openEdit(coupon)}>
-              <Pencil className="mr-2 h-4 w-4" />
-              수정
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleCopyCode(coupon.code)}>
-              <Copy className="mr-2 h-4 w-4" />
-              코드 복사
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <DropdownMenuItem
-              className="text-destructive"
-              onClick={() => setDeleteTarget(coupon)}
+              onClick={() => handleCopyOrderId(coupon.wp_order_id)}
             >
-              <Trash2 className="mr-2 h-4 w-4" />
-              비활성화
+              <Copy className="mr-2 h-4 w-4" />
+              주문번호 복사
             </DropdownMenuItem>
+            {coupon.status === "paid" && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={() => setRefundTarget(coupon)}
+                >
+                  <Undo2 className="mr-2 h-4 w-4" />
+                  환불 처리
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       ),
@@ -325,25 +267,36 @@ export default function CouponsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="쿠폰 관리"
-        description="시험 접근 쿠폰을 관리합니다."
+        title="이용권 관리"
+        description="결제된 이용권(쿠폰) 내역을 관리합니다."
         actions={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => loadCoupons()}
-              disabled={isLoading}
-            >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-            </Button>
-            <Button onClick={openCreate}>
-              <Plus className="mr-2 h-4 w-4" />
-              쿠폰 생성
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => loadCoupons()}
+            disabled={isLoading}
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+            />
+          </Button>
         }
       />
+
+      {/* 상태 필터 */}
+      <div className="flex items-center gap-4">
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[140px] h-9 text-sm">
+            <SelectValue placeholder="상태 필터" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">전체 상태</SelectItem>
+            <SelectItem value="paid">결제완료</SelectItem>
+            <SelectItem value="expired">만료</SelectItem>
+            <SelectItem value="refunded">환불</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
@@ -353,7 +306,7 @@ export default function CouponsPage() {
         <DataTable
           columns={columns}
           data={coupons}
-          searchPlaceholder="쿠폰 코드 또는 이름으로 검색..."
+          searchPlaceholder="사용자명, 이메일 또는 주문번호로 검색..."
           totalItems={totalItems}
           pageSize={pageSize}
           currentPage={currentPage}
@@ -366,151 +319,51 @@ export default function CouponsPage() {
         />
       )}
 
-      {/* Create/Edit Dialog */}
-      <Dialog
-        open={isDialogOpen}
-        onOpenChange={(open) => {
-          if (!open) resetForm();
-          setIsDialogOpen(open);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editTarget ? "쿠폰 수정" : "쿠폰 생성"}
-            </DialogTitle>
-            <DialogDescription>
-              {editTarget
-                ? "쿠폰 정보를 수정합니다."
-                : "새로운 쿠폰을 생성합니다."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="code">쿠폰 코드 <span className="text-red-500">*</span></Label>
-              <Input
-                id="code"
-                placeholder="PREMIUM-2026-001"
-                value={formData.code}
-                onChange={(e) =>
-                  setFormData({ ...formData, code: e.target.value })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="name">쿠폰 이름 <span className="text-red-500">*</span></Label>
-              <Input
-                id="name"
-                placeholder="프리미엄 패키지 쿠폰"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">설명</Label>
-              <Textarea
-                id="description"
-                placeholder="쿠폰에 대한 설명"
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="usage_limit">사용 제한 (비워두면 무제한)</Label>
-              <Input
-                id="usage_limit"
-                type="number"
-                min={1}
-                placeholder="100"
-                value={formData.usage_limit}
-                onChange={(e) =>
-                  setFormData({ ...formData, usage_limit: e.target.value })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="expires_at">만료일 (선택)</Label>
-              <Input
-                id="expires_at"
-                type="datetime-local"
-                value={formData.expires_at}
-                onChange={(e) =>
-                  setFormData({ ...formData, expires_at: e.target.value })
-                }
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch
-                id="is_active"
-                checked={formData.is_active}
-                onCheckedChange={(checked) =>
-                  setFormData({ ...formData, is_active: checked })
-                }
-              />
-              <Label htmlFor="is_active" className="cursor-pointer">
-                활성화
-              </Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsDialogOpen(false);
-                resetForm();
-              }}
-            >
-              취소
-            </Button>
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  저장 중...
-                </>
-              ) : editTarget ? (
-                "수정"
-              ) : (
-                "생성"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation */}
+      {/* Refund Confirmation */}
       <AlertDialog
-        open={!!deleteTarget}
-        onOpenChange={() => setDeleteTarget(null)}
+        open={!!refundTarget}
+        onOpenChange={() => setRefundTarget(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>쿠폰 비활성화</AlertDialogTitle>
+            <AlertDialogTitle>환불 처리</AlertDialogTitle>
             <AlertDialogDescription>
-              정말로 이 쿠폰을 비활성화하시겠습니까?
+              정말로 이 이용권을 환불 처리하시겠습니까?
               <br />
-              <strong className="text-foreground">{deleteTarget?.code}</strong> -{" "}
-              {deleteTarget?.name}
+              환불 시 해당 패키지 접근 권한이 회수됩니다.
+              <br />
+              <br />
+              <span className="text-foreground font-medium">
+                사용자: {refundTarget?.user?.name || "-"}
+              </span>
+              <br />
+              <span className="text-foreground font-medium">
+                패키지: {refundTarget?.package?.title || "-"}
+              </span>
+              <br />
+              <span className="text-foreground font-medium">
+                금액: {refundTarget?.amount?.toLocaleString("ko-KR") || 0}원
+              </span>
+              <br />
+              <span className="text-foreground font-medium">
+                주문번호: {refundTarget?.wp_order_id || "-"}
+              </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>취소</AlertDialogCancel>
+            <AlertDialogCancel disabled={isRefunding}>취소</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isDeleting}
+              onClick={handleRefund}
+              disabled={isRefunding}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? (
+              {isRefunding ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   처리 중...
                 </>
               ) : (
-                "비활성화"
+                "환불 처리"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

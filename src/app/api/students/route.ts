@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
   let query = supabase
     .from("users")
     .select(`
-      id, name, email, phone, target_score, avatar_url,
+      id, name, email, target_score, avatar_url,
       created_at, last_login_at,
       student_group_members(
         id,

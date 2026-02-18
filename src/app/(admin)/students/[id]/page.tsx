@@ -17,12 +17,26 @@ interface StudentInfo {
   name: string;
   email: string;
   phone?: string;
-  target_score?: number;
   avatar_url?: string;
   groups: string[];
   package_count: number;
   last_login_at?: string;
   created_at: string;
+}
+
+interface PackageAccess {
+  id: string;
+  package_id: string;
+  access_type: string;
+  available_from?: string | null;
+  available_until?: string | null;
+  expires_at?: string | null;
+  created_at: string;
+  packages?: {
+    id: string;
+    title: string;
+    exam_type: string;
+  } | null;
 }
 
 interface SessionRow {
@@ -148,6 +162,8 @@ export default function StudentDetailPage() {
 
   const [student, setStudent] = useState<StudentInfo | null>(null);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [packageAccess, setPackageAccess] = useState<PackageAccess[]>([]);
+  const [packagesLoading, setPackagesLoading] = useState(false);
   const [pagination, setPagination] = useState<Pagination>({
     total: 0,
     limit: 10,
@@ -186,9 +202,28 @@ export default function StudentDetailPage() {
     [id]
   );
 
+  const fetchPackages = useCallback(async () => {
+    setPackagesLoading(true);
+    try {
+      const { data, error: apiError } = await api.get<{
+        packages: PackageAccess[];
+      }>(`/api/students/${id}/packages`);
+      if (apiError) throw new Error(apiError);
+      setPackageAccess(data?.packages || []);
+    } catch (err) {
+      console.error("Error fetching packages:", err);
+    } finally {
+      setPackagesLoading(false);
+    }
+  }, [id]);
+
   useEffect(() => {
     fetchData(currentPage, pageSize);
   }, [fetchData, currentPage, pageSize]);
+
+  useEffect(() => {
+    fetchPackages();
+  }, [fetchPackages]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -321,16 +356,10 @@ export default function StudentDetailPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-4 border-t">
           <div>
             <Label className="text-muted-foreground text-xs">전화번호</Label>
             <p className="font-medium">{student.phone || "-"}</p>
-          </div>
-          <div>
-            <Label className="text-muted-foreground text-xs">목표 점수</Label>
-            <p className="font-medium">
-              {student.target_score ? `Band ${student.target_score}` : "-"}
-            </p>
           </div>
           <div>
             <Label className="text-muted-foreground text-xs">가입일</Label>
@@ -349,6 +378,7 @@ export default function StudentDetailPage() {
       <Tabs defaultValue="sessions">
         <TabsList>
           <TabsTrigger value="sessions">시험 내역</TabsTrigger>
+          <TabsTrigger value="packages">패키지 ({packageAccess.length})</TabsTrigger>
           <TabsTrigger value="info">기본 정보</TabsTrigger>
         </TabsList>
 
@@ -365,6 +395,52 @@ export default function StudentDetailPage() {
           />
         </TabsContent>
 
+        <TabsContent value="packages" className="mt-4">
+          {packagesLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : packageAccess.length === 0 ? (
+            <div className="rounded-lg border p-6 text-center text-muted-foreground">
+              배정된 패키지가 없습니다.
+            </div>
+          ) : (
+            <div className="rounded-lg border divide-y">
+              {packageAccess.map((access) => (
+                <div key={access.id} className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <div className="font-medium">
+                        {access.packages?.title || "-"}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {access.available_from || access.available_until ? (
+                          <>
+                            {access.available_from
+                              ? formatDate(access.available_from)
+                              : "시작일 없음"}{" "}
+                            ~{" "}
+                            {access.available_until
+                              ? formatDate(access.available_until)
+                              : "종료일 없음"}
+                          </>
+                        ) : (
+                          "기간 제한 없음"
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <Badge
+                    variant={access.access_type === "assigned" ? "default" : "secondary"}
+                  >
+                    {access.access_type === "assigned" ? "수동 할당" : "결제"}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
         <TabsContent value="info" className="mt-4">
           <div className="rounded-lg border p-6 space-y-6">
             <div>
@@ -378,12 +454,6 @@ export default function StudentDetailPage() {
             <div>
               <Label className="text-muted-foreground text-xs">전화번호</Label>
               <p className="font-medium">{student.phone || "-"}</p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground text-xs">목표 점수</Label>
-              <p className="font-medium">
-                {student.target_score ? `Band ${student.target_score}` : "-"}
-              </p>
             </div>
 
             <div className="pt-4 border-t">
@@ -406,7 +476,7 @@ export default function StudentDetailPage() {
                 패키지 접근권한
               </Label>
               <p className="font-medium">
-                {student.package_count}개 패키지 이용 가능
+                {packageAccess.length}개 패키지 이용 가능
               </p>
             </div>
 
