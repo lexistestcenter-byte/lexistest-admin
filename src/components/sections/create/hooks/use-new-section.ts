@@ -64,7 +64,7 @@ export function useNewSection() {
   // ─── Content Block helpers ─────────────────────────────────
 
   const addContentBlock = () => {
-    const contentType = sectionType === "listening" ? "audio" : "passage";
+    const contentType = (sectionType === "listening" || sectionType === "speaking") ? "audio" : "passage";
     const newBlock: ContentBlock = {
       id: generateTempId(),
       content_type: contentType as "passage" | "audio",
@@ -94,8 +94,8 @@ export function useNewSection() {
   };
 
   const addSet = () => {
-    const contentType = sectionType === "listening" ? "audio" : "passage";
-    const needsContent = sectionType === "reading" || sectionType === "listening";
+    const contentType = (sectionType === "listening" || sectionType === "speaking") ? "audio" : "passage";
+    const needsContent = sectionType === "reading" || sectionType === "listening" || sectionType === "speaking";
     const newBlockId = needsContent ? generateTempId() : null;
 
     if (needsContent && newBlockId) {

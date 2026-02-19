@@ -47,7 +47,8 @@ export function ContentBlockModal({
     }
   }, [open, block]);
 
-  const isAudio = sectionType === "listening";
+  const isAudio = sectionType === "listening" || sectionType === "speaking";
+  const isSpeaking = sectionType === "speaking";
 
   const handleSave = () => {
     const data: Partial<ContentBlock> = {
@@ -68,7 +69,7 @@ export function ContentBlockModal({
         {/* ─── Top bar ─── */}
         <div className="flex items-center justify-between px-4 py-2.5 bg-slate-700 text-white shrink-0">
           <DialogTitle className="text-sm font-semibold">
-            {block ? "지문 편집" : "새 지문 추가"}
+            {block ? (isSpeaking ? "오디오 편집" : "지문 편집") : (isSpeaking ? "새 오디오 추가" : "새 지문 추가")}
           </DialogTitle>
           <div className="flex items-center gap-2">
             <Button
@@ -116,38 +117,44 @@ export function ContentBlockModal({
                   </div>
                 )}
 
-                {/* Title */}
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium">지문 제목</Label>
-                  <Input
-                    placeholder="예: The History of Glass"
-                    value={localTitle}
-                    onChange={(e) => setLocalTitle(e.target.value)}
-                    className="text-base font-bold"
-                  />
-                </div>
+                {/* Title (not for speaking) */}
+                {!isSpeaking && (
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium">지문 제목</Label>
+                    <Input
+                      placeholder="예: The History of Glass"
+                      value={localTitle}
+                      onChange={(e) => setLocalTitle(e.target.value)}
+                      className="text-base font-bold"
+                    />
+                  </div>
+                )}
 
-                {/* Content */}
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium">지문 내용</Label>
-                  <RichTextEditor
-                    placeholder="지문 내용을 입력하세요..."
-                    minHeight="340px"
-                    value={localContent}
-                    onChange={(val) => setLocalContent(val)}
-                  />
-                </div>
+                {/* Content (not for speaking) */}
+                {!isSpeaking && (
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium">지문 내용</Label>
+                    <RichTextEditor
+                      placeholder="지문 내용을 입력하세요..."
+                      minHeight="340px"
+                      value={localContent}
+                      onChange={(val) => setLocalContent(val)}
+                    />
+                  </div>
+                )}
 
-                {/* Footnotes */}
-                <div className="space-y-1.5 pt-3 border-t">
-                  <Label className="text-xs text-gray-500 italic">각주 (선택)</Label>
-                  <RichTextEditor
-                    placeholder="예: *calorie: a measure of the energy value of food"
-                    minHeight="80px"
-                    value={localFootnotes}
-                    onChange={(val) => setLocalFootnotes(val)}
-                  />
-                </div>
+                {/* Footnotes (not for speaking) */}
+                {!isSpeaking && (
+                  <div className="space-y-1.5 pt-3 border-t">
+                    <Label className="text-xs text-gray-500 italic">각주 (선택)</Label>
+                    <RichTextEditor
+                      placeholder="예: *calorie: a measure of the energy value of food"
+                      minHeight="80px"
+                      value={localFootnotes}
+                      onChange={(val) => setLocalFootnotes(val)}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>

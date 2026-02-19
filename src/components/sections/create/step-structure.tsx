@@ -72,7 +72,7 @@ export function StepStructure({
   handleItemDragEnd,
   generateGroupTitle,
 }: StepStructureProps) {
-  const needsContent = sectionType === "reading" || sectionType === "listening";
+  const needsContent = sectionType === "reading" || sectionType === "listening" || sectionType === "speaking";
 
   return (
     <div className="space-y-4">
@@ -87,6 +87,8 @@ export function StepStructure({
                     <div className="flex items-center gap-2">
                       {sectionType === "reading" ? (
                         <FileText className="h-5 w-5 text-emerald-500" />
+                      ) : sectionType === "speaking" ? (
+                        <Headphones className="h-5 w-5 text-violet-500" />
                       ) : (
                         <Headphones className="h-5 w-5 text-sky-500" />
                       )}
@@ -111,6 +113,7 @@ export function StepStructure({
                           key={block.id}
                           block={block}
                           index={idx}
+                          sectionType={sectionType}
                           isCollapsed={collapsedBlocks.has(block.id)}
                           onToggleCollapse={() => toggleBlockCollapse(block.id)}
                           onUpdate={updateContentBlock}

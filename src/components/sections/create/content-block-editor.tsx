@@ -11,6 +11,7 @@ import type { ContentBlock } from "./types";
 interface ContentBlockEditorProps {
   block: ContentBlock;
   index: number;
+  sectionType?: string;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   onUpdate: (id: string, data: Partial<ContentBlock>) => void;
@@ -20,11 +21,13 @@ interface ContentBlockEditorProps {
 export function ContentBlockEditor({
   block,
   index,
+  sectionType,
   isCollapsed,
   onToggleCollapse,
   onUpdate,
   onRemove,
 }: ContentBlockEditorProps) {
+  const isSpeaking = sectionType === "speaking";
   const label =
     block.content_type === "passage"
       ? block.passage_title || `Passage ${index + 1}`
@@ -120,44 +123,48 @@ export function ContentBlockEditor({
                   }
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">지문 제목</Label>
-                <Input
-                  placeholder="예: The History of Glass"
-                  value={block.passage_title}
-                  onChange={(e) =>
-                    onUpdate(block.id, {
-                      passage_title: e.target.value,
-                    })
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">지문 내용</Label>
-                <RichTextEditor
-                  placeholder="지문 내용을 입력하세요..."
-                  minHeight="200px"
-                  value={block.passage_content}
-                  onChange={(val) =>
-                    onUpdate(block.id, {
-                      passage_content: val,
-                    })
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">각주 (선택)</Label>
-                <RichTextEditor
-                  placeholder="예: *calorie: a measure of the energy value of food"
-                  minHeight="80px"
-                  value={block.passage_footnotes}
-                  onChange={(val) =>
-                    onUpdate(block.id, {
-                      passage_footnotes: val,
-                    })
-                  }
-                />
-              </div>
+              {!isSpeaking && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">지문 제목</Label>
+                    <Input
+                      placeholder="예: The History of Glass"
+                      value={block.passage_title}
+                      onChange={(e) =>
+                        onUpdate(block.id, {
+                          passage_title: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">지문 내용</Label>
+                    <RichTextEditor
+                      placeholder="지문 내용을 입력하세요..."
+                      minHeight="200px"
+                      value={block.passage_content}
+                      onChange={(val) =>
+                        onUpdate(block.id, {
+                          passage_content: val,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">각주 (선택)</Label>
+                    <RichTextEditor
+                      placeholder="예: *calorie: a measure of the energy value of food"
+                      minHeight="80px"
+                      value={block.passage_footnotes}
+                      onChange={(val) =>
+                        onUpdate(block.id, {
+                          passage_footnotes: val,
+                        })
+                      }
+                    />
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>

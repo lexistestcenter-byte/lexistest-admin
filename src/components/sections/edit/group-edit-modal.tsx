@@ -61,7 +61,7 @@ export function GroupEditModal({
 
   const isWriting = sectionType === "writing";
   const isSpeaking = sectionType === "speaking";
-  const hasContentBlocks = (sectionType === "reading" || sectionType === "listening") && contentBlocks.length > 0;
+  const hasContentBlocks = (sectionType === "reading" || sectionType === "listening" || sectionType === "speaking") && contentBlocks.length > 0;
 
   const handleSave = () => {
     onSave(
@@ -69,7 +69,7 @@ export function GroupEditModal({
         title: localTitle || null,
         instructions: localInstructions || null,
         sub_instructions: localSubInstructions || null,
-        content_block_id: hasContentBlocks ? localContentBlockId : null,
+        content_block_id: (hasContentBlocks || isSpeaking) ? localContentBlockId : null,
       },
       group?.id || null,
     );
@@ -130,6 +130,9 @@ export function GroupEditModal({
               setLocalInstructions={setLocalInstructions}
               localSubInstructions={localSubInstructions}
               setLocalSubInstructions={setLocalSubInstructions}
+              contentBlocks={contentBlocks}
+              localContentBlockId={localContentBlockId}
+              setLocalContentBlockId={setLocalContentBlockId}
               items={items}
             />
           ) : (
@@ -327,6 +330,9 @@ function SpeakingLayout({
   setLocalInstructions,
   localSubInstructions,
   setLocalSubInstructions,
+  contentBlocks,
+  localContentBlockId,
+  setLocalContentBlockId,
   items,
 }: {
   localTitle: string;
@@ -335,6 +341,9 @@ function SpeakingLayout({
   setLocalInstructions: (v: string) => void;
   localSubInstructions: string;
   setLocalSubInstructions: (v: string) => void;
+  contentBlocks: ContentBlock[];
+  localContentBlockId: string | null;
+  setLocalContentBlockId: (v: string | null) => void;
   items?: NumberedItem[];
 }) {
   const [showSubInstructions, setShowSubInstructions] = useState(() =>
@@ -345,6 +354,26 @@ function SpeakingLayout({
     <div className="flex-1 overflow-hidden flex flex-col min-h-0">
       {/* 상단: 그룹 헤더 편집 영역 */}
       <div className="bg-slate-200 px-5 py-4 shrink-0 border-b border-slate-300 space-y-3">
+        {/* 오디오 블록 선택 */}
+        {contentBlocks.length > 0 && (
+          <div className="space-y-1">
+            <Label className="text-xs text-gray-600">오디오 블록</Label>
+            <Select
+              value={localContentBlockId || "none"}
+              onValueChange={(v) => setLocalContentBlockId(v === "none" ? null : v)}
+            >
+              <SelectTrigger className="h-8 text-xs bg-white">
+                <SelectValue placeholder="오디오 선택..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">없음</SelectItem>
+                {contentBlocks.map((b, i) => (
+                  <SelectItem key={b.id} value={b.id}>Audio {i + 1}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         {/* 그룹 제목 */}
         <div className="space-y-1">
           <Label className="text-xs text-gray-600">그룹 제목 (비워두면 자동 생성)</Label>
