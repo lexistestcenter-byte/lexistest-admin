@@ -139,13 +139,6 @@ export function useEditQuestionSave(id: string, form: EditQuestionForm) {
       }
     }
 
-    if (selectedFormat === "speaking_part3") {
-      if (!form.relatedPart2Id) {
-        toast.error("연결된 Part 2 질문을 선택해주세요.");
-        return;
-      }
-    }
-
     // 테이블 완성하기 유효성 검사
     if (selectedFormat === "table_completion") {
       if (!form.contentHtml.trim()) {
@@ -381,8 +374,8 @@ export function useEditQuestionSave(id: string, form: EditQuestionForm) {
         audio_transcript: (selectedQuestionType === "listening" || selectedFormat === "speaking_part2") && form.audioTranscript ? form.audioTranscript : null,
         // Speaking fields
         speaking_category: null,
-        related_part2_id: selectedFormat === "speaking_part3" ? (form.relatedPart2Id || null) : null,
-        depth_level: selectedFormat === "speaking_part3" ? form.depthLevel : null,
+        related_part2_id: null,
+        depth_level: null,
         target_band_min: null,
         target_band_max: null,
       };

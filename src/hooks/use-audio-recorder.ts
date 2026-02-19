@@ -24,6 +24,7 @@ export interface UseAudioRecorderReturn {
   startRecording: () => Promise<void>;
   stopRecording: () => void;
   resetRecording: () => void;
+  preWarm: () => Promise<void>;
 }
 
 export function useAudioRecorder(
@@ -40,6 +41,7 @@ export function useAudioRecorder(
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const preWarmStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -56,6 +58,9 @@ export function useAudioRecorder(
       }
       if (audioContextRef.current) {
         audioContextRef.current.close().catch(() => {});
+      }
+      if (preWarmStreamRef.current) {
+        preWarmStreamRef.current.getTracks().forEach((t) => t.stop());
       }
       if (audioUrl) URL.revokeObjectURL(audioUrl);
     };
@@ -97,6 +102,22 @@ export function useAudioRecorder(
       document.removeEventListener("visibilitychange", handleVisibility);
   }, [state]);
 
+  const preWarm = useCallback(async () => {
+    try {
+      if (!preWarmStreamRef.current) {
+        preWarmStreamRef.current = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            sampleRate: 44100,
+          },
+        });
+      }
+    } catch {
+      // Silently fail — startRecording will retry
+    }
+  }, []);
+
   const startRecording = useCallback(async () => {
     // Reset previous
     if (audioUrl) {
@@ -111,13 +132,14 @@ export function useAudioRecorder(
     setState("requesting");
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const stream = preWarmStreamRef.current || await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           sampleRate: 44100,
         },
       });
+      preWarmStreamRef.current = null; // consumed
       streamRef.current = stream;
 
       // Set up Web Audio analyser for waveform
@@ -233,6 +255,10 @@ export function useAudioRecorder(
       audioContextRef.current.close().catch(() => {});
       audioContextRef.current = null;
     }
+    if (preWarmStreamRef.current) {
+      preWarmStreamRef.current.getTracks().forEach((t) => t.stop());
+      preWarmStreamRef.current = null;
+    }
     if (audioUrl) URL.revokeObjectURL(audioUrl);
 
     setAudioUrl(null);
@@ -254,5 +280,6 @@ export function useAudioRecorder(
     startRecording,
     stopRecording,
     resetRecording,
+    preWarm,
   };
 }

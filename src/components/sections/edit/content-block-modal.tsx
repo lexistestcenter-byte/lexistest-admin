@@ -69,7 +69,7 @@ export function ContentBlockModal({
         {/* ─── Top bar ─── */}
         <div className="flex items-center justify-between px-4 py-2.5 bg-slate-700 text-white shrink-0">
           <DialogTitle className="text-sm font-semibold">
-            {block ? (isSpeaking ? "오디오 편집" : "지문 편집") : (isSpeaking ? "새 오디오 추가" : "새 지문 추가")}
+            {block ? (isAudio ? "오디오 편집" : "지문 편집") : (isAudio ? "새 오디오 추가" : "새 지문 추가")}
           </DialogTitle>
           <div className="flex items-center gap-2">
             <Button
@@ -117,8 +117,8 @@ export function ContentBlockModal({
                   </div>
                 )}
 
-                {/* Passage fields (not for speaking) */}
-                {!isSpeaking && (
+                {/* Passage fields (reading only — not for audio blocks) */}
+                {!isAudio && (
                   <>
                     <div className="space-y-1.5">
                       <Label className="text-sm font-medium">지문 제목</Label>

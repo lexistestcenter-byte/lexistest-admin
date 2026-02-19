@@ -128,12 +128,6 @@ export function useQuestionSave(
       }
     }
 
-    if (format === "speaking_part3") {
-      if (!tab.relatedPart2Id) {
-        return { valid: false, message: `탭 ${index + 1}: 연결된 Part 2 질문을 선택하세요.` };
-      }
-    }
-
     // Map Labeling 검증
     if (format === "map_labeling") {
       if (tab.mapLabelingItems.length === 0) {
@@ -357,8 +351,6 @@ export function useQuestionSave(
                 generate_followup: tab.format === "speaking_part2" ? tab.generateFollowup : undefined,
                 audio_url: (selectedQuestionType === "listening" || tab.format === "speaking_part2") && tab.audioUrl && !tab.audioFile ? tab.audioUrl : undefined,
                 audio_transcript: (selectedQuestionType === "listening" || tab.format === "speaking_part2") && tab.audioTranscript ? tab.audioTranscript : undefined,
-                related_part2_id: tab.format === "speaking_part3" ? tab.relatedPart2Id || undefined : undefined,
-                depth_level: tab.format === "speaking_part3" ? tab.depthLevel : undefined,
               };
 
               // options_data에서 blob URL 제거

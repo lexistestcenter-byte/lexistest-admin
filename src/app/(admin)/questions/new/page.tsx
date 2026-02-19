@@ -2,12 +2,13 @@
 
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Plus, Eye, Save, Loader2, AlertCircle, X } from "lucide-react";
 import { questionFormats, type QuestionFormat } from "@/components/questions/types";
 import { questionTypeInfo, formatLabels } from "@/components/questions/create/constants";
 import { useQuestionForm } from "@/components/questions/create/use-question-form";
 import { useQuestionSave } from "@/components/questions/create/use-question-save";
-import { useSpeakingData } from "@/components/questions/create/use-speaking-data";
 import { QuestionTypeSelector } from "@/components/questions/create/question-type-selector";
 import { FormatSelector } from "@/components/questions/create/format-selector";
 import { EditorSidebar } from "@/components/questions/create/editor-sidebar";
@@ -32,8 +33,6 @@ export default function NewQuestionPage() {
   const { isSaving, handleSave } = useQuestionSave(
     form.tabs, form.setTabs, form.setActiveTabIndex, form.selectedQuestionType,
   );
-  const { part2Questions, isLoadingSpeakingData } = useSpeakingData(form.selectedQuestionType);
-
   const {
     selectedQuestionType, setSelectedQuestionType,
     tabs, activeTabIndex, setActiveTabIndex,
@@ -175,6 +174,20 @@ export default function NewQuestionPage() {
         {/* 오른쪽: 에디터 영역 */}
         <div className="flex-1 overflow-y-auto bg-white">
           <div className="max-w-4xl mx-auto p-8">
+            {/* 지시문 - MCQ/T·F·NG/flowchart/essay 제외 */}
+            {currentTab.format && currentTab.format !== "mcq" && currentTab.format !== "true_false_ng" && currentTab.format !== "flowchart" && currentTab.format !== "essay" && (
+              <div className="mb-6">
+                <Label className="text-sm font-medium">지시문 (Instructions)</Label>
+                <Textarea
+                  className="mt-1"
+                  placeholder="예: Choose the correct letter, A, B, C or D."
+                  value={currentTab.instructions || ""}
+                  onChange={(e) => updateCurrentTab("instructions", e.target.value)}
+                  rows={2}
+                />
+              </div>
+            )}
+
             {currentTab.format === "mcq" && (
               <MCQEditor
                 question={currentTab.mcqQuestion}
@@ -313,12 +326,6 @@ export default function NewQuestionPage() {
               <SpeakingPart3Editor
                 questions={currentTab.speakingQuestions}
                 setQuestions={(v) => updateCurrentTab("speakingQuestions", v)}
-                relatedPart2Id={currentTab.relatedPart2Id}
-                setRelatedPart2Id={(v) => updateCurrentTab("relatedPart2Id", v)}
-                part2Questions={part2Questions}
-                depthLevel={currentTab.depthLevel}
-                setDepthLevel={(v) => updateCurrentTab("depthLevel", v)}
-                isLoading={isLoadingSpeakingData}
               />
             )}
 

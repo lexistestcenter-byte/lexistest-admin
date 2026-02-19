@@ -139,3 +139,11 @@
     margin: 0;
   }
 }
+
+/* Hide audio player overflow menu (playback speed, download, etc.) — outside @layer for higher specificity */
+audio::-webkit-media-controls-overflow-button {
+  display: none !important;
+}
+audio::-webkit-media-controls-enclosure {
+  overflow: hidden;
+}

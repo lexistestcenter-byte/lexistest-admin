@@ -10,6 +10,7 @@ import { FlowchartRenderer } from "./flowchart-renderer";
 import { MapLabelingRenderer } from "./map-labeling-renderer";
 import { EssayRenderer } from "./essay-renderer";
 import { SpeakingRenderer } from "./speaking-renderer";
+import type { SpeakingQuestionState } from "../hooks/use-preview-state";
 
 interface QuestionRouterProps {
   item: QuestionItem;
@@ -20,6 +21,13 @@ interface QuestionRouterProps {
   setActiveMatchSlot: (num: number | null) => void;
   contentAudioPlaying?: boolean;
   onPauseContentAudio?: () => void;
+  onQuestionComplete?: (questionId: string) => void;
+  onQuestionIncomplete?: (questionId: string) => void;
+  getSpeakingState?: (questionId: string) => SpeakingQuestionState;
+  updateSpeakingRecordings?: (questionId: string, recordings: Record<number, { url: string; duration: number }>) => void;
+  updateSpeakingSubmitted?: (questionId: string, submitted: Set<number>) => void;
+  updateSpeakingSkipped?: (questionId: string, skipped: Set<number>) => void;
+  updateSpeakingActiveIdx?: (questionId: string, idx: number) => void;
 }
 
 export function QuestionRouter({
@@ -28,6 +36,13 @@ export function QuestionRouter({
   activeMatchSlot, setActiveMatchSlot,
   contentAudioPlaying,
   onPauseContentAudio,
+  onQuestionComplete,
+  onQuestionIncomplete,
+  getSpeakingState,
+  updateSpeakingRecordings,
+  updateSpeakingSubmitted,
+  updateSpeakingSkipped,
+  updateSpeakingActiveIdx,
 }: QuestionRouterProps) {
   const fmt = item.question.question_format;
   const titleText = item.question.title || "";
@@ -64,7 +79,7 @@ export function QuestionRouter({
   else if (fmt === "essay_task1" || fmt === "essay_task2" || fmt === "essay")
     content = <EssayRenderer item={item} answers={answers} setAnswer={setAnswer} />;
   else if (fmt.startsWith("speaking_"))
-    content = <SpeakingRenderer item={item} contentAudioPlaying={contentAudioPlaying} onPauseContentAudio={onPauseContentAudio} />;
+    content = <SpeakingRenderer item={item} contentAudioPlaying={contentAudioPlaying} onPauseContentAudio={onPauseContentAudio} onQuestionComplete={onQuestionComplete} onQuestionIncomplete={onQuestionIncomplete} getSpeakingState={getSpeakingState} updateSpeakingRecordings={updateSpeakingRecordings} updateSpeakingSubmitted={updateSpeakingSubmitted} updateSpeakingSkipped={updateSpeakingSkipped} updateSpeakingActiveIdx={updateSpeakingActiveIdx} />;
   else
     content = <p className="text-sm text-gray-500">Unsupported format: {fmt}</p>;
 

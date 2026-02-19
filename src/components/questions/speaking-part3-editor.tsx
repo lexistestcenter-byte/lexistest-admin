@@ -4,39 +4,19 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RequiredLabel } from "@/components/ui/required-label";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Plus, Trash2, ChevronDown, ChevronRight, Play, Square } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { getCdnUrl } from "@/lib/cdn";
-import type { Part2Question, SpeakingSubQ } from "./types";
+import type { SpeakingSubQ } from "./types";
 
 export function SpeakingPart3Editor({
   questions,
   setQuestions,
-  relatedPart2Id,
-  setRelatedPart2Id,
-  part2Questions,
-  depthLevel,
-  setDepthLevel,
-  isLoading,
 }: {
   questions: SpeakingSubQ[];
   setQuestions: (v: SpeakingSubQ[]) => void;
-  relatedPart2Id: string;
-  setRelatedPart2Id: (v: string) => void;
-  part2Questions: Part2Question[];
-  depthLevel: 1 | 2 | 3;
-  setDepthLevel: (v: 1 | 2 | 3) => void;
-  isLoading?: boolean;
 }) {
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const filledCount = questions.filter((q) => q.text.replace(/<[^>]*>/g, "").trim()).length;
@@ -72,48 +52,6 @@ export function SpeakingPart3Editor({
         <p className="text-sm text-violet-700 mt-1">Part 2 주제와 관련된 추상적이고 심화된 질문 그룹</p>
       </div>
 
-      {/* Part 2 연결 */}
-      <div className="space-y-2">
-        <RequiredLabel>연결된 Part 2 질문</RequiredLabel>
-        <Select value={relatedPart2Id} onValueChange={setRelatedPart2Id} disabled={isLoading}>
-          <SelectTrigger>
-            <SelectValue placeholder={isLoading ? "로딩 중..." : "Part 2 질문 선택"} />
-          </SelectTrigger>
-          <SelectContent>
-            {part2Questions.map((q) => (
-              <SelectItem key={q.id} value={q.id}>
-                [{q.question_code}] {q.topic.slice(0, 50)}{q.topic.length > 50 ? "..." : ""}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {relatedPart2Id && (
-          <p className="text-xs text-muted-foreground">
-            선택된 Part 2 주제: {part2Questions.find(q => q.id === relatedPart2Id)?.topic}
-          </p>
-        )}
-      </div>
-
-      {/* 심화 레벨 */}
-      <div className="space-y-2">
-        <Label>심화 레벨</Label>
-        <Select value={String(depthLevel)} onValueChange={(v) => setDepthLevel(Number(v) as 1 | 2 | 3)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="1">Level 1 (기본)</SelectItem>
-            <SelectItem value="2">Level 2 (중간)</SelectItem>
-            <SelectItem value="3">Level 3 (고급)</SelectItem>
-          </SelectContent>
-        </Select>
-        <p className="text-xs text-muted-foreground">
-          {depthLevel === 1 && "기본적인 의견이나 경험을 묻는 질문"}
-          {depthLevel === 2 && "이유나 비교를 요구하는 질문"}
-          {depthLevel === 3 && "추상적인 개념이나 사회적 이슈에 대한 심층 토론"}
-        </p>
-      </div>
-
       {/* Question count */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
@@ -139,8 +77,8 @@ export function SpeakingPart3Editor({
         </div>
       </div>
 
-      {/* Question grid - 2 columns */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Question list */}
+      <div className="flex flex-col gap-3">
         {questions.map((sq, idx) => {
           const isExpanded = expandedCards.has(sq.id);
           return (
@@ -216,11 +154,17 @@ export function SpeakingPart3Editor({
                     <Label className="text-xs text-muted-foreground shrink-0">오디오:</Label>
                     <FileUpload
                       value={sq.audioUrl}
-                      onChange={(v) => updateSubQ(sq.id, { audioUrl: v })}
+                      onChange={() => {}}
                       accept="audio"
                       placeholder="시험관 오디오 (선택)"
                       deferred
-                      onFileReady={(file) => updateSubQ(sq.id, { audioFile: file })}
+                      onFileReady={(file) => {
+                        if (file) {
+                          updateSubQ(sq.id, { audioUrl: URL.createObjectURL(file), audioFile: file });
+                        } else {
+                          updateSubQ(sq.id, { audioUrl: "", audioFile: null });
+                        }
+                      }}
                       compact
                     />
                   </div>

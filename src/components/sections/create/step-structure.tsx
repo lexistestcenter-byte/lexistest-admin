@@ -93,9 +93,11 @@ export function StepStructure({
                         <Headphones className="h-5 w-5 text-sky-500" />
                       )}
                       <div>
-                        <CardTitle>콘텐츠 블록 ({contentBlocks.length})</CardTitle>
+                        <CardTitle>{sectionType === "reading" ? "지문 관리" : "오디오 관리"} ({contentBlocks.length})</CardTitle>
                         <CardDescription>
-                          여러 콘텐츠를 추가하여 시험 구조별로 연결합니다.
+                          {sectionType === "reading"
+                            ? "시험 문제와 함께 표시되는 지문을 추가합니다."
+                            : "시험 문제와 함께 재생되는 오디오를 추가합니다."}
                         </CardDescription>
                       </div>
                     </div>
@@ -167,6 +169,7 @@ export function StepStructure({
                         key={group.id}
                         group={group}
                         index={idx}
+                        sectionType={sectionType}
                         isActive={isActive}
                         isExpanded={isExpanded}
                         isAddingQuestions={addDrawerGroupId === group.id}

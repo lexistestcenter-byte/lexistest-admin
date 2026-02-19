@@ -77,8 +77,8 @@ export function SpeakingPart1Editor({
         </div>
       </div>
 
-      {/* Question grid - 2 columns */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Question list */}
+      <div className="flex flex-col gap-3">
         {questions.map((sq, idx) => {
           const isExpanded = expandedCards.has(sq.id);
           return (

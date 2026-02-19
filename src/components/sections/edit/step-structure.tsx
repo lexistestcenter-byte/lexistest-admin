@@ -30,7 +30,6 @@ interface StepStructureProps {
   setActiveGroupId: (id: string) => void;
   setAddDrawerGroupId: (id: string | null) => void;
   handleAddContentBlock: () => void;
-  handleUpdateContentBlockLocal: (id: string, data: Partial<ContentBlock>) => void;
   handleRemoveContentBlock: (id: string) => void;
   handleSaveContentBlockFromModal: (data: Partial<ContentBlock>, existingId: string | null) => void;
   handleAddGroup: () => void;
@@ -56,7 +55,6 @@ export function StepStructure({
   setActiveGroupId,
   setAddDrawerGroupId,
   handleAddContentBlock: _handleAddContentBlock,
-  handleUpdateContentBlockLocal,
   handleRemoveContentBlock,
   handleSaveContentBlockFromModal,
   handleAddGroup: _handleAddGroup,
@@ -115,18 +113,16 @@ export function StepStructure({
                     )}
                     <div>
                       <CardTitle>
-                        {sectionType === "speaking" ? "오디오 관리" : sectionType === "listening" ? "오디오/지문 관리" : "지문 관리"} ({contentBlocks.length})
+                        {sectionType === "reading" ? "지문 관리" : "오디오 관리"} ({contentBlocks.length})
                       </CardTitle>
                       <CardDescription>
-                        {sectionType === "speaking"
-                          ? "스피킹 문제와 함께 재생되는 오디오를 추가합니다."
-                          : sectionType === "listening"
-                            ? "시험 문제와 함께 재생되는 오디오 및 지문을 추가합니다. 각 오디오/지문은 시험 구조(섹션)에 연결됩니다."
-                            : "시험 문제와 함께 표시되는 지문을 추가합니다. 각 지문은 시험 구조(섹션)에 연결됩니다."}
+                        {sectionType === "reading"
+                          ? "시험 문제와 함께 표시되는 지문을 추가합니다. 각 지문은 시험 구조(섹션)에 연결됩니다."
+                          : "시험 문제와 함께 재생되는 오디오를 추가합니다."}
                       </CardDescription>
                     </div>
                   </div>
-                  <Button size="sm" onClick={sectionType === "speaking" ? _handleAddContentBlock : handleOpenNewBlockModal}>
+                  <Button size="sm" onClick={sectionType === "reading" ? handleOpenNewBlockModal : _handleAddContentBlock}>
                     <Plus className="mr-1 h-4 w-4" />
                     {sectionType === "reading" ? "지문 추가" : "오디오 추가"}
                   </Button>
@@ -140,9 +136,7 @@ export function StepStructure({
                         key={block.id}
                         block={block}
                         index={idx}
-                        sectionId={sectionId}
                         onEdit={handleEditBlock}
-                        onUpdate={handleUpdateContentBlockLocal}
                         onRemove={handleRemoveContentBlock}
                       />
                     ))}

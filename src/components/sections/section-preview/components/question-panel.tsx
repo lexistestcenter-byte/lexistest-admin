@@ -4,6 +4,7 @@ import { getCdnUrl } from "@/lib/cdn";
 import type { QuestionItem, QuestionGroupPreview } from "../types";
 import { renderFormattedText, renderBlockHtml, getCollapsedLabel } from "../types";
 import { QuestionRouter } from "../renderers/question-router";
+import type { SpeakingQuestionState } from "../hooks/use-preview-state";
 
 interface QuestionPanelProps {
   items: QuestionItem[];
@@ -17,6 +18,14 @@ interface QuestionPanelProps {
   setActiveMatchSlot: (num: number | null) => void;
   contentAudioPlaying?: boolean;
   onPauseContentAudio?: () => void;
+  isSpeaking?: boolean;
+  onQuestionComplete?: (questionId: string) => void;
+  onQuestionIncomplete?: (questionId: string) => void;
+  getSpeakingState?: (questionId: string) => SpeakingQuestionState;
+  updateSpeakingRecordings?: (questionId: string, recordings: Record<number, { url: string; duration: number }>) => void;
+  updateSpeakingSubmitted?: (questionId: string, submitted: Set<number>) => void;
+  updateSpeakingSkipped?: (questionId: string, skipped: Set<number>) => void;
+  updateSpeakingActiveIdx?: (questionId: string, idx: number) => void;
 }
 
 export function QuestionPanel({
@@ -31,6 +40,14 @@ export function QuestionPanel({
   setActiveMatchSlot,
   contentAudioPlaying,
   onPauseContentAudio,
+  isSpeaking,
+  onQuestionComplete,
+  onQuestionIncomplete,
+  getSpeakingState,
+  updateSpeakingRecordings,
+  updateSpeakingSubmitted,
+  updateSpeakingSkipped,
+  updateSpeakingActiveIdx,
 }: QuestionPanelProps) {
   if (items.length === 0) {
     return (
@@ -122,6 +139,13 @@ export function QuestionPanel({
                 setActiveMatchSlot={setActiveMatchSlot}
                 contentAudioPlaying={contentAudioPlaying}
                 onPauseContentAudio={onPauseContentAudio}
+                onQuestionComplete={onQuestionComplete}
+                onQuestionIncomplete={onQuestionIncomplete}
+                getSpeakingState={getSpeakingState}
+                updateSpeakingRecordings={updateSpeakingRecordings}
+                updateSpeakingSubmitted={updateSpeakingSubmitted}
+                updateSpeakingSkipped={updateSpeakingSkipped}
+                updateSpeakingActiveIdx={updateSpeakingActiveIdx}
               />
             </div>
           );
@@ -173,6 +197,14 @@ export function QuestionPanel({
                     activeMatchSlot={activeMatchSlot}
                     setActiveMatchSlot={setActiveMatchSlot}
                     contentAudioPlaying={contentAudioPlaying}
+                    onPauseContentAudio={onPauseContentAudio}
+                    onQuestionComplete={onQuestionComplete}
+                    onQuestionIncomplete={onQuestionIncomplete}
+                    getSpeakingState={getSpeakingState}
+                    updateSpeakingRecordings={updateSpeakingRecordings}
+                    updateSpeakingSubmitted={updateSpeakingSubmitted}
+                    updateSpeakingSkipped={updateSpeakingSkipped}
+                    updateSpeakingActiveIdx={updateSpeakingActiveIdx}
                   />
                 </div>
               );

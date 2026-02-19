@@ -61,6 +61,14 @@ export function SectionPreview({
     activeBlock,
     setAnswer,
     toggleMultiAnswer,
+    completedSpeakingItems,
+    markSpeakingComplete,
+    markSpeakingIncomplete,
+    getSpeakingState,
+    updateSpeakingRecordings,
+    updateSpeakingSubmitted,
+    updateSpeakingSkipped,
+    updateSpeakingActiveIdx,
   } = state;
 
   const [contentAudioPlaying, setContentAudioPlaying] = useState(false);
@@ -233,6 +241,14 @@ export function SectionPreview({
                     setActiveMatchSlot={setActiveMatchSlot}
                     contentAudioPlaying={contentAudioPlaying}
                     onPauseContentAudio={pauseContentAudio}
+                    isSpeaking={isSpeaking}
+                    onQuestionComplete={markSpeakingComplete}
+                    onQuestionIncomplete={markSpeakingIncomplete}
+                    getSpeakingState={getSpeakingState}
+                    updateSpeakingRecordings={updateSpeakingRecordings}
+                    updateSpeakingSubmitted={updateSpeakingSubmitted}
+                    updateSpeakingSkipped={updateSpeakingSkipped}
+                    updateSpeakingActiveIdx={updateSpeakingActiveIdx}
                   />
                 </div>
               </div>
@@ -247,6 +263,10 @@ export function SectionPreview({
             activeNum={activeNum}
             setActiveNum={setActiveNum}
             answers={answers}
+            isSpeaking={isSpeaking}
+            completedSpeakingItems={completedSpeakingItems}
+            questionGroups={questionGroups}
+            items={items}
           />
         )}
       </DialogContent>
@@ -433,7 +453,6 @@ function SpeakingCueCardPanel({ question }: { question: { content?: string; opti
   // JSON 파싱 시도 → 폴백: 텍스트 파싱
   let topic = "";
   const bullets: string[] = [];
-  let closing = "";
 
   try {
     const parsed = JSON.parse(content);
@@ -441,12 +460,6 @@ function SpeakingCueCardPanel({ question }: { question: { content?: string; opti
       topic = parsed.topic.replace(/<[^>]*>/g, "").trim();
       const points: string[] = parsed.points || [];
       bullets.push(...points);
-      if (bullets.length > 0) {
-        const last = bullets[bullets.length - 1];
-        if (last.toLowerCase().startsWith("and explain") || last.toLowerCase().startsWith("and say")) {
-          closing = bullets.pop()!;
-        }
-      }
     }
   } catch {
     const lines = content.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -454,7 +467,7 @@ function SpeakingCueCardPanel({ question }: { question: { content?: string; opti
     for (const line of lines) {
       if (line.toLowerCase().startsWith("you should say")) { inBullets = true; continue; }
       if (line.startsWith("-") || line.startsWith("\u2022") || line.startsWith("*")) { bullets.push(line.replace(/^[-\u2022*]\s*/, "")); continue; }
-      if (inBullets && (line.toLowerCase().startsWith("and explain") || line.toLowerCase().startsWith("and say"))) { closing = line; continue; }
+      if (inBullets) { bullets.push(line); continue; }
       if (!inBullets && !topic) { topic = line; }
     }
   }
@@ -475,7 +488,6 @@ function SpeakingCueCardPanel({ question }: { question: { content?: string; opti
               </ul>
             </div>
           )}
-          {closing && <p className="text-sm text-gray-700 font-medium italic">{closing}</p>}
         </div>
         <div className="px-4 py-2 bg-indigo-50 border-t border-indigo-200 text-xs text-indigo-700">
           Prep: {String(od.prep_time_seconds || 60)}s | Speaking: {String(od.speaking_time_seconds || 120)}s

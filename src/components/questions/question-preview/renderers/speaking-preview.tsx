@@ -60,17 +60,19 @@ function MiniPlayer({ recording }: { recording?: RecordingInfo }) {
       {recording ? (
         <CheckCircle2 className="h-3 w-3 text-green-500" />
       ) : null}
-      <button
+      <span
+        role="button"
+        tabIndex={0}
         onClick={toggle}
-        disabled={disabled}
-        className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors disabled:hover:bg-gray-100 disabled:cursor-default"
+        aria-disabled={disabled}
+        className={`inline-flex items-center justify-center h-5 w-5 rounded-full bg-gray-100 transition-colors${disabled ? " cursor-default" : " hover:bg-gray-200 cursor-pointer"}`}
       >
         {isPlaying ? (
           <Pause className="h-2.5 w-2.5 text-gray-700" />
         ) : (
           <Play className="h-2.5 w-2.5 text-gray-700 ml-px" />
         )}
-      </button>
+      </span>
       <span className="text-[10px] text-gray-500 tabular-nums">{recording ? formatTimer(recording.duration) : "--:--"}</span>
     </span>
   );
@@ -172,6 +174,17 @@ export function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <div className="px-4 pb-4 pt-3 space-y-4">
+                      {String(sq.audio_url || "") && (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
+                          <span className="text-xs text-gray-500 shrink-0">시험관 음성:</span>
+                          <audio
+                            controls
+                            src={getCdnUrl(String(sq.audio_url))}
+                            className="h-8 flex-1"
+                            controlsList="nodownload noplaybackrate"
+                          />
+                        </div>
+                      )}
                       <div
                         className="text-[15px] leading-relaxed"
                         dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(String(sq.text || "")) }}
@@ -202,17 +215,36 @@ export function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
 
   // Part 2 - Cue Card
   if (fmt === "speaking_part2") {
-    const topic = getStr(o, "topic", data.content);
-    const points = getArr(o, "points").map(String);
+    // options_data.topic이 있으면 그것 사용, 없으면 content에서 추출
+    let topic = "";
+    let points = getArr(o, "points").map(String);
+
+    const rawTopic = getStr(o, "topic", "");
+    if (rawTopic) {
+      topic = rawTopic.replace(/<[^>]*>/g, "").trim();
+    } else if (data.content) {
+      // content가 JSON일 수 있음
+      try {
+        const parsed = JSON.parse(data.content);
+        if (parsed && parsed.topic) {
+          topic = String(parsed.topic).replace(/<[^>]*>/g, "").trim();
+          if (parsed.points && points.length === 0) {
+            points = (parsed.points as string[]);
+          }
+        }
+      } catch {
+        // JSON이 아니면 HTML strip
+        topic = data.content.replace(/<[^>]*>/g, "").trim();
+      }
+    }
+
     const imageUrl = getCdnUrl(getStr(o, "image_url", ""));
 
     return (
       <div className="space-y-4 flex-1 overflow-y-auto">
-        <div className="border-2 border-amber-300 rounded-lg overflow-hidden bg-amber-50/30">
-          <div className="px-4 py-2.5 bg-amber-100 border-b border-amber-200">
-            <Badge className="text-xs font-semibold bg-amber-500 hover:bg-amber-500 text-white">
-              Part 2 - 큐카드 발표
-            </Badge>
+        <div className="border-2 border-indigo-200 rounded-lg overflow-hidden bg-indigo-50/30">
+          <div className="px-4 py-2.5 bg-indigo-100 border-b border-indigo-200">
+            <span className="text-xs font-semibold text-indigo-700">Cue Card</span>
           </div>
           <div className="p-6 space-y-4">
             <p className="text-base font-semibold text-gray-900 leading-relaxed">{topic || "(주제 입력)"}</p>
@@ -232,10 +264,21 @@ export function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
               </div>
             )}
           </div>
-          <div className="px-4 py-2 bg-amber-50 border-t border-amber-200 text-xs text-amber-700">
-            준비 시간: {getStr(o, "prep_time_seconds", "60")}초 | 발표 시간: {getStr(o, "speaking_time_seconds", "120")}초
+          <div className="px-4 py-2 bg-indigo-50 border-t border-indigo-200 text-xs text-indigo-700">
+            Prep: {getStr(o, "prep_time_seconds", "60")}s | Speaking: {getStr(o, "speaking_time_seconds", "120")}s
           </div>
         </div>
+        {data.audioUrl && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
+            <span className="text-xs text-gray-500 shrink-0">시험관 음성:</span>
+            <audio
+              controls
+              src={getCdnUrl(data.audioUrl)}
+              className="h-8 flex-1"
+              controlsList="nodownload noplaybackrate"
+            />
+          </div>
+        )}
         <SpeakingRecorder
           questionId="preview-p2"
           isPart2
@@ -249,8 +292,6 @@ export function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
 
   // Part 3 - Multi-question group
   if (fmt === "speaking_part3") {
-    const depthLabel = data.depthLevel ? `Level ${data.depthLevel}` : null;
-
     return (
       <div className="space-y-4 flex-1 overflow-y-auto">
         <div className="flex items-center justify-between">
@@ -258,7 +299,6 @@ export function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
             <Badge variant="outline" className="text-xs font-medium bg-violet-50 text-violet-700 border-violet-200">
               Part 3 &ndash; Discussion
             </Badge>
-            {depthLabel && <Badge variant="secondary" className="text-xs">{depthLabel}</Badge>}
             <span className="text-xs text-muted-foreground">{questions.length || 1}문항</span>
           </div>
           {questions.length > 1 && (
@@ -272,11 +312,6 @@ export function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
             </Button>
           )}
         </div>
-        {(data.relatedPart2Id || data.relatedPart2Code) && (
-          <div className="text-xs text-gray-500 bg-gray-50 rounded px-3 py-2">
-            연결된 Part 2: <span className="font-mono">{data.relatedPart2Code || data.relatedPart2Id}</span>
-          </div>
-        )}
         {questions.length > 0 ? (
           <div className="space-y-4">
             {questions.map((sq, i) => (
@@ -311,6 +346,17 @@ export function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <div className="px-4 pb-4 pt-3 space-y-4">
+                      {String(sq.audio_url || "") && (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
+                          <span className="text-xs text-gray-500 shrink-0">시험관 음성:</span>
+                          <audio
+                            controls
+                            src={getCdnUrl(String(sq.audio_url))}
+                            className="h-8 flex-1"
+                            controlsList="nodownload noplaybackrate"
+                          />
+                        </div>
+                      )}
                       <div
                         className="text-[15px] leading-relaxed"
                         dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(String(sq.text || "")) }}

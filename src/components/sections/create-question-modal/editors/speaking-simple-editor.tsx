@@ -108,8 +108,8 @@ export function ModalSpeakingSimpleEditor({
         </div>
       </div>
 
-      {/* Question grid - 2 columns */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Question list */}
+      <div className="flex flex-col gap-3">
         {tab.speakingQuestions.map((sq, idx) => {
           const isExpanded = expandedSpeakingCards.has(sq.id);
           return (

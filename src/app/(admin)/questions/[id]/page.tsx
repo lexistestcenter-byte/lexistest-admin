@@ -39,7 +39,7 @@ export default function EditQuestionPage({
 }) {
   const { id } = use(params);
   const form = useEditQuestionForm();
-  const { isLoading, part2Questions, isLoadingSpeakingData } = useEditQuestionLoad(id, form);
+  const { isLoading } = useEditQuestionLoad(id, form);
   const { isSaving, isDeleting, showDeleteDialog, setShowDeleteDialog, handleSave, handleDelete } = useEditQuestionSave(id, form);
 
   const {
@@ -152,7 +152,7 @@ export default function EditQuestionPage({
         <div className="flex-1 overflow-y-auto bg-white">
           <div className="max-w-4xl mx-auto p-8">
             {/* Instructions (MCQ/T·F·NG/flowchart/essay/speaking 제외) */}
-            {selectedFormat && selectedFormat !== "mcq" && selectedFormat !== "true_false_ng" && selectedFormat !== "flowchart" && selectedFormat !== "essay" && !selectedFormat.startsWith("speaking_") && (
+            {selectedFormat && selectedFormat !== "mcq" && selectedFormat !== "true_false_ng" && selectedFormat !== "flowchart" && selectedFormat !== "essay" && (
               <div className="mb-6">
                 <Label className="text-sm font-medium">지시문 (Instructions)</Label>
                 <Textarea
@@ -314,12 +314,6 @@ export default function EditQuestionPage({
               <SpeakingPart3Editor
                 questions={form.speakingQuestions}
                 setQuestions={form.setSpeakingQuestions}
-                relatedPart2Id={form.relatedPart2Id}
-                setRelatedPart2Id={form.setRelatedPart2Id}
-                part2Questions={part2Questions}
-                depthLevel={form.depthLevel}
-                setDepthLevel={form.setDepthLevel}
-                isLoading={isLoadingSpeakingData}
               />
             )}
 

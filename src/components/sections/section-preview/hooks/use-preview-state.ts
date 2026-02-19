@@ -8,6 +8,13 @@ import type {
   QuestionItem,
 } from "../types";
 
+export interface SpeakingQuestionState {
+  recordings: Record<number, { url: string; duration: number }>;
+  submitted: Set<number>;
+  skipped: Set<number>;
+  activeSubIdx: number;
+}
+
 interface UsePreviewStateArgs {
   open: boolean;
   instructionTitle?: string;
@@ -29,6 +36,8 @@ export function usePreviewState({
   const [activeNum, setActiveNum] = useState(1);
   const [activeMatchSlot, setActiveMatchSlot] = useState<number | null>(null);
   const [showInstructionPage, setShowInstructionPage] = useState(false);
+  const [completedSpeakingItems, setCompletedSpeakingItems] = useState<Set<string>>(new Set());
+  const [speakingStates, setSpeakingStates] = useState<Record<string, SpeakingQuestionState>>({});
 
   const hasInstructionPage = !!(instructionTitle || instructionHtml);
 
@@ -38,8 +47,66 @@ export function usePreviewState({
       setActiveNum(1);
       setActiveMatchSlot(null);
       setShowInstructionPage(hasInstructionPage);
+      setCompletedSpeakingItems(new Set());
+      setSpeakingStates({});
     }
   }, [open, hasInstructionPage]);
+
+  const markSpeakingComplete = useCallback((questionId: string) => {
+    setCompletedSpeakingItems(prev => new Set(prev).add(questionId));
+  }, []);
+
+  const markSpeakingIncomplete = useCallback((questionId: string) => {
+    setCompletedSpeakingItems(prev => {
+      const next = new Set(prev);
+      next.delete(questionId);
+      return next;
+    });
+  }, []);
+
+  const defaultSpeakingState: SpeakingQuestionState = {
+    recordings: {},
+    submitted: new Set<number>(),
+    skipped: new Set<number>(),
+    activeSubIdx: 0,
+  };
+
+  const getSpeakingState = useCallback((questionId: string): SpeakingQuestionState => {
+    return speakingStates[questionId] || {
+      recordings: {},
+      submitted: new Set<number>(),
+      skipped: new Set<number>(),
+      activeSubIdx: 0,
+    };
+  }, [speakingStates]);
+
+  const updateSpeakingRecordings = useCallback((questionId: string, recordings: Record<number, { url: string; duration: number }>) => {
+    setSpeakingStates(prev => ({
+      ...prev,
+      [questionId]: { ...(prev[questionId] || defaultSpeakingState), recordings },
+    }));
+  }, []);
+
+  const updateSpeakingSubmitted = useCallback((questionId: string, submitted: Set<number>) => {
+    setSpeakingStates(prev => ({
+      ...prev,
+      [questionId]: { ...(prev[questionId] || defaultSpeakingState), submitted },
+    }));
+  }, []);
+
+  const updateSpeakingSkipped = useCallback((questionId: string, skipped: Set<number>) => {
+    setSpeakingStates(prev => ({
+      ...prev,
+      [questionId]: { ...(prev[questionId] || defaultSpeakingState), skipped },
+    }));
+  }, []);
+
+  const updateSpeakingActiveIdx = useCallback((questionId: string, idx: number) => {
+    setSpeakingStates(prev => ({
+      ...prev,
+      [questionId]: { ...(prev[questionId] || defaultSpeakingState), activeSubIdx: idx },
+    }));
+  }, []);
 
   // Build question detail map
   const questionMap = useMemo(
@@ -121,6 +188,14 @@ export function usePreviewState({
     activeBlock,
     setAnswer,
     toggleMultiAnswer,
+    completedSpeakingItems,
+    markSpeakingComplete,
+    markSpeakingIncomplete,
+    getSpeakingState,
+    updateSpeakingRecordings,
+    updateSpeakingSubmitted,
+    updateSpeakingSkipped,
+    updateSpeakingActiveIdx,
   };
 }
 

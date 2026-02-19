@@ -35,6 +35,10 @@ interface SpeakingRecorderProps {
   onRecordingComplete?: (audioUrl: string, durationSeconds: number) => void;
   /** Called when the recording is reset (re-record) */
   onRecordingReset?: () => void;
+  /** Called when the user submits the recording */
+  onSubmit?: () => void;
+  /** Called to pause content audio when recording starts */
+  onPauseContentAudio?: () => void;
   /** true이면 오디오 재생 완료까지 prep 카운트다운 시작 안 함 */
   waitForAudio?: boolean;
   className?: string;
@@ -216,6 +220,8 @@ export function SpeakingRecorder({
   isPart2 = false,
   onRecordingComplete,
   onRecordingReset,
+  onSubmit,
+  onPauseContentAudio,
   waitForAudio,
   className,
 }: SpeakingRecorderProps) {
@@ -250,11 +256,16 @@ export function SpeakingRecorder({
     startRecording,
     stopRecording,
     resetRecording,
+    preWarm,
   } = recorder;
 
   // Notify parent when recording completes
   const onRecordingCompleteRef = useRef(onRecordingComplete);
   onRecordingCompleteRef.current = onRecordingComplete;
+
+  // Stable ref for onPauseContentAudio (used in startPrepCountdown)
+  const onPauseContentAudioRef = useRef(onPauseContentAudio);
+  onPauseContentAudioRef.current = onPauseContentAudio;
 
   useEffect(() => {
     if (state === "recorded" && audioUrl) {
@@ -290,6 +301,7 @@ export function SpeakingRecorder({
       if (remaining <= 0) {
         if (prepTimerRef.current) clearInterval(prepTimerRef.current);
         prepTimerRef.current = null;
+        onPauseContentAudioRef.current?.();
         setPart2Phase("speaking");
       }
     }, 200);
@@ -308,6 +320,19 @@ export function SpeakingRecorder({
       startRecording();
     }
   }, [isPart2, part2Phase, state, startRecording]);
+
+  // Pre-warm mic stream: Part 2 during prep, Part 1/3 on mount
+  useEffect(() => {
+    if (isPart2 && part2Phase === "prep") {
+      preWarm();
+    }
+  }, [isPart2, part2Phase, preWarm]);
+
+  useEffect(() => {
+    if (!isPart2) {
+      preWarm();
+    }
+  }, [isPart2, preWarm]);
 
   // Cleanup prep timer on unmount
   useEffect(() => {
@@ -336,8 +361,7 @@ export function SpeakingRecorder({
     resetRecording();
     onRecordingReset?.();
     if (isPart2) {
-      setPart2Phase("prep");
-      setPrepRemaining(prepTimeSeconds);
+      setPart2Phase("speaking");
     }
   };
 
@@ -366,6 +390,7 @@ export function SpeakingRecorder({
                 if (prepTimerRef.current)
                   clearInterval(prepTimerRef.current);
                 prepTimerRef.current = null;
+                onPauseContentAudio?.();
                 setPart2Phase("speaking");
               }}
               className="text-indigo-700 border-indigo-300 hover:bg-indigo-100"
@@ -415,7 +440,7 @@ export function SpeakingRecorder({
             onConfirmReRecord={confirmReRecord}
             onCancelReRecord={() => setShowReRecordConfirm(false)}
             isSubmitted={isSubmitted}
-            onSubmit={() => setIsSubmitted(true)}
+            onSubmit={() => { setIsSubmitted(true); onSubmit?.(); }}
           />
         </div>
       );
@@ -447,7 +472,7 @@ export function SpeakingRecorder({
           onConfirmReRecord={confirmReRecord}
           onCancelReRecord={() => setShowReRecordConfirm(false)}
           isSubmitted={isSubmitted}
-          onSubmit={() => setIsSubmitted(true)}
+          onSubmit={() => { setIsSubmitted(true); onSubmit?.(); }}
         />
       </div>
     );
