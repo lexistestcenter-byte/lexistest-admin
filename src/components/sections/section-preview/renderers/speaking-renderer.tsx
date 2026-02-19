@@ -31,12 +31,14 @@ interface RecordingInfo {
 }
 
 /** Mini play/pause button for collapsed question headers */
-function MiniPlayer({ recording }: { recording: RecordingInfo }) {
+function MiniPlayer({ recording }: { recording?: RecordingInfo }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const disabled = !recording;
 
   const toggle = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    if (disabled) return;
     const audio = audioRef.current;
     if (!audio) return;
     if (isPlaying) {
@@ -44,22 +46,27 @@ function MiniPlayer({ recording }: { recording: RecordingInfo }) {
     } else {
       audio.play();
     }
-  }, [isPlaying]);
+  }, [isPlaying, disabled]);
 
   return (
-    <span className="inline-flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-      <audio
-        ref={audioRef}
-        src={recording.url}
-        preload="metadata"
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
-        onEnded={() => setIsPlaying(false)}
-      />
-      <CheckCircle2 className="h-3 w-3 text-green-500" />
+    <span className={`inline-flex items-center gap-1.5${disabled ? " opacity-30" : ""}`} onClick={(e) => e.stopPropagation()}>
+      {recording && (
+        <audio
+          ref={audioRef}
+          src={recording.url}
+          preload="metadata"
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onEnded={() => setIsPlaying(false)}
+        />
+      )}
+      {recording ? (
+        <CheckCircle2 className="h-3 w-3 text-green-500" />
+      ) : null}
       <button
         onClick={toggle}
-        className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+        disabled={disabled}
+        className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors disabled:hover:bg-gray-100 disabled:cursor-default"
       >
         {isPlaying ? (
           <Pause className="h-2.5 w-2.5 text-gray-700" />
@@ -67,7 +74,7 @@ function MiniPlayer({ recording }: { recording: RecordingInfo }) {
           <Play className="h-2.5 w-2.5 text-gray-700 ml-px" />
         )}
       </button>
-      <span className="text-[10px] text-gray-500 tabular-nums">{formatTimer(recording.duration)}</span>
+      <span className="text-[10px] text-gray-500 tabular-nums">{recording ? formatTimer(recording.duration) : "--:--"}</span>
     </span>
   );
 }
@@ -196,7 +203,7 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
-                        {!expandedIds.has(idx) && recordings[idx] && (
+                        {!expandedIds.has(idx) && (
                           <MiniPlayer recording={recordings[idx]} />
                         )}
                         {sq.time_limit_seconds ? (
@@ -394,7 +401,7 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
-                        {!expandedIds.has(idx) && recordings[idx] && (
+                        {!expandedIds.has(idx) && (
                           <MiniPlayer recording={recordings[idx]} />
                         )}
                         {sq.time_limit_seconds ? (
