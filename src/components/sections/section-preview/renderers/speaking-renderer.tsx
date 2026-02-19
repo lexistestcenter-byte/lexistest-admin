@@ -129,7 +129,7 @@ export function SpeakingRenderer({ item, contentAudioPlaying, onPauseContentAudi
                     controls
                     controlsList="nodownload"
                     src={getCdnUrl(String(activeQ.audio_url))}
-                    className="w-full h-8"
+                    className="w-full h-8 [&::-webkit-media-controls-overflow-button]:hidden"
                     onPlay={() => onPauseContentAudio?.()}
                   />
                 </div>
@@ -268,7 +268,7 @@ export function SpeakingRenderer({ item, contentAudioPlaying, onPauseContentAudi
                     controls
                     controlsList="nodownload"
                     src={getCdnUrl(String(activeQ.audio_url))}
-                    className="w-full h-8"
+                    className="w-full h-8 [&::-webkit-media-controls-overflow-button]:hidden"
                     onPlay={() => onPauseContentAudio?.()}
                   />
                 </div>

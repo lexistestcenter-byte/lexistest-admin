@@ -121,11 +121,11 @@ function WaveformVisualizer({
 
 // ─── Playback Component ─────────────────────────────────────
 
-function RecordedPlayback({ audioUrl }: { audioUrl: string }) {
+function RecordedPlayback({ audioUrl, knownDuration }: { audioUrl: string; knownDuration?: number }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [duration, setDuration] = useState(knownDuration || 0);
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
@@ -148,11 +148,16 @@ function RecordedPlayback({ audioUrl }: { audioUrl: string }) {
       setProgress(0);
     };
     const onTimeUpdate = () => {
-      if (audio.duration > 0) {
-        setProgress((audio.currentTime / audio.duration) * 100);
+      const d = (audio.duration > 0 && isFinite(audio.duration)) ? audio.duration : (knownDuration || 0);
+      if (d > 0) {
+        setProgress((audio.currentTime / d) * 100);
       }
     };
-    const onLoaded = () => setDuration(audio.duration);
+    const onLoaded = () => {
+      if (audio.duration > 0 && isFinite(audio.duration)) {
+        setDuration(audio.duration);
+      }
+    };
 
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
@@ -191,7 +196,10 @@ function RecordedPlayback({ audioUrl }: { audioUrl: string }) {
         />
       </div>
       <span className="text-xs text-gray-500 tabular-nums shrink-0">
-        {duration > 0 && isFinite(duration) ? formatTimer(Math.floor(duration)) : "--:--"}
+        {(() => {
+          const d = duration > 0 && isFinite(duration) ? duration : (knownDuration || 0);
+          return d > 0 ? formatTimer(Math.floor(d)) : "--:--";
+        })()}
       </span>
     </div>
   );
@@ -668,7 +676,7 @@ function RecordedState({
         </div>
 
         {/* Playback */}
-        <RecordedPlayback audioUrl={audioUrl} />
+        <RecordedPlayback audioUrl={audioUrl} knownDuration={elapsedSeconds} />
 
         {/* Re-record + Submit buttons */}
         {canReRecord && !showReRecordConfirm && !isSubmitted && (
