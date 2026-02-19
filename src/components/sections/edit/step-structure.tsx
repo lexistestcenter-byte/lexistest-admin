@@ -99,7 +99,7 @@ export function StepStructure({
   return (
     <>
       <div className={cn("grid gap-6", (sectionType === "reading" || sectionType === "listening" || sectionType === "speaking") ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1")}>
-        {/* ─── Left Column: Content Blocks (reading/listening/speaking) ─── */}
+        {/* ─── Left Column: Content Blocks ─── */}
         {(sectionType === "reading" || sectionType === "listening" || sectionType === "speaking") && (
           <div className="space-y-6">
             <Card>
@@ -115,14 +115,14 @@ export function StepStructure({
                     )}
                     <div>
                       <CardTitle>
-                        {sectionType === "reading" ? "지문 관리" : sectionType === "speaking" ? "오디오 관리" : "오디오/지문 관리"} ({contentBlocks.length})
+                        {sectionType === "speaking" ? "오디오 관리" : sectionType === "listening" ? "오디오/지문 관리" : "지문 관리"} ({contentBlocks.length})
                       </CardTitle>
                       <CardDescription>
-                        {sectionType === "reading"
-                          ? "시험 문제와 함께 표시되는 지문을 추가합니다. 각 지문은 시험 구조(섹션)에 연결됩니다."
-                          : sectionType === "speaking"
-                            ? "스피킹 문제와 함께 재생되는 오디오를 추가합니다."
-                            : "시험 문제와 함께 재생되는 오디오 및 지문을 추가합니다. 각 오디오/지문은 시험 구조(섹션)에 연결됩니다."}
+                        {sectionType === "speaking"
+                          ? "스피킹 문제와 함께 재생되는 오디오를 추가합니다."
+                          : sectionType === "listening"
+                            ? "시험 문제와 함께 재생되는 오디오 및 지문을 추가합니다. 각 오디오/지문은 시험 구조(섹션)에 연결됩니다."
+                            : "시험 문제와 함께 표시되는 지문을 추가합니다. 각 지문은 시험 구조(섹션)에 연결됩니다."}
                       </CardDescription>
                     </div>
                   </div>
@@ -130,7 +130,6 @@ export function StepStructure({
                     <Plus className="mr-1 h-4 w-4" />
                     {sectionType === "reading" ? "지문 추가" : "오디오 추가"}
                   </Button>
-
                 </div>
               </CardHeader>
               <CardContent>

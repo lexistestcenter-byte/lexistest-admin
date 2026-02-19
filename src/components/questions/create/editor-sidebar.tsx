@@ -153,21 +153,6 @@ export function EditorSidebar({
           </div>
         )}
 
-        {/* Speaking Part 2 옵션 */}
-        {currentTab.format === "speaking_part2" && (
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-xs">AI 심화질문 생성</Label>
-              <p className="text-xs text-muted-foreground">Part 2 답변 후 AI가 추가 질문</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={currentTab.generateFollowup}
-              onChange={(e) => updateCurrentTab("generateFollowup", e.target.checked)}
-              className="h-4 w-4"
-            />
-          </div>
-        )}
       </div>
     </div>
   );

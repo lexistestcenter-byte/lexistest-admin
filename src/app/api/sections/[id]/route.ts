@@ -142,6 +142,8 @@ export async function PUT(
         : null;
     if (body.instruction_image_url !== undefined)
       updateData.instruction_image_url = body.instruction_image_url;
+    if (body.instruction_audio_url !== undefined)
+      updateData.instruction_audio_url = body.instruction_audio_url;
     if (body.passage_title !== undefined)
       updateData.passage_title = body.passage_title
         ? sanitizeHtml(body.passage_title)

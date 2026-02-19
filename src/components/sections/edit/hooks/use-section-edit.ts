@@ -43,6 +43,8 @@ export function useSectionEdit(id: string) {
   // Instruction page
   const [instructionTitle, setInstructionTitle] = useState("");
   const [instructionHtml, setInstructionHtml] = useState("");
+  const [instructionAudioUrl, setInstructionAudioUrl] = useState("");
+  const [instructionAudioFile, setInstructionAudioFile] = useState<File | null>(null);
 
   // Content blocks
   const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([]);
@@ -107,6 +109,7 @@ export function useSectionEdit(id: string) {
         setIsPractice(data.is_practice ?? false);
         setInstructionTitle(data.instruction_title || "");
         setInstructionHtml(data.instruction_html || "");
+        setInstructionAudioUrl(data.instruction_audio_url || "");
       } catch (error) {
         console.error("Error loading section:", error);
         toast.error("시험 정보를 불러오는데 실패했습니다.");
@@ -244,7 +247,7 @@ export function useSectionEdit(id: string) {
 
   const handleAddContentBlock = async () => {
     if (!section) return;
-    const contentType = (section.section_type === "listening" || section.section_type === "speaking") ? "audio" : "passage";
+    const contentType = section.section_type === "speaking" ? "audio" : "passage";
     try {
       const { error } = await api.post(`/api/sections/${id}/content-blocks`, {
         display_order: contentBlocks.length,
@@ -272,7 +275,7 @@ export function useSectionEdit(id: string) {
     } else {
       // Create new block with data
       if (!section) return;
-      const contentType = (section.section_type === "listening" || section.section_type === "speaking") ? "audio" : "passage";
+      const contentType = section.section_type === "speaking" ? "audio" : "passage";
       try {
         const { error } = await api.post(`/api/sections/${id}/content-blocks`, {
           display_order: contentBlocks.length,
@@ -807,6 +810,10 @@ export function useSectionEdit(id: string) {
     setInstructionTitle,
     instructionHtml,
     setInstructionHtml,
+    instructionAudioUrl,
+    setInstructionAudioUrl,
+    instructionAudioFile,
+    setInstructionAudioFile,
     contentBlocks,
     questionGroups,
     activeGroupId,

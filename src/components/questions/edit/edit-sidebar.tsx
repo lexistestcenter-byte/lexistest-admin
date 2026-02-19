@@ -176,21 +176,6 @@ export function EditSidebar({
           </div>
         )}
 
-        {/* Speaking Part 2: AI 심화질문 생성 옵션 */}
-        {selectedFormat === "speaking_part2" && (
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-xs">AI 심화질문 생성</Label>
-              <p className="text-xs text-muted-foreground">Part 2 답변 후 AI가 추가 질문</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={generateFollowup}
-              onChange={(e) => setGenerateFollowup(e.target.checked)}
-              className="h-4 w-4"
-            />
-          </div>
-        )}
       </div>
     </div>
   );

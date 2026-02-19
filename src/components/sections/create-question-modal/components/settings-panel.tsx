@@ -47,9 +47,9 @@ export function SettingsPanel({
     <div className="space-y-5">
       {/* ─── Basic Settings ─── */}
       <div className="space-y-3">
-        <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{isSpeaking ? "Basic Settings" : "기본 설정"}</h4>
+        <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">기본 설정</h4>
         <div className="flex items-center justify-between">
-          <Label className="text-xs">{isSpeaking ? "Practice Question" : "연습문제"}</Label>
+          <Label className="text-xs">연습문제</Label>
           <Switch checked={tab.isPractice} onCheckedChange={(v) => updateTab({ isPractice: v })} disabled={tab.saved} />
         </div>
         {hasSeparateNumbers && (
@@ -75,16 +75,16 @@ export function SettingsPanel({
       {(isListening || fmt === "speaking_part2") && (
         <div className="space-y-3">
           <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            {fmt === "speaking_part2" ? "Examiner Audio" : "Audio"}
+            {fmt === "speaking_part2" ? "시험관 오디오" : "오디오"}
           </h4>
           <p className="text-[10px] text-muted-foreground">
-            {fmt === "speaking_part2" ? "Upload the examiner's recorded question audio" : "Upload audio file"}
+            {fmt === "speaking_part2" ? "시험관 녹음 오디오를 업로드하세요" : "오디오 파일 업로드"}
           </p>
           <FileUpload
             value={tab.audioUrl}
             onChange={(v) => updateTab({ audioUrl: v })}
             accept="audio"
-            placeholder={fmt === "speaking_part2" ? "Upload examiner audio" : "Upload audio file"}
+            placeholder={fmt === "speaking_part2" ? "시험관 오디오 업로드" : "오디오 파일 업로드"}
             deferred
             onFileReady={(file) => updateTab({ audioFile: file })}
           />
@@ -230,16 +230,9 @@ export function SettingsPanel({
       {/* ─── Speaking Settings ─── */}
       {fmt === "speaking_part2" && (
         <div className="space-y-3">
-          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Speaking Settings</h4>
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-xs">AI Follow-up Questions</Label>
-              <p className="text-[10px] text-muted-foreground">Generate AI follow-up after Part 2</p>
-            </div>
-            <Switch checked={tab.generateFollowup} onCheckedChange={(v) => updateTab({ generateFollowup: v })} disabled={tab.saved} />
-          </div>
+          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">스피킹 설정</h4>
           <div className="space-y-1.5">
-            <Label className="text-xs">Preparation Time (seconds)</Label>
+            <Label className="text-xs">준비 시간 (초)</Label>
             <Input
               type="text"
               inputMode="numeric"
@@ -253,10 +246,10 @@ export function SettingsPanel({
               placeholder="60"
               disabled={tab.saved}
             />
-            <p className="text-[10px] text-muted-foreground">Default: 60 seconds</p>
+            <p className="text-[10px] text-muted-foreground">기본값: 60초</p>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Speaking Time (seconds)</Label>
+            <Label className="text-xs">발표 시간 (초)</Label>
             <Input
               type="text"
               inputMode="numeric"
@@ -270,46 +263,7 @@ export function SettingsPanel({
               placeholder="120"
               disabled={tab.saved}
             />
-            <p className="text-[10px] text-muted-foreground">Default: 120 seconds</p>
-          </div>
-        </div>
-      )}
-
-      {fmt === "speaking_part3" && (
-        <div className="space-y-3">
-          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Speaking Settings</h4>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Related Part 2 Question</Label>
-            <Select value={tab.relatedPart2Id} onValueChange={(v) => updateTab({ relatedPart2Id: v })} disabled={isLoadingSpeakingData || tab.saved}>
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder={isLoadingSpeakingData ? "Loading..." : "Select Part 2 question"} />
-              </SelectTrigger>
-              <SelectContent>
-                {part2Questions.map((q) => (
-                  <SelectItem key={q.id} value={q.id}>
-                    [{q.question_code}] {q.topic.slice(0, 40)}{q.topic.length > 40 ? "..." : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {tab.relatedPart2Id && (
-              <p className="text-[10px] text-muted-foreground leading-tight">
-                {part2Questions.find(q => q.id === tab.relatedPart2Id)?.topic}
-              </p>
-            )}
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Depth Level</Label>
-            <Select value={String(tab.depthLevel)} onValueChange={(v) => updateTab({ depthLevel: Number(v) as 1 | 2 | 3 })} disabled={tab.saved}>
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">Level 1 (Basic)</SelectItem>
-                <SelectItem value="2">Level 2 (Intermediate)</SelectItem>
-                <SelectItem value="3">Level 3 (Advanced)</SelectItem>
-              </SelectContent>
-            </Select>
+            <p className="text-[10px] text-muted-foreground">기본값: 120초</p>
           </div>
         </div>
       )}
@@ -317,9 +271,9 @@ export function SettingsPanel({
       {/* ─── Response Settings (Part 2 only) ─── */}
       {fmt === "speaking_part2" && (
         <div className="space-y-3">
-          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Response Settings</h4>
+          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">응답 설정</h4>
           <div className="space-y-1.5">
-            <Label className="text-xs">Time Limit (seconds)</Label>
+            <Label className="text-xs">응답 시간 제한 (초)</Label>
             <Input
               type="text"
               inputMode="numeric"
@@ -330,15 +284,15 @@ export function SettingsPanel({
                 const val = e.target.value;
                 if (val === "" || /^\d{1,3}$/.test(val)) updateTab({ timeLimitSeconds: val });
               }}
-              placeholder="e.g. 30"
+              placeholder="예: 30"
               disabled={tab.saved}
             />
-            <p className="text-[10px] text-muted-foreground">Max response time</p>
+            <p className="text-[10px] text-muted-foreground">최대 응답 시간</p>
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <Label className="text-xs">Allow Re-recording</Label>
-              <p className="text-[10px] text-muted-foreground">Let students re-record their response</p>
+              <Label className="text-xs">재녹음 허용</Label>
+              <p className="text-[10px] text-muted-foreground">학생이 응답을 다시 녹음할 수 있습니다</p>
             </div>
             <Switch checked={tab.allowResponseReset} onCheckedChange={(v) => updateTab({ allowResponseReset: v })} disabled={tab.saved} />
           </div>

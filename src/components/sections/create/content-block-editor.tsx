@@ -27,7 +27,9 @@ export function ContentBlockEditor({
   onUpdate,
   onRemove,
 }: ContentBlockEditorProps) {
+  const isAudio = sectionType === "listening" || sectionType === "speaking";
   const isSpeaking = sectionType === "speaking";
+
   const label =
     block.content_type === "passage"
       ? block.passage_title || `Passage ${index + 1}`
@@ -61,7 +63,31 @@ export function ContentBlockEditor({
 
       {!isCollapsed && (
         <div className="p-4 space-y-3">
-          {block.content_type === "passage" ? (
+          {/* Audio upload (listening/speaking) */}
+          {isAudio && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">오디오 파일</Label>
+              <FileUpload
+                value={block.audio_url}
+                onChange={(url) =>
+                  onUpdate(block.id, {
+                    audio_url: url,
+                  })
+                }
+                accept="audio"
+                placeholder="오디오 파일 업로드"
+                deferred
+                onFileReady={(file) =>
+                  onUpdate(block.id, {
+                    audioFile: file,
+                  })
+                }
+              />
+            </div>
+          )}
+
+          {/* Passage fields (not for speaking) */}
+          {!isSpeaking && (
             <>
               <div className="space-y-1.5">
                 <Label className="text-xs">지문 제목</Label>
@@ -101,70 +127,6 @@ export function ContentBlockEditor({
                   }
                 />
               </div>
-            </>
-          ) : (
-            <>
-              <div className="space-y-1.5">
-                <Label className="text-xs">오디오 파일</Label>
-                <FileUpload
-                  value={block.audio_url}
-                  onChange={(url) =>
-                    onUpdate(block.id, {
-                      audio_url: url,
-                    })
-                  }
-                  accept="audio"
-                  placeholder="오디오 파일 업로드"
-                  deferred
-                  onFileReady={(file) =>
-                    onUpdate(block.id, {
-                      audioFile: file,
-                    })
-                  }
-                />
-              </div>
-              {!isSpeaking && (
-                <>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">지문 제목</Label>
-                    <Input
-                      placeholder="예: The History of Glass"
-                      value={block.passage_title}
-                      onChange={(e) =>
-                        onUpdate(block.id, {
-                          passage_title: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">지문 내용</Label>
-                    <RichTextEditor
-                      placeholder="지문 내용을 입력하세요..."
-                      minHeight="200px"
-                      value={block.passage_content}
-                      onChange={(val) =>
-                        onUpdate(block.id, {
-                          passage_content: val,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">각주 (선택)</Label>
-                    <RichTextEditor
-                      placeholder="예: *calorie: a measure of the energy value of food"
-                      minHeight="80px"
-                      value={block.passage_footnotes}
-                      onChange={(val) =>
-                        onUpdate(block.id, {
-                          passage_footnotes: val,
-                        })
-                      }
-                    />
-                  </div>
-                </>
-              )}
             </>
           )}
         </div>

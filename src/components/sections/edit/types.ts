@@ -14,6 +14,7 @@ export interface SectionData {
   image_url: string | null;
   instruction_title: string | null;
   instruction_html: string | null;
+  instruction_audio_url: string | null;
   passage_title: string | null;
   passage_content: string | null;
   passage_footnotes: string | null;

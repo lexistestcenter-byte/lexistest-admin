@@ -75,6 +75,10 @@ export default function NewSectionPage() {
           setInstructionTitle={s.setInstructionTitle}
           instructionHtml={s.instructionHtml}
           setInstructionHtml={s.setInstructionHtml}
+          instructionAudioUrl={s.instructionAudioUrl}
+          setInstructionAudioUrl={s.setInstructionAudioUrl}
+          instructionAudioFile={s.instructionAudioFile}
+          setInstructionAudioFile={s.setInstructionAudioFile}
         />
       )}
 

@@ -40,6 +40,8 @@ export function useNewSection() {
   const [isPractice, setIsPractice] = useState(false);
   const [instructionTitle, setInstructionTitle] = useState<string>("");
   const [instructionHtml, setInstructionHtml] = useState<string>("");
+  const [instructionAudioUrl, setInstructionAudioUrl] = useState<string>("");
+  const [instructionAudioFile, setInstructionAudioFile] = useState<File | null>(null);
 
   // Content blocks
   const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([]);
@@ -64,7 +66,7 @@ export function useNewSection() {
   // ─── Content Block helpers ─────────────────────────────────
 
   const addContentBlock = () => {
-    const contentType = (sectionType === "listening" || sectionType === "speaking") ? "audio" : "passage";
+    const contentType = sectionType === "speaking" ? "audio" : "passage";
     const newBlock: ContentBlock = {
       id: generateTempId(),
       content_type: contentType as "passage" | "audio",
@@ -94,7 +96,7 @@ export function useNewSection() {
   };
 
   const addSet = () => {
-    const contentType = (sectionType === "listening" || sectionType === "speaking") ? "audio" : "passage";
+    const contentType = sectionType === "speaking" ? "audio" : "passage";
     const needsContent = sectionType === "reading" || sectionType === "listening" || sectionType === "speaking";
     const newBlockId = needsContent ? generateTempId() : null;
 
@@ -673,6 +675,10 @@ export function useNewSection() {
     setInstructionTitle,
     instructionHtml,
     setInstructionHtml,
+    instructionAudioUrl,
+    setInstructionAudioUrl,
+    instructionAudioFile,
+    setInstructionAudioFile,
 
     // Content blocks
     contentBlocks,

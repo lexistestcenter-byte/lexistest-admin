@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { FileUpload } from "@/components/ui/file-upload";
 import { Eye, X } from "lucide-react";
 import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 
@@ -35,6 +36,10 @@ interface StepBasicInfoProps {
   setInstructionTitle: (v: string) => void;
   instructionHtml: string;
   setInstructionHtml: (v: string) => void;
+  instructionAudioUrl: string;
+  setInstructionAudioUrl: (v: string) => void;
+  instructionAudioFile: File | null;
+  setInstructionAudioFile: (v: File | null) => void;
 }
 
 export function StepBasicInfo({
@@ -51,6 +56,10 @@ export function StepBasicInfo({
   setInstructionTitle,
   instructionHtml,
   setInstructionHtml,
+  instructionAudioUrl,
+  setInstructionAudioUrl,
+  instructionAudioFile,
+  setInstructionAudioFile,
 }: StepBasicInfoProps) {
   const [showInstructionPreview, setShowInstructionPreview] = useState(false);
 
@@ -123,7 +132,7 @@ export function StepBasicInfo({
               <div>
                 <CardTitle>안내 페이지</CardTitle>
                 <CardDescription>
-                  시험 시작 시 학생에게 처음 보여지는 안내 내용입니다. {sectionType === "speaking" ? "(필수)" : "(선택)"}
+                  시험 시작 시 학생에게 처음 보여지는 안내 내용입니다. {(sectionType === "speaking" || sectionType === "listening") ? "(필수)" : "(선택)"}
                 </CardDescription>
               </div>
               <Button
@@ -139,15 +148,28 @@ export function StepBasicInfo({
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>안내 제목 {sectionType === "speaking" && <span className="text-red-500">*</span>}</Label>
+              <Label>안내 제목 {(sectionType === "speaking" || sectionType === "listening") && <span className="text-red-500">*</span>}</Label>
               <Input
                 value={instructionTitle}
                 onChange={(e) => setInstructionTitle(e.target.value)}
                 placeholder="예: Reading Test Instructions"
               />
             </div>
+            {(sectionType === "listening" || sectionType === "speaking") && (
+              <div className="space-y-2">
+                <Label>안내 페이지 오디오 {(sectionType === "speaking" || sectionType === "listening") && <span className="text-red-500">*</span>}</Label>
+                <FileUpload
+                  value={instructionAudioUrl}
+                  onChange={(url) => setInstructionAudioUrl(url)}
+                  accept="audio"
+                  placeholder="안내 페이지 오디오 파일 업로드"
+                  deferred
+                  onFileReady={(file) => setInstructionAudioFile(file)}
+                />
+              </div>
+            )}
             <div className="space-y-2">
-              <Label>안내 내용 {sectionType === "speaking" && <span className="text-red-500">*</span>}</Label>
+              <Label>안내 내용 {(sectionType === "speaking" || sectionType === "listening") && <span className="text-red-500">*</span>}</Label>
               <RichTextEditor
                 value={instructionHtml}
                 onChange={setInstructionHtml}

@@ -182,6 +182,7 @@ export async function POST(request: NextRequest) {
         ? sanitizeHtml(body.instruction_html)
         : null,
       instruction_image_url: body.instruction_image_url || null,
+      instruction_audio_url: body.instruction_audio_url || null,
       passage_title: body.passage_title
         ? sanitizeHtml(body.passage_title)
         : null,

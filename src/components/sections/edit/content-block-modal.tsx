@@ -117,43 +117,37 @@ export function ContentBlockModal({
                   </div>
                 )}
 
-                {/* Title (not for speaking) */}
+                {/* Passage fields (not for speaking) */}
                 {!isSpeaking && (
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-medium">지문 제목</Label>
-                    <Input
-                      placeholder="예: The History of Glass"
-                      value={localTitle}
-                      onChange={(e) => setLocalTitle(e.target.value)}
-                      className="text-base font-bold"
-                    />
-                  </div>
-                )}
-
-                {/* Content (not for speaking) */}
-                {!isSpeaking && (
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-medium">지문 내용</Label>
-                    <RichTextEditor
-                      placeholder="지문 내용을 입력하세요..."
-                      minHeight="340px"
-                      value={localContent}
-                      onChange={(val) => setLocalContent(val)}
-                    />
-                  </div>
-                )}
-
-                {/* Footnotes (not for speaking) */}
-                {!isSpeaking && (
-                  <div className="space-y-1.5 pt-3 border-t">
-                    <Label className="text-xs text-gray-500 italic">각주 (선택)</Label>
-                    <RichTextEditor
-                      placeholder="예: *calorie: a measure of the energy value of food"
-                      minHeight="80px"
-                      value={localFootnotes}
-                      onChange={(val) => setLocalFootnotes(val)}
-                    />
-                  </div>
+                  <>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium">지문 제목</Label>
+                      <Input
+                        placeholder="예: The History of Glass"
+                        value={localTitle}
+                        onChange={(e) => setLocalTitle(e.target.value)}
+                        className="text-base font-bold"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium">지문 내용</Label>
+                      <RichTextEditor
+                        placeholder="지문 내용을 입력하세요..."
+                        minHeight="340px"
+                        value={localContent}
+                        onChange={(val) => setLocalContent(val)}
+                      />
+                    </div>
+                    <div className="space-y-1.5 pt-3 border-t">
+                      <Label className="text-xs text-gray-500 italic">각주 (선택)</Label>
+                      <RichTextEditor
+                        placeholder="예: *calorie: a measure of the energy value of food"
+                        minHeight="80px"
+                        value={localFootnotes}
+                        onChange={(val) => setLocalFootnotes(val)}
+                      />
+                    </div>
+                  </>
                 )}
               </div>
             </div>
