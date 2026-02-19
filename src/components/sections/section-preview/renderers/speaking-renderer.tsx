@@ -63,16 +63,12 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
     }
 
     return (
-      <div className="flex h-full -mx-4 -my-3">
+      <div className="grid grid-cols-2 h-full -mx-4 -my-3">
         {/* Left: question list */}
-        <div className="w-72 shrink-0 border-r border-slate-200 bg-white overflow-y-auto">
+        <div className="border-r border-slate-200 bg-white overflow-y-auto">
           <div className="px-4 py-3 border-b bg-emerald-50">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
-                Part 1 &ndash; Interview
-              </Badge>
-              <span className="text-xs text-muted-foreground">{questions.length}문항</span>
-            </div>
+            <p className="text-xs font-semibold text-emerald-700">Part 1 – Interview</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{questions.length}문항</p>
           </div>
           {questions.map((sq, idx) => (
             <button
@@ -103,7 +99,7 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
                 <div className="mt-1 ml-6">
                   <span className="text-[10px] text-gray-400">
                     <Clock className="h-2.5 w-2.5 inline mr-0.5" />
-                    {String(sq.time_limit_seconds)}초
+                    {String(sq.time_limit_seconds)}s
                   </span>
                 </div>
               ) : null}
@@ -112,9 +108,9 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
         </div>
 
         {/* Right: active question recorder */}
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
+        <div className="overflow-y-auto p-6 bg-slate-50 flex items-center justify-center">
           {activeQ ? (
-            <div className="max-w-lg mx-auto space-y-6">
+            <div className="max-w-lg w-full space-y-6">
               <div className="space-y-2">
                 <span className="text-xs font-bold text-emerald-700">
                   Question {activeQ.number ? Number(activeQ.number) : activeIdx + 1}
@@ -191,8 +187,8 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
             )}
           </div>
           <div className="px-4 py-2 bg-amber-50 border-t border-amber-200 text-xs text-amber-700">
-            준비 시간: {od.prep_time_seconds ? `${od.prep_time_seconds}초` : "1분"} | 발표 시간: {od.speaking_time_seconds ? `${od.speaking_time_seconds}초` : "1-2분"}
-            {od.allow_response_reset === true && " | 재녹음 허용"}
+            Prep: {od.prep_time_seconds ? `${od.prep_time_seconds}s` : "60s"} | Speaking: {od.speaking_time_seconds ? `${od.speaking_time_seconds}s` : "60-120s"}
+            {od.allow_response_reset === true && " | Re-record allowed"}
           </div>
         </div>
         <SpeakingRecorder
@@ -233,23 +229,18 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
     }
 
     return (
-      <div className="flex h-full -mx-4 -my-3">
+      <div className="grid grid-cols-2 h-full -mx-4 -my-3">
         {/* Left: question list */}
-        <div className="w-72 shrink-0 border-r border-slate-200 bg-white overflow-y-auto">
-          <div className="px-4 py-3 border-b bg-violet-50 space-y-2">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs bg-violet-50 text-violet-700 border-violet-200">
-                Part 3 &ndash; Discussion
-              </Badge>
-              {depthLabel && (
-                <Badge variant="secondary" className="text-xs">{depthLabel}</Badge>
-              )}
-              <span className="text-xs text-muted-foreground">{questions.length}문항</span>
-            </div>
+        <div className="border-r border-slate-200 bg-white overflow-y-auto">
+          <div className="px-4 py-3 border-b bg-violet-50 space-y-1">
+            <p className="text-xs font-semibold text-violet-700">
+              Part 3 – Discussion{depthLabel ? ` (${depthLabel})` : ""}
+            </p>
+            <p className="text-[10px] text-muted-foreground">{questions.length}문항</p>
             {q.related_part2_id && (
-              <div className="text-[10px] text-gray-500">
+              <p className="text-[10px] text-gray-500">
                 Part 2: <span className="font-mono">{q.related_part2_id}</span>
-              </div>
+              </p>
             )}
           </div>
           {questions.map((sq, idx) => (
@@ -281,7 +272,7 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
                 <div className="mt-1 ml-6">
                   <span className="text-[10px] text-gray-400">
                     <Clock className="h-2.5 w-2.5 inline mr-0.5" />
-                    {String(sq.time_limit_seconds)}초
+                    {String(sq.time_limit_seconds)}s
                   </span>
                 </div>
               ) : null}
@@ -290,9 +281,9 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
         </div>
 
         {/* Right: active question recorder */}
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
+        <div className="overflow-y-auto p-6 bg-slate-50 flex items-center justify-center">
           {activeQ ? (
-            <div className="max-w-lg mx-auto space-y-6">
+            <div className="max-w-lg w-full space-y-6">
               <div className="space-y-2">
                 <span className="text-xs font-bold text-violet-700">
                   Question {activeQ.number ? Number(activeQ.number) : activeIdx + 1}

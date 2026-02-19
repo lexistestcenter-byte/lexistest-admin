@@ -270,7 +270,7 @@ function MicTestSection() {
         <Mic className="h-4 w-4 text-blue-600" />
         <span className="text-sm font-medium text-blue-900">Microphone Test</span>
       </div>
-      <p className="text-xs text-blue-700">시험을 시작하기 전에 마이크가 정상적으로 작동하는지 확인하세요.</p>
+      <p className="text-xs text-blue-700">Please test your microphone before starting the test.</p>
 
       {testState === "idle" && (
         <Button size="sm" variant="outline" onClick={startTest} className="text-blue-700 border-blue-300">
