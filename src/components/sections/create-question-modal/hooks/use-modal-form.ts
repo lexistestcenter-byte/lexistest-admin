@@ -60,6 +60,15 @@ export function useModalForm(
     setActiveTabIdx(0);
   }, []);
 
+  // Reset when panel opens
+  useEffect(() => {
+    if (open) {
+      setTabs([createEmptyTab()]);
+      setActiveTabIdx(0);
+      setExpandedSpeakingCards(new Set());
+    }
+  }, [open]);
+
   const handlePanelClose = useCallback(() => {
     const unsaved = tabs.filter((t) => t.selectedFormat && !t.saved);
     if (unsaved.length > 0) {

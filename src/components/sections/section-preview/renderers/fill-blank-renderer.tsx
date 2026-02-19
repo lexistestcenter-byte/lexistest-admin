@@ -68,9 +68,15 @@ export function FillBlankDragRenderer({ item, answers, setAnswer }: RendererProp
     : Array.isArray(od.wordBank)
       ? (od.wordBank as string[])
       : [];
+  const allowDuplicate = Boolean(od.allow_duplicate || od.allowDuplicate);
   if (!content) return <p className="text-sm text-gray-500">No content available.</p>;
 
   const [draggedWord, setDraggedWord] = useState<string | null>(null);
+
+  const usedWords = Object.values(answers).filter(Boolean);
+  const availableWords = allowDuplicate
+    ? wordBank.filter((w) => w)
+    : wordBank.filter((w) => w && !usedWords.includes(w));
 
   // table_completion: render HTML as a whole to preserve <table> structure
   // Click-to-fill for table_completion (drag-drop not possible with dangerouslySetInnerHTML)
@@ -91,7 +97,7 @@ export function FillBlankDragRenderer({ item, answers, setAnswer }: RendererProp
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
             <p className="text-xs font-semibold text-slate-600 mb-2">Word Bank</p>
             <div className="flex flex-wrap gap-1.5">
-              {wordBank.map((word, i) => (
+              {availableWords.map((word, i) => (
                 <span
                   key={i}
                   className="px-2.5 py-1 text-xs bg-white border border-slate-300 rounded cursor-pointer hover:bg-slate-100 transition-colors select-none"
@@ -108,6 +114,9 @@ export function FillBlankDragRenderer({ item, answers, setAnswer }: RendererProp
                   {word}
                 </span>
               ))}
+              {availableWords.length === 0 && wordBank.length > 0 && (
+                <span className="text-xs text-muted-foreground">모든 단어가 사용되었습니다</span>
+              )}
             </div>
           </div>
         )}
@@ -159,7 +168,7 @@ export function FillBlankDragRenderer({ item, answers, setAnswer }: RendererProp
         <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
           <p className="text-xs font-semibold text-slate-600 mb-2">Word Bank</p>
           <div className="flex flex-wrap gap-1.5">
-            {wordBank.map((word, i) => (
+            {availableWords.map((word, i) => (
               <span
                 key={i}
                 draggable
@@ -173,6 +182,9 @@ export function FillBlankDragRenderer({ item, answers, setAnswer }: RendererProp
                 {word}
               </span>
             ))}
+            {availableWords.length === 0 && wordBank.length > 0 && (
+              <span className="text-xs text-muted-foreground">모든 단어가 사용되었습니다</span>
+            )}
           </div>
         </div>
       )}
