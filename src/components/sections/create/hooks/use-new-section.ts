@@ -411,6 +411,19 @@ export function useNewSection() {
       if (sectionError) throw new Error(sectionError);
       const sectionId = newSection!.id;
 
+      // Upload instruction audio if deferred file exists
+      if (instructionAudioFile) {
+        try {
+          const uploaded = await uploadFile(instructionAudioFile, "audio", `sections/${sectionId}`);
+          await api.put(`/api/sections/${sectionId}`, {
+            instruction_audio_url: uploaded.path,
+          });
+        } catch (e) {
+          console.error("Instruction audio upload failed:", e);
+          toast.error("안내 페이지 오디오 업로드에 실패했습니다.");
+        }
+      }
+
       // Content blocks
       const blockIdMap: Record<string, string> = {};
       const pendingAudioBlocks: { blockId: string; file: File }[] = [];

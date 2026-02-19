@@ -38,12 +38,9 @@ export function ContentPanel({ activeBlock, contentBlocks }: ContentPanelProps) 
     }
 
     if (activeBlock.content_type === "audio") {
-      const hasPassage = activeBlock.passage_title || activeBlock.passage_content;
+      const hasPassage = !!activeBlock.passage_content;
       return (
         <>
-          {activeBlock.audio_url && (
-            <audio src={getCdnUrl(activeBlock.audio_url)} autoPlay />
-          )}
           {hasPassage && (
             <div className="p-4 min-h-full flex flex-col">
               <div className="bg-white rounded-lg border p-6 flex-1">

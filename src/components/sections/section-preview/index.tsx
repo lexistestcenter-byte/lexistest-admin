@@ -63,6 +63,8 @@ export function SectionPreview({
     toggleMultiAnswer,
   } = state;
 
+  const [contentAudioPlaying, setContentAudioPlaying] = useState(false);
+
   // ─── Layout ────────────────────────────────────────────────────
 
   const blockHasPassageData = (b: { passage_title?: string; passage_content?: string }) =>
@@ -167,6 +169,19 @@ export function SectionPreview({
             />
           ) : (
             <>
+              {/* Auto-play audio from content block */}
+              {activeBlock?.audio_url && (
+                <audio
+                  key={activeBlock.id}
+                  src={getCdnUrl(activeBlock.audio_url)}
+                  autoPlay
+                  className="hidden"
+                  onPlay={() => setContentAudioPlaying(true)}
+                  onEnded={() => setContentAudioPlaying(false)}
+                  onError={() => setContentAudioPlaying(false)}
+                />
+              )}
+
               {hasAudioContent && !showLeftPanel && (
                 <ContentPanel activeBlock={activeBlock} contentBlocks={contentBlocks} />
               )}
@@ -202,6 +217,7 @@ export function SectionPreview({
                     toggleMultiAnswer={toggleMultiAnswer}
                     activeMatchSlot={activeMatchSlot}
                     setActiveMatchSlot={setActiveMatchSlot}
+                    contentAudioPlaying={contentAudioPlaying}
                   />
                 </div>
               </div>

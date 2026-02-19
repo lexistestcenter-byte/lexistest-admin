@@ -15,6 +15,7 @@ interface QuestionPanelProps {
   toggleMultiAnswer: (num: number, value: string) => void;
   activeMatchSlot: number | null;
   setActiveMatchSlot: (num: number | null) => void;
+  contentAudioPlaying?: boolean;
 }
 
 export function QuestionPanel({
@@ -27,6 +28,7 @@ export function QuestionPanel({
   toggleMultiAnswer,
   activeMatchSlot,
   setActiveMatchSlot,
+  contentAudioPlaying,
 }: QuestionPanelProps) {
   if (items.length === 0) {
     return (
@@ -116,6 +118,7 @@ export function QuestionPanel({
                 toggleMultiAnswer={toggleMultiAnswer}
                 activeMatchSlot={activeMatchSlot}
                 setActiveMatchSlot={setActiveMatchSlot}
+                contentAudioPlaying={contentAudioPlaying}
               />
             </div>
           );
@@ -166,6 +169,7 @@ export function QuestionPanel({
                     toggleMultiAnswer={toggleMultiAnswer}
                     activeMatchSlot={activeMatchSlot}
                     setActiveMatchSlot={setActiveMatchSlot}
+                    contentAudioPlaying={contentAudioPlaying}
                   />
                 </div>
               );

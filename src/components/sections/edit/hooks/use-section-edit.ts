@@ -12,6 +12,7 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
 import { api } from "@/lib/api/client";
+import { uploadFile } from "@/components/ui/file-upload";
 import { uploadEditorImages } from "@/components/ui/rich-text-editor";
 import type { PreviewQuestion } from "@/components/sections/section-preview";
 import {
@@ -593,7 +594,21 @@ export function useSectionEdit(id: string) {
         if (blockErr) console.error("Error deleting block:", blockErr);
       }
 
-      // 1. Update section info
+      // 1. Upload instruction audio if deferred file exists
+      let finalInstructionAudioUrl = instructionAudioUrl;
+      if (instructionAudioFile) {
+        try {
+          const uploaded = await uploadFile(instructionAudioFile, "audio", `sections/${id}`);
+          finalInstructionAudioUrl = uploaded.path;
+          setInstructionAudioUrl(uploaded.path);
+          setInstructionAudioFile(null);
+        } catch (e) {
+          console.error("Instruction audio upload failed:", e);
+          toast.error("안내 페이지 오디오 업로드에 실패했습니다.");
+        }
+      }
+
+      // 2. Update section info
       const updateData: Record<string, unknown> = {
         title,
         description: description || null,
@@ -601,6 +616,7 @@ export function useSectionEdit(id: string) {
         is_practice: isPractice,
         instruction_title: instructionTitle || null,
         instruction_html: instructionHtml || null,
+        instruction_audio_url: finalInstructionAudioUrl || null,
       };
 
       const { error } = await api.put(`/api/sections/${id}`, updateData);

@@ -10,6 +10,7 @@ import type { QuestionItem } from "../types";
 
 interface SpeakingRendererProps {
   item: QuestionItem;
+  contentAudioPlaying?: boolean;
 }
 
 interface RecordingInfo {
@@ -17,7 +18,7 @@ interface RecordingInfo {
   duration: number;
 }
 
-export function SpeakingRenderer({ item }: SpeakingRendererProps) {
+export function SpeakingRenderer({ item, contentAudioPlaying }: SpeakingRendererProps) {
   const q = item.question;
   const fmt = q.question_format;
   const od = q.options_data || {};
@@ -155,6 +156,7 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
             isPart2
             prepTimeSeconds={od.prep_time_seconds ? Number(od.prep_time_seconds) : 60}
             speakingTimeSeconds={od.speaking_time_seconds ? Number(od.speaking_time_seconds) : 120}
+            waitForAudio={contentAudioPlaying}
           />
         </div>
       </div>

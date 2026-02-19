@@ -35,6 +35,8 @@ interface SpeakingRecorderProps {
   onRecordingComplete?: (audioUrl: string, durationSeconds: number) => void;
   /** Called when the recording is reset (re-record) */
   onRecordingReset?: () => void;
+  /** true이면 오디오 재생 완료까지 prep 카운트다운 시작 안 함 */
+  waitForAudio?: boolean;
   className?: string;
 }
 
@@ -206,6 +208,7 @@ export function SpeakingRecorder({
   isPart2 = false,
   onRecordingComplete,
   onRecordingReset,
+  waitForAudio,
   className,
 }: SpeakingRecorderProps) {
   // Part 2 phase management
@@ -284,12 +287,12 @@ export function SpeakingRecorder({
     }, 200);
   }, [prepTimeSeconds]);
 
-  // Auto-start prep countdown for Part 2
+  // Auto-start prep countdown for Part 2 (wait for audio to finish)
   useEffect(() => {
-    if (isPart2 && part2Phase === "prep" && !prepTimerRef.current) {
+    if (isPart2 && part2Phase === "prep" && !prepTimerRef.current && !waitForAudio) {
       startPrepCountdown();
     }
-  }, [isPart2, part2Phase, startPrepCountdown]);
+  }, [isPart2, part2Phase, startPrepCountdown, waitForAudio]);
 
   // Auto-start recording when entering speaking phase (Part 2)
   useEffect(() => {
