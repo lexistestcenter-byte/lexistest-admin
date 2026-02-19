@@ -16,17 +16,17 @@ interface ModalSpeakingPart2EditorProps {
 export function ModalSpeakingPart2Editor({ tab, updateTab }: ModalSpeakingPart2EditorProps) {
   return (
     <div className="space-y-6">
-      <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-        <p className="font-medium text-amber-900">Part 2: 큐카드 발표</p>
-        <p className="text-sm text-amber-700 mt-1">
+      <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+        <p className="font-medium text-indigo-900">Part 2: 큐카드 발표</p>
+        <p className="text-sm text-indigo-700 mt-1">
           주어진 주제에 대해 {tab.prepTimeSeconds || 60}초 준비 후 최대 {tab.speakingTimeSeconds || 120}초간 발표
         </p>
       </div>
 
       {/* Cue Card Content */}
-      <div className="border-2 border-amber-200 rounded-lg overflow-hidden">
-        <div className="bg-amber-100 px-4 py-2 border-b border-amber-200">
-          <p className="text-sm font-semibold text-amber-800">큐카드 내용</p>
+      <div className="border-2 border-indigo-200 rounded-lg overflow-hidden">
+        <div className="bg-indigo-100 px-4 py-2 border-b border-indigo-200">
+          <p className="text-sm font-semibold text-indigo-800">큐카드 내용</p>
         </div>
         <div className="p-4 space-y-4">
           <div className="space-y-2">

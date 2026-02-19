@@ -142,6 +142,7 @@ export default function NewSectionPage() {
         isPractice={s.isPractice}
         instructionTitle={s.instructionTitle}
         instructionHtml={s.instructionHtml}
+        instructionAudioUrl={s.instructionAudioUrl}
         contentBlocks={s.previewContentBlocks}
         questionGroups={s.previewQuestionGroupsData}
         questions={s.previewQuestions}

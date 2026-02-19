@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Clock, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCdnUrl } from "@/lib/cdn";
@@ -143,62 +142,21 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
     );
   }
 
-  // Part 2: Cue Card style (unchanged)
+  // Part 2: Recorder only (cue card shown in left panel)
   if (fmt === "speaking_part2") {
-    const { topic, bullets, closing } = parsePart2Content(q.content || "");
-    const imageUrl = getCdnUrl(String(od.image_url || q.image_url || ""));
-
     return (
-      <div className="space-y-4">
-        <div className="border-2 border-amber-300 rounded-lg overflow-hidden bg-amber-50/30">
-          <div className="flex items-center justify-between px-4 py-2.5 bg-amber-100 border-b border-amber-200">
-            <Badge className="text-xs font-semibold bg-amber-500 hover:bg-amber-500 text-white">
-              Part 2 - 큐카드 발표
-            </Badge>
-          </div>
-          <div className="p-6 space-y-4">
-            <p className="text-base font-semibold text-gray-900 leading-relaxed">
-              {topic || q.content}
-            </p>
-            {bullets.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-700">You should say:</p>
-                <ul className="list-disc space-y-1.5 text-sm text-gray-700 pl-6">
-                  {bullets.map((b, i) => (
-                    <li key={i} className="leading-relaxed">{b}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {closing && (
-              <p className="text-sm text-gray-700 font-medium italic">{closing}</p>
-            )}
-            {imageUrl && (
-              <div className="mt-3 p-2 bg-white rounded border">
-                <img
-                  src={imageUrl}
-                  alt="큐카드 이미지"
-                  className="max-w-full h-auto max-h-[200px] rounded mx-auto"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
-                />
-              </div>
-            )}
-          </div>
-          <div className="px-4 py-2 bg-amber-50 border-t border-amber-200 text-xs text-amber-700">
-            Prep: {od.prep_time_seconds ? `${od.prep_time_seconds}s` : "60s"} | Speaking: {od.speaking_time_seconds ? `${od.speaking_time_seconds}s` : "60-120s"}
-            {od.allow_response_reset === true && " | Re-record allowed"}
-          </div>
+      <div className="flex items-center justify-center h-full">
+        <div className="w-full max-w-md space-y-4 text-center">
+          <p className="text-sm text-gray-500">Part 2 - Long Turn</p>
+          <SpeakingRecorder
+            questionId={q.id}
+            timeLimitSeconds={od.time_limit_seconds ? Number(od.time_limit_seconds) : undefined}
+            allowResponseReset={od.allow_response_reset !== false}
+            isPart2
+            prepTimeSeconds={od.prep_time_seconds ? Number(od.prep_time_seconds) : 60}
+            speakingTimeSeconds={od.speaking_time_seconds ? Number(od.speaking_time_seconds) : 120}
+          />
         </div>
-        <SpeakingRecorder
-          questionId={q.id}
-          timeLimitSeconds={od.time_limit_seconds ? Number(od.time_limit_seconds) : undefined}
-          allowResponseReset={od.allow_response_reset !== false}
-          isPart2
-          prepTimeSeconds={od.prep_time_seconds ? Number(od.prep_time_seconds) : 60}
-          speakingTimeSeconds={od.speaking_time_seconds ? Number(od.speaking_time_seconds) : 120}
-        />
       </div>
     );
   }
@@ -337,6 +295,25 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
 // ─── Helpers ───────────────────────────────────────────────
 
 function parsePart2Content(content: string) {
+  // 1. JSON 파싱 시도
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed && parsed.topic) {
+      const topicText = parsed.topic.replace(/<[^>]*>/g, "").trim();
+      const points: string[] = parsed.points || [];
+      let closing = "";
+      const bullets = [...points];
+      if (bullets.length > 0) {
+        const last = bullets[bullets.length - 1];
+        if (last.toLowerCase().startsWith("and explain") || last.toLowerCase().startsWith("and say")) {
+          closing = bullets.pop()!;
+        }
+      }
+      return { topic: topicText, bullets, closing };
+    }
+  } catch {}
+
+  // 2. 기존 텍스트 파싱 폴백
   const lines = content.split("\n").map((l) => l.trim()).filter(Boolean);
   let topic = "";
   const bullets: string[] = [];
@@ -344,22 +321,10 @@ function parsePart2Content(content: string) {
   let inBullets = false;
 
   for (const line of lines) {
-    if (line.toLowerCase().startsWith("you should say")) {
-      inBullets = true;
-      continue;
-    }
-    if (line.startsWith("-") || line.startsWith("\u2022") || line.startsWith("*")) {
-      bullets.push(line.replace(/^[-\u2022*]\s*/, ""));
-      continue;
-    }
-    if (inBullets && (line.toLowerCase().startsWith("and explain") || line.toLowerCase().startsWith("and say"))) {
-      closing = line;
-      continue;
-    }
-    if (!inBullets && !topic) {
-      topic = line;
-    }
+    if (line.toLowerCase().startsWith("you should say")) { inBullets = true; continue; }
+    if (line.startsWith("-") || line.startsWith("\u2022") || line.startsWith("*")) { bullets.push(line.replace(/^[-\u2022*]\s*/, "")); continue; }
+    if (inBullets && (line.toLowerCase().startsWith("and explain") || line.toLowerCase().startsWith("and say"))) { closing = line; continue; }
+    if (!inBullets && !topic) { topic = line; }
   }
-
   return { topic, bullets, closing };
 }

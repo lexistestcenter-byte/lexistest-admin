@@ -67,6 +67,7 @@ export interface SectionPreviewProps {
   contentBlocks: ContentBlockPreview[];
   questionGroups: QuestionGroupPreview[];
   questions: PreviewQuestion[];
+  instructionAudioUrl?: string;
 }
 
 // ─── Common Renderer Props ──────────────────────────────────────

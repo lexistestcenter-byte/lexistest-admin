@@ -154,11 +154,17 @@ export function SpeakingPart1Editor({
                     <Label className="text-xs text-muted-foreground shrink-0">오디오:</Label>
                     <FileUpload
                       value={sq.audioUrl}
-                      onChange={(v) => updateSubQ(sq.id, { audioUrl: v })}
+                      onChange={() => {}}
                       accept="audio"
                       placeholder="시험관 오디오 (선택)"
                       deferred
-                      onFileReady={(file) => updateSubQ(sq.id, { audioFile: file })}
+                      onFileReady={(file) => {
+                        if (file) {
+                          updateSubQ(sq.id, { audioUrl: URL.createObjectURL(file), audioFile: file });
+                        } else {
+                          updateSubQ(sq.id, { audioUrl: "", audioFile: null });
+                        }
+                      }}
                       compact
                     />
                   </div>

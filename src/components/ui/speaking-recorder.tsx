@@ -284,6 +284,20 @@ export function SpeakingRecorder({
     }, 200);
   }, [prepTimeSeconds]);
 
+  // Auto-start prep countdown for Part 2
+  useEffect(() => {
+    if (isPart2 && part2Phase === "prep" && !prepTimerRef.current) {
+      startPrepCountdown();
+    }
+  }, [isPart2, part2Phase, startPrepCountdown]);
+
+  // Auto-start recording when entering speaking phase (Part 2)
+  useEffect(() => {
+    if (isPart2 && part2Phase === "speaking" && state === "idle") {
+      startRecording();
+    }
+  }, [isPart2, part2Phase, state, startRecording]);
+
   // Cleanup prep timer on unmount
   useEffect(() => {
     return () => {
@@ -323,53 +337,30 @@ export function SpeakingRecorder({
     if (part2Phase === "prep" && state !== "recording" && state !== "recorded") {
       return (
         <div className={cn("space-y-3", className)}>
-          <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-amber-200 rounded-lg bg-amber-50/50">
-            <Timer className="h-8 w-8 text-amber-500 mb-2" />
-            <p className="text-sm font-medium text-amber-700 mb-1">
+          <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-indigo-200 rounded-lg bg-indigo-50/50">
+            <Timer className="h-8 w-8 text-indigo-500 mb-2" />
+            <p className="text-sm font-medium text-indigo-700 mb-1">
               Preparation Time
             </p>
-            {prepTimerRef.current ? (
-              <>
-                <p className="text-3xl font-bold text-amber-600 tabular-nums mb-3">
-                  {formatTimer(prepRemaining)}
-                </p>
-                <p className="text-xs text-amber-600 mb-3">
-                  Read the cue card and prepare your answer
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (prepTimerRef.current)
-                        clearInterval(prepTimerRef.current);
-                      prepTimerRef.current = null;
-                      setPart2Phase("speaking");
-                    }}
-                    className="text-amber-700 border-amber-300 hover:bg-amber-100"
-                  >
-                    Skip &amp; Start Speaking
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="text-2xl font-bold text-amber-600 tabular-nums mb-1">
-                  {formatTimer(prepTimeSeconds)}
-                </p>
-                <p className="text-xs text-gray-500 mb-3">
-                  Press Start to begin {prepTimeSeconds}s preparation
-                </p>
-                <Button
-                  size="sm"
-                  onClick={startPrepCountdown}
-                  className="bg-amber-500 hover:bg-amber-600 text-white"
-                >
-                  <Timer className="mr-2 h-4 w-4" />
-                  Start Preparation
-                </Button>
-              </>
-            )}
+            <p className="text-3xl font-bold text-indigo-600 tabular-nums mb-3">
+              {formatTimer(prepRemaining)}
+            </p>
+            <p className="text-xs text-indigo-600 mb-3">
+              Read the cue card and prepare your answer
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (prepTimerRef.current)
+                  clearInterval(prepTimerRef.current);
+                prepTimerRef.current = null;
+                setPart2Phase("speaking");
+              }}
+              className="text-indigo-700 border-indigo-300 hover:bg-indigo-100"
+            >
+              Skip &amp; Start Speaking
+            </Button>
           </div>
           {state === "error" && errorMessage && (
             <ErrorBanner message={errorMessage} onRetry={resetRecording} />
@@ -393,7 +384,7 @@ export function SpeakingRecorder({
             onStop={stopRecording}
             onReset={resetRecording}
             label="Your turn to speak"
-            accentColor="amber"
+            accentColor="indigo"
           />
         </div>
       );
@@ -496,7 +487,7 @@ function RecordingArea({
   onStop: () => void;
   onReset: () => void;
   label: string;
-  accentColor: "red" | "amber";
+  accentColor: "red" | "indigo";
 }) {
   const isRecording = state === "recording";
   const isRequesting = state === "requesting";
@@ -514,8 +505,8 @@ function RecordingArea({
       className={cn(
         "rounded-lg border-2 overflow-hidden transition-colors",
         isRecording
-          ? accentColor === "amber"
-            ? "border-amber-400 bg-amber-50"
+          ? accentColor === "indigo"
+            ? "border-indigo-400 bg-indigo-50"
             : "border-red-300 bg-red-50"
           : "border-gray-200 bg-gray-50"
       )}
@@ -608,8 +599,8 @@ function RecordingArea({
               disabled={isRequesting}
               className={cn(
                 "gap-2",
-                accentColor === "amber"
-                  ? "bg-amber-500 hover:bg-amber-600"
+                accentColor === "indigo"
+                  ? "bg-indigo-500 hover:bg-indigo-600"
                   : ""
               )}
             >
@@ -683,7 +674,7 @@ function RecordedState({
               variant="outline"
               size="sm"
               onClick={onReRecordRequest}
-              className="flex-1 gap-2 text-amber-700 border-amber-300 hover:bg-amber-50"
+              className="flex-1 gap-2 text-indigo-700 border-indigo-300 hover:bg-indigo-50"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               Re-record
@@ -709,11 +700,11 @@ function RecordedState({
 
         {/* Re-record confirmation */}
         {showReRecordConfirm && (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
-            <p className="text-sm text-amber-800 font-medium">
+          <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg space-y-2">
+            <p className="text-sm text-indigo-800 font-medium">
               Re-record this answer?
             </p>
-            <p className="text-xs text-amber-700">
+            <p className="text-xs text-indigo-700">
               Your current recording will be permanently replaced.
             </p>
             <div className="flex items-center gap-2">

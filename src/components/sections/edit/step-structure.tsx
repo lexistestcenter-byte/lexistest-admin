@@ -126,7 +126,7 @@ export function StepStructure({
                       </CardDescription>
                     </div>
                   </div>
-                  <Button size="sm" onClick={handleOpenNewBlockModal}>
+                  <Button size="sm" onClick={sectionType === "speaking" ? _handleAddContentBlock : handleOpenNewBlockModal}>
                     <Plus className="mr-1 h-4 w-4" />
                     {sectionType === "reading" ? "지문 추가" : "오디오 추가"}
                   </Button>
@@ -140,7 +140,9 @@ export function StepStructure({
                         key={block.id}
                         block={block}
                         index={idx}
+                        sectionId={sectionId}
                         onEdit={handleEditBlock}
+                        onUpdate={handleUpdateContentBlockLocal}
                         onRemove={handleRemoveContentBlock}
                       />
                     ))}

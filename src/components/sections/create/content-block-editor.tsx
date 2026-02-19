@@ -63,25 +63,45 @@ export function ContentBlockEditor({
 
       {!isCollapsed && (
         <div className="p-4 space-y-3">
+          {/* Audio title (listening/speaking) */}
+          {isAudio && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">오디오 제목</Label>
+              <Input
+                placeholder="예: Section 1 Audio, Task 2 Audio..."
+                value={block.passage_title}
+                onChange={(e) =>
+                  onUpdate(block.id, {
+                    passage_title: e.target.value,
+                  })
+                }
+              />
+            </div>
+          )}
+
           {/* Audio upload (listening/speaking) */}
           {isAudio && (
             <div className="space-y-1.5">
               <Label className="text-xs">오디오 파일</Label>
               <FileUpload
                 value={block.audio_url}
-                onChange={(url) =>
-                  onUpdate(block.id, {
-                    audio_url: url,
-                  })
-                }
+                onChange={() => {}}
                 accept="audio"
                 placeholder="오디오 파일 업로드"
                 deferred
-                onFileReady={(file) =>
-                  onUpdate(block.id, {
-                    audioFile: file,
-                  })
-                }
+                onFileReady={(file) => {
+                  if (file) {
+                    onUpdate(block.id, {
+                      audio_url: URL.createObjectURL(file),
+                      audioFile: file,
+                    });
+                  } else {
+                    onUpdate(block.id, {
+                      audio_url: "",
+                      audioFile: null,
+                    });
+                  }
+                }}
               />
             </div>
           )}

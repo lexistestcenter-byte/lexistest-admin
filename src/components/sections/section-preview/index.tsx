@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { X, Clock, Loader2, Mic, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
+import { getCdnUrl } from "@/lib/cdn";
 
 import type { SectionPreviewProps } from "./types";
 import { isHeadingMatchingQuestion } from "./types";
@@ -35,6 +36,7 @@ export function SectionPreview({
   contentBlocks,
   questionGroups,
   questions,
+  instructionAudioUrl,
 }: SectionPreviewProps) {
   const state = usePreviewState({
     open,
@@ -138,6 +140,11 @@ export function SectionPreview({
                     className="prose prose-sm max-w-none [&_p]:my-2 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
                     dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(instructionHtml) }}
                   />
+                )}
+                {instructionAudioUrl && (
+                  <div className="flex justify-center">
+                    <audio autoPlay controls src={getCdnUrl(instructionAudioUrl)} className="w-full max-w-md h-10" />
+                  </div>
                 )}
                 {isSpeaking && <MicTestSection />}
                 <div className="flex justify-center pt-4">
@@ -308,23 +315,40 @@ function SpeakingCueCardPanel({ question }: { question: { content?: string; opti
   const od = question.options_data || {};
   const content = String(question.content || "");
 
-  const lines = content.split("\n").map((l) => l.trim()).filter(Boolean);
+  // JSON 파싱 시도 → 폴백: 텍스트 파싱
   let topic = "";
   const bullets: string[] = [];
   let closing = "";
-  let inBullets = false;
-  for (const line of lines) {
-    if (line.toLowerCase().startsWith("you should say")) { inBullets = true; continue; }
-    if (line.startsWith("-") || line.startsWith("\u2022") || line.startsWith("*")) { bullets.push(line.replace(/^[-\u2022*]\s*/, "")); continue; }
-    if (inBullets && (line.toLowerCase().startsWith("and explain") || line.toLowerCase().startsWith("and say"))) { closing = line; continue; }
-    if (!inBullets && !topic) { topic = line; }
+
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed && parsed.topic) {
+      topic = parsed.topic.replace(/<[^>]*>/g, "").trim();
+      const points: string[] = parsed.points || [];
+      bullets.push(...points);
+      if (bullets.length > 0) {
+        const last = bullets[bullets.length - 1];
+        if (last.toLowerCase().startsWith("and explain") || last.toLowerCase().startsWith("and say")) {
+          closing = bullets.pop()!;
+        }
+      }
+    }
+  } catch {
+    const lines = content.split("\n").map((l) => l.trim()).filter(Boolean);
+    let inBullets = false;
+    for (const line of lines) {
+      if (line.toLowerCase().startsWith("you should say")) { inBullets = true; continue; }
+      if (line.startsWith("-") || line.startsWith("\u2022") || line.startsWith("*")) { bullets.push(line.replace(/^[-\u2022*]\s*/, "")); continue; }
+      if (inBullets && (line.toLowerCase().startsWith("and explain") || line.toLowerCase().startsWith("and say"))) { closing = line; continue; }
+      if (!inBullets && !topic) { topic = line; }
+    }
   }
 
   return (
     <div className="p-4">
-      <div className="border-2 border-amber-300 rounded-lg overflow-hidden bg-amber-50/30">
-        <div className="px-4 py-2.5 bg-amber-100 border-b border-amber-200">
-          <span className="text-xs font-semibold text-amber-700">Cue Card</span>
+      <div className="border-2 border-indigo-200 rounded-lg overflow-hidden bg-indigo-50/30">
+        <div className="px-4 py-2.5 bg-indigo-100 border-b border-indigo-200">
+          <span className="text-xs font-semibold text-indigo-700">Cue Card</span>
         </div>
         <div className="p-6 space-y-4">
           <p className="text-base font-semibold text-gray-900 leading-relaxed">{topic || content}</p>
@@ -338,8 +362,8 @@ function SpeakingCueCardPanel({ question }: { question: { content?: string; opti
           )}
           {closing && <p className="text-sm text-gray-700 font-medium italic">{closing}</p>}
         </div>
-        <div className="px-4 py-2 bg-amber-50 border-t border-amber-200 text-xs text-amber-700">
-          준비: {String(od.prep_time_seconds || 60)}초 | 발표: {String(od.speaking_time_seconds || 120)}초
+        <div className="px-4 py-2 bg-indigo-50 border-t border-indigo-200 text-xs text-indigo-700">
+          Prep: {String(od.prep_time_seconds || 60)}s | Speaking: {String(od.speaking_time_seconds || 120)}s
         </div>
       </div>
     </div>
