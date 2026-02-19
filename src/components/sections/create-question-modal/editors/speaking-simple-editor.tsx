@@ -130,7 +130,10 @@ export function ModalSpeakingSimpleEditor({
                     Q{idx + 1}
                   </span>
                   <Input
-                    className="flex-1 h-7 text-sm bg-transparent border-0 border-b border-dashed focus-visible:ring-0 focus-visible:border-solid px-1"
+                    className={cn(
+                      "flex-1 h-7 text-sm bg-white border border-gray-200 rounded px-2",
+                      isPart1 ? "focus-visible:ring-1 focus-visible:ring-emerald-300 focus-visible:border-emerald-300" : "focus-visible:ring-1 focus-visible:ring-violet-300 focus-visible:border-violet-300"
+                    )}
                     value={sq.text.replace(/<[^>]*>/g, "")}
                     onChange={(e) => updateSubQuestion(sq.id, { text: e.target.value })}
                     placeholder={isPart3
