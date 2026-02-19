@@ -56,6 +56,7 @@ export interface TabState {
   savedQuestionId: string | null;
   // Common
   instructions: string;
+  subInstructions: string;
   isPractice: boolean;
   separateNumbers: boolean;
   // MCQ
@@ -143,6 +144,7 @@ export function createEmptyTab(): TabState {
     saved: false,
     savedQuestionId: null,
     instructions: "",
+    subInstructions: "",
     isPractice: false,
     separateNumbers: true,
     mcqQuestion: "",

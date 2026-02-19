@@ -23,7 +23,6 @@ export function MatchingEditor({
   allowDuplicate, setAllowDuplicate,
   options, addOption, removeOption, updateOption, updateOptionLabel,
   items, setItems,
-  addItem, updateItem, removeItem,
 }: {
   title: string; setTitle: (v: string) => void;
   content: string; setContent: (v: string) => void;
@@ -34,9 +33,6 @@ export function MatchingEditor({
   updateOption: (id: string, text: string) => void;
   updateOptionLabel: (id: string, label: string) => void;
   items: MatchingItem[]; setItems: (v: MatchingItem[]) => void;
-  addItem: () => void;
-  updateItem: (id: string, field: keyof MatchingItem, value: unknown) => void;
-  removeItem: (id: string) => void;
 }) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const itemsRef = useRef(items);
@@ -168,21 +164,46 @@ export function MatchingEditor({
           </Button>
         </div>
         <div className="border rounded-lg divide-y">
-          {options.map((option) => (
-            <div key={option.id} className="flex items-center gap-2 px-3 py-2">
-              <Input
-                className="w-10 h-8 text-center text-xs font-bold shrink-0 px-0"
-                value={option.label}
-                onChange={(e) => updateOptionLabel(option.id, e.target.value.slice(0, 4))}
-              />
-              <Input className="flex-1 h-8 text-sm" value={option.text} onChange={(e) => updateOption(option.id, e.target.value)} placeholder={`제목 ${option.label} 입력`} />
-              {options.length > 2 && (
-                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeOption(option.id)}>
-                  <X className="h-3.5 w-3.5 text-destructive" />
-                </Button>
-              )}
-            </div>
-          ))}
+          {options.map((option) => {
+            const assignedSection = items.find(i => i.correctLabel === option.label)?.number ?? null;
+            return (
+              <div key={option.id} className="flex items-center gap-2 px-3 py-2">
+                <Input
+                  className="w-10 h-8 text-center text-xs font-bold shrink-0 px-0"
+                  value={option.label}
+                  onChange={(e) => updateOptionLabel(option.id, e.target.value.slice(0, 4))}
+                />
+                <Input className="flex-1 h-8 text-sm" value={option.text} onChange={(e) => updateOption(option.id, e.target.value)} placeholder={`제목 ${option.label} 입력`} />
+                <Select
+                  value={assignedSection !== null ? String(assignedSection) : "__wrong__"}
+                  onValueChange={(v) => {
+                    let newItems = items.filter(i => i.correctLabel !== option.label);
+                    if (v !== "__wrong__") {
+                      const num = parseInt(v);
+                      newItems = newItems.filter(i => i.number !== num);
+                      newItems.push({ id: `m${Date.now()}`, number: num, statement: "", correctLabel: option.label });
+                    }
+                    setItems(newItems);
+                  }}
+                >
+                  <SelectTrigger className="w-28 h-8 text-xs shrink-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__wrong__">오답</SelectItem>
+                    {sectionNums.map((n) => (
+                      <SelectItem key={n} value={String(n)}>섹션 [{n}]</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {options.length > 2 && (
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeOption(option.id)}>
+                    <X className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <div className="flex items-center gap-3 pt-2 border-t">
@@ -191,50 +212,6 @@ export function MatchingEditor({
         </div>
       </div>
 
-      {/* ── 문항 (Items) ── */}
-      <div className="border rounded-lg p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <Label>문항 <span className="text-red-500">*</span></Label>
-            <p className="text-xs text-muted-foreground mt-0.5">각 문항의 내용과 정답 라벨을 지정하세요.</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={addItem}>
-            <Plus className="h-4 w-4 mr-1" />
-            문항 추가
-          </Button>
-        </div>
-        <div className="border rounded-lg divide-y">
-          {items.map((item) => (
-            <div key={item.id} className="flex items-center gap-2 px-3 py-2">
-              <span className="w-5 text-right font-bold text-muted-foreground shrink-0">{item.number}</span>
-              <Input
-                className="flex-1 h-8 text-sm"
-                value={item.statement}
-                onChange={(e) => updateItem(item.id, "statement", e.target.value)}
-                placeholder="문항 내용"
-              />
-              <Select
-                value={item.correctLabel}
-                onValueChange={(v) => updateItem(item.id, "correctLabel", v)}
-              >
-                <SelectTrigger className="w-20 h-8 text-xs shrink-0">
-                  <SelectValue placeholder="정답" />
-                </SelectTrigger>
-                <SelectContent>
-                  {options.map((o) => (
-                    <SelectItem key={o.label} value={o.label}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {items.length > 1 && (
-                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeItem(item.id)}>
-                  <X className="h-3.5 w-3.5 text-destructive" />
-                </Button>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

@@ -7,6 +7,7 @@ export interface QuestionPreviewData {
   content: string;
   title?: string;
   instructions?: string;
+  subInstructions?: string;
   audioUrl?: string;
 
   // options_data (normalized)
@@ -67,6 +68,7 @@ export interface QuestionTabLike {
   mapLabelingItems: { id: string; number: number; statement: string; correctLabel: string }[];
   // Common
   instructions: string;
+  subInstructions?: string;
 }
 
 export function tabToPreviewData(
@@ -153,6 +155,7 @@ export function tabToPreviewData(
     content,
     title: tab.contentTitle || tab.writingTitle || tab.flowchartTitle || tab.mapLabelingTitle || undefined,
     instructions: tab.instructions || undefined,
+    subInstructions: tab.subInstructions || undefined,
     audioUrl: tab.audioUrl || undefined,
     options_data,
     relatedPart2Id: tab.relatedPart2Id || undefined,
@@ -171,6 +174,7 @@ export interface ApiQuestionData {
   content: string;
   title: string | null;
   instructions: string | null;
+  sub_instructions: string | null;
   options_data: Record<string, unknown> | null;
   answer_data: Record<string, unknown> | null;
   image_url?: string | null;
@@ -190,6 +194,7 @@ export function apiToPreviewData(q: ApiQuestionData): QuestionPreviewData {
     content: q.content || "",
     title: q.title || undefined,
     instructions: q.instructions || undefined,
+    subInstructions: q.sub_instructions || undefined,
     audioUrl: q.audio_url || undefined,
     options_data: q.options_data || {},
     relatedPart2Id: q.related_part2_id || undefined,

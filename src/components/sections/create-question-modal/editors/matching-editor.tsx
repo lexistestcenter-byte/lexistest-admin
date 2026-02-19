@@ -19,15 +19,21 @@ interface ModalMatchingEditorProps {
   updateTab: (updates: Partial<TabState>) => void;
   addMatchingOption: () => void;
   removeMatchingOption: (id: string) => void;
-  addMatchingItem: () => void;
-  removeMatchingItem: (id: string) => void;
 }
 
 export function ModalMatchingEditor({
   tab, updateTab,
   addMatchingOption, removeMatchingOption,
-  addMatchingItem, removeMatchingItem,
 }: ModalMatchingEditorProps) {
+  // 지문에서 [N] 섹션 번호 파싱
+  const sectionNums = (() => {
+    const text = tab.matchingContent.replace(/<[^>]*>/g, "");
+    const nums: number[] = [];
+    const re = /\[(\d+)\]/g;
+    let m;
+    while ((m = re.exec(text)) !== null) nums.push(parseInt(m[1]));
+    return [...new Set(nums)].sort((a, b) => a - b);
+  })();
   return (
     <div className="space-y-6">
       {/* 지문 입력 */}
@@ -58,78 +64,61 @@ export function ModalMatchingEditor({
           </Button>
         </div>
         <div className="border rounded-lg divide-y">
-          {tab.matchingOptions.map((opt) => (
-            <div key={opt.id} className="flex items-center gap-2 px-3 py-2">
-              <Input
-                className="w-10 h-8 text-center text-xs font-bold shrink-0 px-0"
-                value={opt.label}
-                onChange={(e) => {
-                  const newLabel = e.target.value.slice(0, 4);
-                  const oldLabel = opt.label;
-                  updateTab({
-                    matchingOptions: tab.matchingOptions.map((o) => (o.id === opt.id ? { ...o, label: newLabel } : o)),
-                    ...(oldLabel !== newLabel ? { matchingItems: tab.matchingItems.map((i) => (i.correctLabel === oldLabel ? { ...i, correctLabel: newLabel } : i)) } : {}),
-                  });
-                }}
-                disabled={tab.saved}
-              />
-              <Input
-                className="flex-1 h-8 text-sm"
-                value={opt.text}
-                onChange={(e) => updateTab({ matchingOptions: tab.matchingOptions.map((o) => (o.id === opt.id ? { ...o, text: e.target.value } : o)) })}
-                placeholder={`제목 ${opt.label} 입력`}
-                disabled={tab.saved}
-              />
-              {tab.matchingOptions.length > 2 && !tab.saved && (
-                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeMatchingOption(opt.id)}>
-                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                </Button>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* 문항 (섹션-제목 매핑) */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label>문항 <span className="text-red-500">*</span></Label>
-            <Button variant="outline" size="sm" onClick={addMatchingItem} disabled={tab.saved}>
-              <Plus className="h-4 w-4 mr-1" /> 문항 추가
-            </Button>
-          </div>
-          <div className="border rounded-lg divide-y">
-            {tab.matchingItems.map((item) => (
-              <div key={item.id} className="flex items-center gap-2 px-3 py-2">
-                <span className="w-5 text-right font-bold text-muted-foreground shrink-0">{item.number}</span>
+          {tab.matchingOptions.map((opt) => {
+            const assignedSection = tab.matchingItems.find(i => i.correctLabel === opt.label)?.number ?? null;
+            return (
+              <div key={opt.id} className="flex items-center gap-2 px-3 py-2">
+                <Input
+                  className="w-10 h-8 text-center text-xs font-bold shrink-0 px-0"
+                  value={opt.label}
+                  onChange={(e) => {
+                    const newLabel = e.target.value.slice(0, 4);
+                    const oldLabel = opt.label;
+                    updateTab({
+                      matchingOptions: tab.matchingOptions.map((o) => (o.id === opt.id ? { ...o, label: newLabel } : o)),
+                      ...(oldLabel !== newLabel ? { matchingItems: tab.matchingItems.map((i) => (i.correctLabel === oldLabel ? { ...i, correctLabel: newLabel } : i)) } : {}),
+                    });
+                  }}
+                  disabled={tab.saved}
+                />
                 <Input
                   className="flex-1 h-8 text-sm"
-                  value={item.statement}
-                  onChange={(e) => updateTab({ matchingItems: tab.matchingItems.map((i) => (i.id === item.id ? { ...i, statement: e.target.value } : i)) })}
-                  placeholder="문항 내용"
+                  value={opt.text}
+                  onChange={(e) => updateTab({ matchingOptions: tab.matchingOptions.map((o) => (o.id === opt.id ? { ...o, text: e.target.value } : o)) })}
+                  placeholder={`제목 ${opt.label} 입력`}
                   disabled={tab.saved}
                 />
                 <Select
-                  value={item.correctLabel}
-                  onValueChange={(v) => updateTab({ matchingItems: tab.matchingItems.map((i) => (i.id === item.id ? { ...i, correctLabel: v } : i)) })}
+                  value={assignedSection !== null ? String(assignedSection) : "__wrong__"}
+                  onValueChange={(v) => {
+                    let newItems = tab.matchingItems.filter(i => i.correctLabel !== opt.label);
+                    if (v !== "__wrong__") {
+                      const num = parseInt(v);
+                      newItems = newItems.filter(i => i.number !== num);
+                      newItems.push({ id: `m${Date.now()}`, number: num, statement: "", correctLabel: opt.label });
+                    }
+                    updateTab({ matchingItems: newItems });
+                  }}
                   disabled={tab.saved}
                 >
-                  <SelectTrigger className="w-20 h-8 text-xs shrink-0">
-                    <SelectValue placeholder="정답" />
+                  <SelectTrigger className="w-28 h-8 text-xs shrink-0">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {tab.matchingOptions.map((o) => (
-                      <SelectItem key={o.label} value={o.label}>{o.label}</SelectItem>
+                    <SelectItem value="__wrong__">오답</SelectItem>
+                    {sectionNums.map((n) => (
+                      <SelectItem key={n} value={String(n)}>섹션 [{n}]</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {tab.matchingItems.length > 1 && !tab.saved && (
-                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeMatchingItem(item.id)}>
+                {tab.matchingOptions.length > 2 && !tab.saved && (
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeMatchingOption(opt.id)}>
                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
                   </Button>
                 )}
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
 
       </div>

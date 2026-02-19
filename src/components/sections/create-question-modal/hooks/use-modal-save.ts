@@ -215,6 +215,7 @@ export function useModalSave(
       content,
       title,
       instructions: (tab.selectedFormat !== "mcq" && tab.selectedFormat !== "true_false_ng") ? tab.instructions || undefined : undefined,
+      sub_instructions: (tab.selectedFormat !== "mcq" && tab.selectedFormat !== "true_false_ng" && tab.selectedFormat !== "flowchart" && tab.selectedFormat !== "essay") ? tab.subInstructions || undefined : undefined,
       options_data: Object.keys(optionsData).length > 0 ? optionsData : undefined,
       answer_data: Object.keys(answerData).length > 0 ? answerData : undefined,
       is_practice: tab.isPractice,

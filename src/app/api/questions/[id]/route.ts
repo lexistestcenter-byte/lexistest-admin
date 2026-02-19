@@ -182,7 +182,7 @@ export async function PUT(
     }
 
     // SQL Injection 패턴 검사
-    const textFields = ["content", "title", "instructions"];
+    const textFields = ["content", "title", "instructions", "sub_instructions"];
     for (const field of textFields) {
       if (body[field] && containsSqlInjection(body[field])) {
         errors.push(`${field} 필드에 허용되지 않은 패턴이 포함되어 있습니다`);
@@ -200,6 +200,7 @@ export async function PUT(
     const sanitizedContent = body.content ? sanitizeHtml(body.content) : null;
     const sanitizedTitle = body.title !== undefined ? sanitizeText(body.title) : null;
     const sanitizedInstructions = body.instructions !== undefined ? sanitizeHtml(body.instructions) : null;
+    const sanitizedSubInstructions = body.sub_instructions !== undefined ? sanitizeHtml(body.sub_instructions) : null;
     const sanitizedImageUrl = body.image_url !== undefined ? sanitizeText(body.image_url) : null;
     const sanitizedAudioUrl = body.audio_url !== undefined ? sanitizeText(body.audio_url) : null;
     const sanitizedAudioTranscript = body.audio_transcript !== undefined ? sanitizeHtml(body.audio_transcript) : null;
@@ -215,6 +216,7 @@ export async function PUT(
       p_content: sanitizedContent,
       p_title: sanitizedTitle,
       p_instructions: sanitizedInstructions,
+      p_sub_instructions: sanitizedSubInstructions,
       p_image_url: sanitizedImageUrl,
       p_options_data: sanitizedOptionsData,
       p_answer_data: sanitizedAnswerData,

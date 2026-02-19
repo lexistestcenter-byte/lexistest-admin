@@ -215,9 +215,6 @@ export default function NewQuestionPage() {
                 updateOptionLabel={updateMatchingOptionLabel}
                 items={currentTab.matchingItems}
                 setItems={(v) => updateCurrentTab("matchingItems", v)}
-                addItem={addMatchingItem}
-                updateItem={updateMatchingItem}
-                removeItem={removeMatchingItem}
               />
             )}
 

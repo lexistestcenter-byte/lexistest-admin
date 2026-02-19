@@ -10,6 +10,7 @@ export interface PreviewQuestion {
   content: string;
   title: string | null;
   instructions: string | null;
+  sub_instructions: string | null;
   options_data: Record<string, unknown> | null;
   item_count: number;
   image_url?: string | null;

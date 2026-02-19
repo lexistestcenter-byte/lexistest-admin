@@ -28,6 +28,7 @@ export function QuestionRouter({
   const fmt = item.question.question_format;
   const titleText = item.question.title || "";
   const instructionsText = item.question.instructions || "";
+  const subInstructionsText = item.question.sub_instructions || "";
   const numPrefix =
     item.startNum === item.endNum
       ? `${item.startNum}`
@@ -76,6 +77,11 @@ export function QuestionRouter({
       {instructionsText && (
         <div className="text-sm text-gray-600 leading-relaxed italic">
           {renderBlockHtml(instructionsText)}
+        </div>
+      )}
+      {subInstructionsText && (
+        <div className="text-sm text-amber-800 leading-relaxed mt-1">
+          {renderBlockHtml(subInstructionsText)}
         </div>
       )}
       {content}

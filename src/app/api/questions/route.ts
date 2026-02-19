@@ -186,6 +186,7 @@ export async function POST(request: NextRequest) {
       p_content: sanitizedBody.content,
       p_title: sanitizedBody.title,
       p_instructions: sanitizedBody.instructions,
+      p_sub_instructions: sanitizedBody.sub_instructions,
       p_image_url: sanitizedBody.image_url,
       p_options_data: sanitizedBody.options_data,
       p_answer_data: sanitizedBody.answer_data,

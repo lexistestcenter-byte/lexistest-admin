@@ -210,7 +210,7 @@ export function validateQuestionInput(body: Record<string, unknown>): Validation
   }
 
   // SQL Injection 패턴 검사 (텍스트 필드만)
-  const textFields = ["content", "title", "instructions"];
+  const textFields = ["content", "title", "instructions", "sub_instructions"];
   for (const field of textFields) {
     if (body[field] && containsSqlInjection(body[field] as string)) {
       errors.push(`${field} 필드에 허용되지 않은 패턴이 포함되어 있습니다`);
@@ -230,6 +230,7 @@ export function sanitizeQuestionInput(body: Record<string, unknown>): Record<str
     content: body.content ? sanitizeHtml(body.content as string) : null,
     title: body.title ? sanitizeText(body.title as string) : null,
     instructions: body.instructions ? sanitizeHtml(body.instructions as string) : null,
+    sub_instructions: body.sub_instructions ? sanitizeHtml(body.sub_instructions as string) : null,
     image_url: body.image_url ? sanitizeText(body.image_url as string) : null,
     audio_url: body.audio_url ? sanitizeText(body.audio_url as string) : null,
     audio_transcript: body.audio_transcript ? sanitizeHtml(body.audio_transcript as string) : null,
