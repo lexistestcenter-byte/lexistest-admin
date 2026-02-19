@@ -211,13 +211,26 @@ export function useEditQuestionForm() {
       toast.error("최소 2개의 보기가 필요합니다.");
       return;
     }
+    const removed = matchingOptions.find(o => o.id === id);
     const newOptions = matchingOptions.filter(o => o.id !== id);
-    const labels = "ABCDEFGHIJ";
-    setMatchingOptions(newOptions.map((o, i) => ({ ...o, label: labels[i] || `O${i + 1}` })));
+    setMatchingOptions(newOptions);
+    if (removed) {
+      setMatchingItems(matchingItems.map(i => i.correctLabel === removed.label ? { ...i, correctLabel: "" } : i));
+    }
   };
 
   const updateMatchingOption = (id: string, text: string) => {
     setMatchingOptions(matchingOptions.map(o => o.id === id ? { ...o, text } : o));
+  };
+
+  const updateMatchingOptionLabel = (id: string, newLabel: string) => {
+    const option = matchingOptions.find(o => o.id === id);
+    if (!option) return;
+    const oldLabel = option.label;
+    setMatchingOptions(matchingOptions.map(o => o.id === id ? { ...o, label: newLabel } : o));
+    if (oldLabel !== newLabel) {
+      setMatchingItems(matchingItems.map(i => i.correctLabel === oldLabel ? { ...i, correctLabel: newLabel } : i));
+    }
   };
 
   const addMatchingItem = () => {
@@ -302,7 +315,7 @@ export function useEditQuestionForm() {
     addBlank, updateBlank, removeBlank,
     addWord, updateWord, removeWord,
     addMcqOption, removeMcqOption, updateMcqOption, toggleMcqCorrect, toggleMcqMode,
-    addMatchingOption, removeMatchingOption, updateMatchingOption,
+    addMatchingOption, removeMatchingOption, updateMatchingOption, updateMatchingOptionLabel,
     addMatchingItem, updateMatchingItem, removeMatchingItem,
     addFlowchartNode,
   };

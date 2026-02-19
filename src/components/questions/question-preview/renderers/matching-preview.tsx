@@ -30,10 +30,10 @@ export function MatchingPreview({ data }: { data: QuestionPreviewData }) {
     });
   };
 
-  const usedOptions = new Set(Object.values(assignments));
+  const usedLabels = new Set(Object.values(assignments));
   const availableOptions = allowDuplicate
     ? options
-    : options.filter((opt) => !usedOptions.has(opt.text || ""));
+    : options.filter((opt) => !usedLabels.has(opt.label || ""));
 
   const renderContentWithSlots = () => {
     const html = stripBlockTags(sanitizeHtmlForDisplay(data.content || ""));
@@ -42,13 +42,14 @@ export function MatchingPreview({ data }: { data: QuestionPreviewData }) {
       const slotMatch = part.match(/^\[(\d+)\]$/);
       if (slotMatch) {
         const num = parseInt(slotMatch[1]);
-        const placed = assignments[num];
+        const placedLabel = assignments[num];
+        const placedOpt = placedLabel ? options.find((o) => (o.label || "") === placedLabel) : null;
         return (
           <div
             key={index}
             className={cn(
               "inline-block border-2 rounded px-4 py-1 mx-1 my-1 min-w-[120px] text-center transition-colors",
-              placed
+              placedLabel
                 ? "bg-green-50 border-green-400 text-green-800 cursor-pointer"
                 : draggedOption
                   ? "border-dashed border-primary bg-primary/5"
@@ -56,10 +57,10 @@ export function MatchingPreview({ data }: { data: QuestionPreviewData }) {
             )}
             onDragOver={(e) => e.preventDefault()}
             onDrop={() => handleDrop(num)}
-            onDoubleClick={() => placed && clearSlot(num)}
-            title={placed ? "더블클릭하여 제거" : ""}
+            onDoubleClick={() => placedLabel && clearSlot(num)}
+            title={placedLabel ? "더블클릭하여 제거" : ""}
           >
-            {placed || num}
+            {placedOpt ? <><span className="font-bold mr-1">{placedOpt.label}</span>{placedOpt.text}</> : num}
           </div>
         );
       }
@@ -86,11 +87,11 @@ export function MatchingPreview({ data }: { data: QuestionPreviewData }) {
             <div
               key={option.id || idx}
               draggable
-              onDragStart={() => setDraggedOption(option.text || "")}
+              onDragStart={() => setDraggedOption(option.label || String.fromCharCode(65 + idx))}
               onDragEnd={() => setDraggedOption(null)}
               className={cn(
                 "px-4 py-2.5 bg-slate-50 rounded-lg border cursor-grab hover:bg-slate-100 select-none transition-opacity",
-                draggedOption === (option.text || "") ? "opacity-50 scale-95" : ""
+                draggedOption === (option.label || String.fromCharCode(65 + idx)) ? "opacity-50 scale-95" : ""
               )}
             >
               <span className="font-semibold mr-2">{option.label || String.fromCharCode(65 + idx)}.</span>

@@ -189,8 +189,12 @@ export default function EditQuestionPage({
                 addOption={form.addMatchingOption}
                 removeOption={form.removeMatchingOption}
                 updateOption={form.updateMatchingOption}
+                updateOptionLabel={form.updateMatchingOptionLabel}
                 items={form.matchingItems}
                 setItems={form.setMatchingItems}
+                addItem={form.addMatchingItem}
+                updateItem={form.updateMatchingItem}
+                removeItem={form.removeMatchingItem}
               />
             )}
 

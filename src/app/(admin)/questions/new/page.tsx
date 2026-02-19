@@ -41,7 +41,8 @@ export default function NewQuestionPage() {
     currentTab, updateCurrentTab,
     addTab, removeTab, resetCurrentTabFormat,
     addMcqOption, removeMcqOption, updateMcqOption, toggleMcqCorrect, toggleMcqMode,
-    addMatchingOption, removeMatchingOption, updateMatchingOption,
+    addMatchingOption, removeMatchingOption, updateMatchingOption, updateMatchingOptionLabel,
+    addMatchingItem, updateMatchingItem, removeMatchingItem,
     addFlowchartNode,
     addWord, updateWord, removeWord,
   } = form;
@@ -211,8 +212,12 @@ export default function NewQuestionPage() {
                 addOption={addMatchingOption}
                 removeOption={removeMatchingOption}
                 updateOption={updateMatchingOption}
+                updateOptionLabel={updateMatchingOptionLabel}
                 items={currentTab.matchingItems}
                 setItems={(v) => updateCurrentTab("matchingItems", v)}
+                addItem={addMatchingItem}
+                updateItem={updateMatchingItem}
+                removeItem={removeMatchingItem}
               />
             )}
 

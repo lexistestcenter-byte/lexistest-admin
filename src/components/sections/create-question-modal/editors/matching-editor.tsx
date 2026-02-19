@@ -33,11 +33,11 @@ export function ModalMatchingEditor({
       {/* 지문 입력 */}
       <div className="border rounded-lg p-4 space-y-4">
         <div className="space-y-2">
-          <Label>문제 제목</Label>
+          <Label>지문 제목</Label>
           <Input value={tab.matchingTitle} onChange={(e) => updateTab({ matchingTitle: e.target.value })} placeholder="예: The Physics of Traffic Behavior" className="text-lg font-medium" disabled={tab.saved} />
         </div>
         <div className="space-y-2">
-          <Label>문제 내용 <span className="text-red-500">*</span></Label>
+          <Label>지문 내용 <span className="text-red-500">*</span></Label>
           <p className="text-xs text-muted-foreground">
             섹션 시작 위치에 <code className="bg-slate-100 px-1 rounded">[번호]</code> 형식으로 마커를 입력하세요.
           </p>
@@ -60,9 +60,19 @@ export function ModalMatchingEditor({
         <div className="border rounded-lg divide-y">
           {tab.matchingOptions.map((opt) => (
             <div key={opt.id} className="flex items-center gap-2 px-3 py-2">
-              <span className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0">
-                {opt.label}
-              </span>
+              <Input
+                className="w-10 h-8 text-center text-xs font-bold shrink-0 px-0"
+                value={opt.label}
+                onChange={(e) => {
+                  const newLabel = e.target.value.slice(0, 4);
+                  const oldLabel = opt.label;
+                  updateTab({
+                    matchingOptions: tab.matchingOptions.map((o) => (o.id === opt.id ? { ...o, label: newLabel } : o)),
+                    ...(oldLabel !== newLabel ? { matchingItems: tab.matchingItems.map((i) => (i.correctLabel === oldLabel ? { ...i, correctLabel: newLabel } : i)) } : {}),
+                  });
+                }}
+                disabled={tab.saved}
+              />
               <Input
                 className="flex-1 h-8 text-sm"
                 value={opt.text}

@@ -128,13 +128,26 @@ export function useQuestionForm() {
       toast.error("최소 2개의 보기가 필요합니다.");
       return;
     }
+    const removed = options.find(o => o.id === id);
     const newOptions = options.filter(o => o.id !== id);
-    const labels = "ABCDEFGHIJ";
-    updateCurrentTab("matchingOptions", newOptions.map((o, i) => ({ ...o, label: labels[i] || `O${i + 1}` })));
+    updateCurrentTab("matchingOptions", newOptions);
+    if (removed) {
+      updateCurrentTab("matchingItems", currentTab.matchingItems.map(i => i.correctLabel === removed.label ? { ...i, correctLabel: "" } : i));
+    }
   };
 
   const updateMatchingOption = (id: string, text: string) => {
     updateCurrentTab("matchingOptions", currentTab.matchingOptions.map(o => o.id === id ? { ...o, text } : o));
+  };
+
+  const updateMatchingOptionLabel = (id: string, newLabel: string) => {
+    const option = currentTab.matchingOptions.find(o => o.id === id);
+    if (!option) return;
+    const oldLabel = option.label;
+    updateCurrentTab("matchingOptions", currentTab.matchingOptions.map(o => o.id === id ? { ...o, label: newLabel } : o));
+    if (oldLabel !== newLabel) {
+      updateCurrentTab("matchingItems", currentTab.matchingItems.map(i => i.correctLabel === oldLabel ? { ...i, correctLabel: newLabel } : i));
+    }
   };
 
   const addMatchingItem = () => {
@@ -246,6 +259,7 @@ export function useQuestionForm() {
     addMatchingOption,
     removeMatchingOption,
     updateMatchingOption,
+    updateMatchingOptionLabel,
     addMatchingItem,
     updateMatchingItem,
     removeMatchingItem,
