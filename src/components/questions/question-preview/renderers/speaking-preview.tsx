@@ -1,25 +1,11 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Mic } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
 import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
+import { SpeakingRecorder } from "@/components/ui/speaking-recorder";
 import { od, getStr, getArr } from "../helpers";
 import type { QuestionPreviewData } from "../types";
-
-function RecordingArea() {
-  return (
-    <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
-      <Mic className="h-8 w-8 text-gray-300 mb-2" />
-      <p className="text-sm text-gray-400 mb-2">녹음 영역 (미리보기)</p>
-      <Button variant="outline" size="sm" disabled>
-        <Mic className="mr-2 h-4 w-4" />
-        Start Recording
-      </Button>
-    </div>
-  );
-}
 
 export function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
   const fmt = data.question_format;
@@ -45,7 +31,11 @@ export function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
                   {sq.time_limit_seconds ? <span className="text-[10px] text-gray-500">{String(sq.time_limit_seconds)}s</span> : null}
                 </div>
                 <p className="text-sm" dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(String(sq.text || "")) }} />
-                <RecordingArea />
+                <SpeakingRecorder
+                  questionId={`preview-p1-${i}`}
+                  timeLimitSeconds={sq.time_limit_seconds ? Number(sq.time_limit_seconds) : 30}
+                  allowResponseReset={sq.allow_response_reset !== false}
+                />
               </div>
             ))}
           </div>
@@ -94,7 +84,13 @@ export function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
             준비 시간: 1분 | 발표 시간: 1-2분
           </div>
         </div>
-        <RecordingArea />
+        <SpeakingRecorder
+          questionId="preview-p2"
+          isPart2
+          prepTimeSeconds={Number(getStr(o, "prep_time_seconds", "60"))}
+          speakingTimeSeconds={Number(getStr(o, "speaking_time_seconds", "120"))}
+          allowResponseReset
+        />
       </div>
     );
   }
@@ -126,7 +122,11 @@ export function SpeakingPreview({ data }: { data: QuestionPreviewData }) {
                   {sq.time_limit_seconds ? <span className="text-[10px] text-gray-500">{String(sq.time_limit_seconds)}s</span> : null}
                 </div>
                 <p className="text-sm" dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(String(sq.text || "")) }} />
-                <RecordingArea />
+                <SpeakingRecorder
+                  questionId={`preview-p3-${i}`}
+                  timeLimitSeconds={sq.time_limit_seconds ? Number(sq.time_limit_seconds) : 30}
+                  allowResponseReset={sq.allow_response_reset !== false}
+                />
               </div>
             ))}
           </div>

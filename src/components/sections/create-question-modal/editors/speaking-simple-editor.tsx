@@ -58,7 +58,7 @@ export function ModalSpeakingSimpleEditor({
 
   const getTextPreview = (html: string) => {
     const text = html.replace(/<[^>]*>/g, "").trim();
-    return text.length > 40 ? text.slice(0, 40) + "..." : text || "Empty";
+    return text.length > 40 ? text.slice(0, 40) + "..." : text || "비어있음";
   };
 
   return (
@@ -67,7 +67,7 @@ export function ModalSpeakingSimpleEditor({
         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
           <p className="font-medium text-emerald-900">Part 1: Interview</p>
           <p className="text-sm text-emerald-700 mt-1">
-            Short questions about everyday topics. Add multiple questions below &mdash; each has its own time limit and settings.
+            일상적인 주제에 대한 짧은 질문 그룹. 각 질문별로 시간 제한과 설정을 지정합니다.
           </p>
         </div>
       )}
@@ -76,7 +76,7 @@ export function ModalSpeakingSimpleEditor({
         <div className="p-4 bg-violet-50 border border-violet-200 rounded-lg">
           <p className="font-medium text-violet-900">Part 3: Discussion</p>
           <p className="text-sm text-violet-700 mt-1">
-            Abstract, in-depth questions related to the Part 2 topic. Add multiple questions below.
+            Part 2 주제와 관련된 추상적이고 심화된 질문 그룹
           </p>
         </div>
       )}
@@ -84,7 +84,7 @@ export function ModalSpeakingSimpleEditor({
       {/* Question count summary */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{filledCount}</span> / {tab.speakingQuestions.length} questions filled
+          <span className="font-medium text-foreground">{filledCount}</span> / {tab.speakingQuestions.length} 질문 입력됨
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -97,7 +97,7 @@ export function ModalSpeakingSimpleEditor({
               setExpandedSpeakingCards(allExpanded ? new Set() : new Set(allIds));
             }}
           >
-            {tab.speakingQuestions.every((q) => expandedSpeakingCards.has(q.id)) ? "Collapse All" : "Expand All"}
+            {tab.speakingQuestions.every((q) => expandedSpeakingCards.has(q.id)) ? "모두 접기" : "모두 펼치기"}
           </Button>
           <Button
             variant="outline"
@@ -107,7 +107,7 @@ export function ModalSpeakingSimpleEditor({
             disabled={tab.saved}
           >
             <Plus className="h-3.5 w-3.5 mr-1" />
-            Add Question
+            질문 추가
           </Button>
         </div>
       </div>
@@ -155,7 +155,7 @@ export function ModalSpeakingSimpleEditor({
                   {isExpanded && (
                     <>
                       <div className="flex items-center gap-1">
-                        <Label className="text-[10px] text-muted-foreground">Time:</Label>
+                        <Label className="text-[10px] text-muted-foreground">시간:</Label>
                         <Input
                           type="text"
                           inputMode="numeric"
@@ -169,10 +169,10 @@ export function ModalSpeakingSimpleEditor({
                           placeholder="30"
                           disabled={tab.saved}
                         />
-                        <span className="text-[10px] text-muted-foreground">s</span>
+                        <span className="text-[10px] text-muted-foreground">초</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Label className="text-[10px] text-muted-foreground">Re-record:</Label>
+                        <Label className="text-[10px] text-muted-foreground">재녹음:</Label>
                         <Switch
                           checked={sq.allowResponseReset}
                           onCheckedChange={(v) => updateSubQuestion(sq.id, { allowResponseReset: v })}
@@ -207,13 +207,13 @@ export function ModalSpeakingSimpleEditor({
                     minHeight="60px"
                   />
                   <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground shrink-0">Audio:</Label>
+                    <Label className="text-xs text-muted-foreground shrink-0">오디오:</Label>
                     <div className="flex-1">
                       <FileUpload
                         value={sq.audioUrl}
                         onChange={(v) => updateSubQuestion(sq.id, { audioUrl: v })}
                         accept="audio"
-                        placeholder="Upload examiner audio (optional)"
+                        placeholder="시험관 오디오 업로드 (선택)"
                         deferred
                         onFileReady={(file) => updateSubQuestion(sq.id, { audioFile: file })}
                       />

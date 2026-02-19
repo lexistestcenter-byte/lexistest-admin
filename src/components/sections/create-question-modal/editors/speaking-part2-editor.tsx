@@ -17,20 +17,20 @@ export function ModalSpeakingPart2Editor({ tab, updateTab }: ModalSpeakingPart2E
   return (
     <div className="space-y-6">
       <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-        <p className="font-medium text-amber-900">Part 2: Cue Card</p>
+        <p className="font-medium text-amber-900">Part 2: 큐카드 발표</p>
         <p className="text-sm text-amber-700 mt-1">
-          The candidate prepares for {tab.prepTimeSeconds || 60}s, then speaks for up to {tab.speakingTimeSeconds || 120}s on the given topic.
+          주어진 주제에 대해 {tab.prepTimeSeconds || 60}초 준비 후 최대 {tab.speakingTimeSeconds || 120}초간 발표
         </p>
       </div>
 
       {/* Cue Card Content */}
       <div className="border-2 border-amber-200 rounded-lg overflow-hidden">
         <div className="bg-amber-100 px-4 py-2 border-b border-amber-200">
-          <p className="text-sm font-semibold text-amber-800">Cue Card Content</p>
+          <p className="text-sm font-semibold text-amber-800">큐카드 내용</p>
         </div>
         <div className="p-4 space-y-4">
           <div className="space-y-2">
-            <RequiredLabel>Topic</RequiredLabel>
+            <RequiredLabel>큐카드 주제</RequiredLabel>
             <RichTextEditor
               value={tab.cueCardTopic}
               onChange={(v) => updateTab({ cueCardTopic: v })}
@@ -41,7 +41,7 @@ export function ModalSpeakingPart2Editor({ tab, updateTab }: ModalSpeakingPart2E
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label>You should say:</Label>
+              <Label>You should say: (포인트)</Label>
               <Button
                 variant="ghost"
                 size="sm"
@@ -50,7 +50,7 @@ export function ModalSpeakingPart2Editor({ tab, updateTab }: ModalSpeakingPart2E
                 disabled={tab.saved || tab.cueCardPoints.length >= 6}
               >
                 <Plus className="h-3 w-3 mr-1" />
-                Add Point
+                포인트 추가
               </Button>
             </div>
             {tab.cueCardPoints.map((point, index) => (
@@ -63,7 +63,7 @@ export function ModalSpeakingPart2Editor({ tab, updateTab }: ModalSpeakingPart2E
                     newPoints[index] = e.target.value;
                     updateTab({ cueCardPoints: newPoints });
                   }}
-                  placeholder={`Point ${index + 1}`}
+                  placeholder={`포인트 ${index + 1}`}
                   disabled={tab.saved}
                   className="flex-1"
                 />
