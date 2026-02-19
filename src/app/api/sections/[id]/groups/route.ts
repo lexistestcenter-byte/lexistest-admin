@@ -84,7 +84,7 @@ export async function POST(
     }
 
     // SQL injection checks
-    for (const field of ["title", "instructions"]) {
+    for (const field of ["title", "instructions", "sub_instructions"]) {
       if (body[field] && containsSqlInjection(body[field])) {
         return NextResponse.json(
           { error: `Invalid ${field}` },
@@ -99,6 +99,7 @@ export async function POST(
       p_display_order: body.display_order ?? 0,
       p_title: body.title ? sanitizeHtml(body.title) : null,
       p_instructions: body.instructions ? sanitizeHtml(body.instructions) : null,
+      p_sub_instructions: body.sub_instructions ? sanitizeHtml(body.sub_instructions) : null,
       p_question_number_start: body.question_number_start ?? 1,
     });
 

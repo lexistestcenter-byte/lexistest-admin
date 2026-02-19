@@ -15,7 +15,7 @@ export interface BlankItem {
   id: string;
   number: number;
   answer: string;
-  alternatives: string;
+  alternatives: string[];
 }
 
 export interface MCQOptionItem {

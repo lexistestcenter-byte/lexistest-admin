@@ -39,6 +39,7 @@ export interface QuestionGroupPreview {
   id: string;
   title: string;
   instructions: string | null;
+  subInstructions: string | null;
   contentBlockId: string | null;
   startNum: number;
   endNum: number;

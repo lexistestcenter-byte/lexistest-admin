@@ -220,7 +220,7 @@ export function PackagePreview({
 
       let num = 1;
       const questionMap = new Map(questions.map((q) => [q.id, q]));
-      const numberedGroups: QuestionGroupPreview[] = groups.map((g) => {
+      const numberedGroups: QuestionGroupPreview[] = groups.map((g: Record<string, unknown> & { id: string; title?: string; instructions?: string; sub_instructions?: string; content_block_id?: string; items?: { question_id: string }[] }) => {
         const qIds = (g.items || []).map((i) => i.question_id);
         const startNum = num;
         for (const qId of qIds) {
@@ -231,6 +231,7 @@ export function PackagePreview({
           id: g.id,
           title: g.title || "",
           instructions: g.instructions || null,
+          subInstructions: g.sub_instructions || null,
           contentBlockId: g.content_block_id || null,
           startNum,
           endNum: num - 1,

@@ -166,9 +166,9 @@ export function MatchingRenderer({
               <div className="flex-1 flex items-start gap-2">
                 <div className="text-sm flex-1 pt-2 [&_p]:m-0" dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(String(entry.statement)) }} />
                 {assignedOpt ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-300 text-sm text-blue-700 shrink-0 max-w-[240px]">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-blue-50 border border-blue-300 text-sm text-blue-700">
                     <span className="font-bold shrink-0">{assignedOpt.label}</span>
-                    <span className="truncate">{assignedOpt.text}</span>
+                    <span className="break-words">{assignedOpt.text}</span>
                     <button
                       type="button"
                       className="ml-0.5 p-0.5 rounded-full hover:bg-blue-200 transition-colors"

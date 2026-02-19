@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { ArrowLeft, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -137,30 +136,17 @@ export function CreateQuestionModal({
 
                   {/* Instructions (공통, MCQ/T/F/NG/flowchart/essay 제외) */}
                   {fmt !== "mcq" && fmt !== "true_false_ng" && fmt !== "flowchart" && fmt !== "essay" && (
-                    <>
-                      <div>
-                        <Label className="text-sm font-medium">지시문 (Instructions)</Label>
-                        <Textarea
-                          className="mt-1"
-                          placeholder="예: Choose the correct letter, A, B, C or D."
-                          value={tab.instructions}
-                          onChange={(e) => updateTab({ instructions: e.target.value })}
-                          rows={2}
-                          disabled={tab.saved}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">추가 안내문 (Sub Instructions)</Label>
-                        <div className="mt-1">
-                          <RichTextEditor
-                            value={tab.subInstructions}
-                            onChange={(v) => updateTab({ subInstructions: v })}
-                            placeholder="예: Write ONE WORD ONLY for each answer."
-                            minHeight="60px"
-                          />
-                        </div>
-                      </div>
-                    </>
+                    <div>
+                      <Label className="text-sm font-medium">지시문 (Instructions)</Label>
+                      <Textarea
+                        className="mt-1"
+                        placeholder="예: Choose the correct letter, A, B, C or D."
+                        value={tab.instructions}
+                        onChange={(e) => updateTab({ instructions: e.target.value })}
+                        rows={2}
+                        disabled={tab.saved}
+                      />
+                    </div>
                   )}
 
                   {/* Format-specific editors */}

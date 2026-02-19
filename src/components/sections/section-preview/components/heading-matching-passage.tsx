@@ -48,9 +48,9 @@ export function HeadingMatchingPassage({ item, answers, setAnswer }: HeadingMatc
               >
                 <span className="text-xs font-bold text-blue-600 mr-1">{num}</span>
                 {assignedOpt ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 border border-blue-300 text-sm text-blue-700 cursor-pointer max-w-[240px]" onClick={() => setAnswer(num, "")}>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 border border-blue-300 text-sm text-blue-700 cursor-pointer" onClick={() => setAnswer(num, "")}>
                     <span className="font-bold shrink-0">{assignedOpt.label}</span>
-                    <span className="truncate">{assignedOpt.text}</span>
+                    <span className="break-words">{assignedOpt.text}</span>
                     <X className="h-3 w-3 ml-0.5 shrink-0" />
                   </span>
                 ) : (

@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import type { ContentBlock, QuestionGroupData, NumberedItem } from "./types";
@@ -30,7 +31,7 @@ interface GroupEditModalProps {
   contentBlocks: ContentBlock[];
   items?: NumberedItem[];
   onSave: (
-    data: { title: string | null; instructions: string | null; content_block_id: string | null },
+    data: { title: string | null; instructions: string | null; sub_instructions: string | null; content_block_id: string | null },
     existingId: string | null
   ) => void;
 }
@@ -46,12 +47,14 @@ export function GroupEditModal({
 }: GroupEditModalProps) {
   const [localTitle, setLocalTitle] = useState("");
   const [localInstructions, setLocalInstructions] = useState("");
+  const [localSubInstructions, setLocalSubInstructions] = useState("");
   const [localContentBlockId, setLocalContentBlockId] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setLocalTitle(group?.title || "");
       setLocalInstructions(group?.instructions || "");
+      setLocalSubInstructions(group?.sub_instructions || "");
       setLocalContentBlockId(group?.content_block_id || (contentBlocks.length > 0 ? contentBlocks[0].id : null));
     }
   }, [open, group, contentBlocks]);
@@ -64,6 +67,7 @@ export function GroupEditModal({
       {
         title: localTitle || null,
         instructions: localInstructions || null,
+        sub_instructions: localSubInstructions || null,
         content_block_id: hasContentBlocks ? localContentBlockId : null,
       },
       group?.id || null,
@@ -113,6 +117,8 @@ export function GroupEditModal({
               setLocalTitle={setLocalTitle}
               localInstructions={localInstructions}
               setLocalInstructions={setLocalInstructions}
+              localSubInstructions={localSubInstructions}
+              setLocalSubInstructions={setLocalSubInstructions}
               items={items}
             />
           ) : (
@@ -121,6 +127,8 @@ export function GroupEditModal({
               setLocalTitle={setLocalTitle}
               localInstructions={localInstructions}
               setLocalInstructions={setLocalInstructions}
+              localSubInstructions={localSubInstructions}
+              setLocalSubInstructions={setLocalSubInstructions}
               localContentBlockId={localContentBlockId}
               setLocalContentBlockId={setLocalContentBlockId}
               contentBlocks={contentBlocks}
@@ -143,6 +151,8 @@ function ReadingLayout({
   setLocalTitle,
   localInstructions,
   setLocalInstructions,
+  localSubInstructions,
+  setLocalSubInstructions,
   localContentBlockId,
   setLocalContentBlockId,
   contentBlocks,
@@ -153,6 +163,8 @@ function ReadingLayout({
   setLocalTitle: (v: string) => void;
   localInstructions: string;
   setLocalInstructions: (v: string) => void;
+  localSubInstructions: string;
+  setLocalSubInstructions: (v: string) => void;
   localContentBlockId: string | null;
   setLocalContentBlockId: (v: string | null) => void;
   contentBlocks: ContentBlock[];
@@ -160,6 +172,9 @@ function ReadingLayout({
   items?: NumberedItem[];
 }) {
   const selectedBlock = contentBlocks.find(b => b.id === localContentBlockId);
+  const [showSubInstructions, setShowSubInstructions] = useState(() =>
+    Boolean(localSubInstructions && localSubInstructions.replace(/<[^>]*>/g, '').trim())
+  );
 
   return (
     <div className="flex-1 overflow-hidden grid grid-cols-2 min-h-0">
@@ -234,6 +249,27 @@ function ReadingLayout({
               onChange={(val) => setLocalInstructions(val)}
             />
           </div>
+          {/* 추가 안내문 */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="sub-instructions-toggle-reading"
+                checked={showSubInstructions}
+                onCheckedChange={setShowSubInstructions}
+              />
+              <Label htmlFor="sub-instructions-toggle-reading" className="text-xs text-gray-600 cursor-pointer">
+                추가 안내문
+              </Label>
+            </div>
+            {showSubInstructions && (
+              <RichTextEditor
+                placeholder="예: Write ONE WORD ONLY for each answer."
+                minHeight="60px"
+                value={localSubInstructions}
+                onChange={(val) => setLocalSubInstructions(val)}
+              />
+            )}
+          </div>
         </div>
 
         {/* Questions */}
@@ -278,15 +314,22 @@ function WritingLayout({
   setLocalTitle,
   localInstructions,
   setLocalInstructions,
+  localSubInstructions,
+  setLocalSubInstructions,
   items,
 }: {
   localTitle: string;
   setLocalTitle: (v: string) => void;
   localInstructions: string;
   setLocalInstructions: (v: string) => void;
+  localSubInstructions: string;
+  setLocalSubInstructions: (v: string) => void;
   items?: NumberedItem[];
 }) {
   const firstQuestion = items?.[0]?.question_info;
+  const [showSubInstructions, setShowSubInstructions] = useState(() =>
+    Boolean(localSubInstructions && localSubInstructions.replace(/<[^>]*>/g, '').trim())
+  );
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-h-0">
       {/* Top: Title + Instructions editor (bg-sky-50, matches writing-panel.tsx) */}
@@ -310,6 +353,27 @@ function WritingLayout({
             value={localInstructions}
             onChange={(val) => setLocalInstructions(val)}
           />
+        </div>
+        {/* 추가 안내문 */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="sub-instructions-toggle-writing"
+              checked={showSubInstructions}
+              onCheckedChange={setShowSubInstructions}
+            />
+            <Label htmlFor="sub-instructions-toggle-writing" className="text-xs text-gray-600 cursor-pointer">
+              추가 안내문
+            </Label>
+          </div>
+          {showSubInstructions && (
+            <RichTextEditor
+              placeholder="예: Write ONE WORD ONLY for each answer."
+              minHeight="60px"
+              value={localSubInstructions}
+              onChange={(val) => setLocalSubInstructions(val)}
+            />
+          )}
         </div>
       </div>
 

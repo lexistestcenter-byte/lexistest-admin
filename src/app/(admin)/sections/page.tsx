@@ -81,7 +81,7 @@ export default function SectionsPage() {
     instructionTitle: string;
     instructionHtml: string;
     contentBlocks: { id: string; content_type: "passage" | "audio"; passage_title?: string; passage_content?: string; passage_footnotes?: string; audio_url?: string; audio_transcript?: string }[];
-    questionGroups: { id: string; title: string; instructions: string | null; contentBlockId: string | null; startNum: number; endNum: number; questionIds: string[] }[];
+    questionGroups: { id: string; title: string; instructions: string | null; subInstructions: string | null; contentBlockId: string | null; startNum: number; endNum: number; questionIds: string[] }[];
     questions: PreviewQuestion[];
   }>({ instructionTitle: "", instructionHtml: "", contentBlocks: [], questionGroups: [], questions: [] });
 
@@ -225,7 +225,7 @@ export default function SectionsPage() {
       let num = 1;
       const questionMap = new Map(questions.map((q) => [q.id, q]));
       const numberedGroups = groups.map(
-        (g: { id: string; title?: string; instructions?: string; content_block_id?: string; items?: { question_id: string }[] }) => {
+        (g: { id: string; title?: string; instructions?: string; sub_instructions?: string; content_block_id?: string; items?: { question_id: string }[] }) => {
           const qIds = (g.items || []).map((i) => i.question_id);
           const startNum = num;
           for (const qId of qIds) {
@@ -236,6 +236,7 @@ export default function SectionsPage() {
             id: g.id,
             title: g.title || "",
             instructions: g.instructions || null,
+            subInstructions: g.sub_instructions || null,
             contentBlockId: g.content_block_id || null,
             startNum,
             endNum: num - 1,

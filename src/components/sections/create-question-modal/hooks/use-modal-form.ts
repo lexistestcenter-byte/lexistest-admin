@@ -185,7 +185,7 @@ export function useModalForm(
   // ─── Blank helpers ────────────────────────────────────────
 
   const addBlank = () => {
-    updateTab({ blanks: [...tab.blanks, { id: genId(), number: tab.blanks.length + 1, answer: "", alternatives: "" }] });
+    updateTab({ blanks: [...tab.blanks, { id: genId(), number: tab.blanks.length + 1, answer: "", alternatives: [] }] });
   };
 
   const removeBlank = (id: string) => {
@@ -198,7 +198,7 @@ export function useModalForm(
     updateTab({
       flowchartBlanks: [
         ...tab.flowchartBlanks,
-        { id: genId(), number: tab.flowchartBlanks.length + 1, answer: "", alternatives: "" },
+        { id: genId(), number: tab.flowchartBlanks.length + 1, answer: "", alternatives: [] },
       ],
     });
   };

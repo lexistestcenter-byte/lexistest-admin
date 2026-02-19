@@ -104,7 +104,7 @@ function buildPayload(tab: TabState): TabPayload {
       blanks: tab.blanks.map((b) => ({
         number: b.number,
         answer: b.answer,
-        alternatives: b.alternatives ? b.alternatives.split(",").map((s) => s.trim()).filter(Boolean) : [],
+        alternatives: (b.alternatives || []).filter(Boolean),
       })),
     };
   } else if (tab.selectedFormat === "table_completion") {
@@ -121,7 +121,7 @@ function buildPayload(tab: TabState): TabPayload {
       blanks: tab.blanks.map((b) => ({
         number: b.number,
         answer: b.answer,
-        alternatives: b.alternatives ? b.alternatives.split(",").map((s) => s.trim()).filter(Boolean) : [],
+        alternatives: (b.alternatives || []).filter(Boolean),
       })),
     };
   } else if (tab.selectedFormat === "flowchart") {
@@ -135,7 +135,7 @@ function buildPayload(tab: TabState): TabPayload {
       blanks: tab.flowchartBlanks.map((b) => ({
         number: b.number,
         answer: b.answer,
-        alternatives: b.alternatives ? b.alternatives.split(",").map((s) => s.trim()).filter(Boolean) : [],
+        alternatives: (b.alternatives || []).filter(Boolean),
       })),
     };
   } else if (tab.selectedFormat === "map_labeling") {
@@ -215,7 +215,6 @@ export function useModalSave(
       content,
       title,
       instructions: (tab.selectedFormat !== "mcq" && tab.selectedFormat !== "true_false_ng") ? tab.instructions || undefined : undefined,
-      sub_instructions: (tab.selectedFormat !== "mcq" && tab.selectedFormat !== "true_false_ng" && tab.selectedFormat !== "flowchart" && tab.selectedFormat !== "essay") ? tab.subInstructions || undefined : undefined,
       options_data: Object.keys(optionsData).length > 0 ? optionsData : undefined,
       answer_data: Object.keys(answerData).length > 0 ? answerData : undefined,
       is_practice: tab.isPractice,

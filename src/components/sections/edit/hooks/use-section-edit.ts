@@ -359,7 +359,7 @@ export function useSectionEdit(id: string) {
   //   existingId = null → create new group via API
   //   existingId = string → update local state only
   const handleSaveGroupFromModal = async (
-    data: { title: string | null; instructions: string | null; content_block_id: string | null },
+    data: { title: string | null; instructions: string | null; sub_instructions: string | null; content_block_id: string | null },
     existingId: string | null
   ) => {
     if (existingId) {
@@ -374,6 +374,7 @@ export function useSectionEdit(id: string) {
           question_number_start: totalItemCount + 1,
           title: data.title || null,
           instructions: data.instructions || null,
+          sub_instructions: data.sub_instructions || null,
         });
         if (error) throw new Error(error);
         toast.success("시험 구조가 추가되었습니다.");
@@ -653,6 +654,7 @@ export function useSectionEdit(id: string) {
           content_block_id: group.content_block_id || null,
           title: group.title || null,
           instructions: group.instructions || null,
+          sub_instructions: group.sub_instructions || null,
           items,
         };
       });
@@ -779,6 +781,7 @@ export function useSectionEdit(id: string) {
     id: g.id,
     title: g.title || "",
     instructions: g.instructions,
+    subInstructions: g.sub_instructions || null,
     contentBlockId: g.content_block_id,
     startNum: g.groupStartNum,
     endNum: g.groupEndNum,

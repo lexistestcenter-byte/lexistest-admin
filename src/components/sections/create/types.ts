@@ -35,6 +35,7 @@ export interface QuestionGroup {
   display_order: number;
   title: string;
   instructions: string;
+  sub_instructions: string;
   questions: string[];
 }
 

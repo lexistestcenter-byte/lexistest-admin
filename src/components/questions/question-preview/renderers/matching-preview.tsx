@@ -48,7 +48,7 @@ export function MatchingPreview({ data }: { data: QuestionPreviewData }) {
           <div
             key={index}
             className={cn(
-              "inline-block border-2 rounded px-4 py-1 mx-1 my-1 min-w-[120px] text-center transition-colors",
+              "inline-block border-2 rounded px-4 py-1 mx-1 my-1 min-w-[120px] text-center transition-colors break-words",
               placedLabel
                 ? "bg-green-50 border-green-400 text-green-800 cursor-pointer"
                 : draggedOption

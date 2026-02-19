@@ -90,6 +90,11 @@ export function QuestionPanel({
             {renderBlockHtml(activeGroup.instructions)}
           </div>
         )}
+        {activeGroup.subInstructions && (
+          <div className="text-sm text-gray-700 mt-2 leading-relaxed">
+            {renderBlockHtml(activeGroup.subInstructions)}
+          </div>
+        )}
       </div>
 
       {/* 문제 그룹 레벨 오디오 — 자동재생 */}

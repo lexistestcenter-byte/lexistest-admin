@@ -67,6 +67,7 @@ export interface QuestionGroupData {
   display_order: number;
   title: string | null;
   instructions: string | null;
+  sub_instructions: string | null;
   question_number_start: number;
   items: GroupItem[];
 }
@@ -100,6 +101,7 @@ export interface EditGroupCardProps {
     content_block_id: string | null;
     title: string | null;
     instructions: string | null;
+    sub_instructions: string | null;
     numberedItems: NumberedItem[];
     groupStartNum: number;
     groupEndNum: number;

@@ -26,6 +26,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }}
       toastOptions={{
         classNames: {
+          toast: "[&>[data-button]+[data-button]]:!ml-0 !gap-x-1.5",
           warning:
             "!bg-amber-50 !text-amber-900 !border-amber-300 [&_[data-icon]]:!text-amber-600",
           error:

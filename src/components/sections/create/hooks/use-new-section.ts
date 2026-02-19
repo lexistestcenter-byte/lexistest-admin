@@ -123,6 +123,7 @@ export function useNewSection() {
         display_order: prev.length,
         title: "",
         instructions: "",
+        sub_instructions: "",
         questions: [],
       },
     ]);
@@ -159,6 +160,7 @@ export function useNewSection() {
       display_order: questionGroups.length,
       title: "",
       instructions: "",
+      sub_instructions: "",
       questions: [],
     };
     setQuestionGroups((prev) => [...prev, newGroup]);
@@ -647,6 +649,7 @@ export function useNewSection() {
       id: g.id,
       title: g.title,
       instructions: g.instructions || null,
+      subInstructions: g.sub_instructions || null,
       contentBlockId: g.content_block_id,
       startNum: gNum.startNum,
       endNum: gNum.endNum,

@@ -39,7 +39,7 @@ interface StepStructureProps {
   handleRemoveItem: (itemId: string) => void;
   handleItemDragEnd: (groupId: string) => (event: import("@dnd-kit/core").DragEndEvent) => void;
   handleSaveGroupFromModal: (
-    data: { title: string | null; instructions: string | null; content_block_id: string | null },
+    data: { title: string | null; instructions: string | null; sub_instructions: string | null; content_block_id: string | null },
     existingId: string | null
   ) => void;
 }

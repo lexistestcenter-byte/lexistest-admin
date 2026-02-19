@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -185,6 +187,12 @@ export function GroupCard({
             />
           </div>
 
+          {/* 추가 안내문 */}
+          <SubInstructionsToggle
+            value={group.sub_instructions}
+            onChange={(val) => onUpdate(group.id, { sub_instructions: val })}
+          />
+
           {/* Items */}
           {group.questions.length > 0 ? (
             <DndContext
@@ -224,6 +232,28 @@ export function GroupCard({
             </div>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+function SubInstructionsToggle({ value, onChange }: { value: string; onChange: (val: string) => void }) {
+  const [show, setShow] = useState(() =>
+    Boolean(value?.replace(/<[^>]*>/g, '').trim())
+  );
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        <Switch checked={show} onCheckedChange={setShow} />
+        <Label className="text-xs cursor-pointer">추가 안내문</Label>
+      </div>
+      {show && (
+        <RichTextEditor
+          placeholder="예: Write ONE WORD ONLY for each answer."
+          minHeight="60px"
+          value={value}
+          onChange={onChange}
+        />
       )}
     </div>
   );

@@ -26,7 +26,7 @@ export function ModalFlowchartEditor({ tab, updateTab, addFlowchartNode }: Modal
             flowchartBlanks: tab.flowchartBlanks.map(b => {
               if (b.id !== id) return b;
               if (field === "alternatives") {
-                return { ...b, alternatives: Array.isArray(value) ? (value as string[]).join(", ") : String(value) };
+                return { ...b, alternatives: Array.isArray(value) ? (value as string[]) : [String(value)] };
               }
               return { ...b, [field]: value };
             }),
