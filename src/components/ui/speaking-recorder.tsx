@@ -31,6 +31,10 @@ interface SpeakingRecorderProps {
   speakingTimeSeconds?: number;
   /** Whether this is a Part 2 cue card question */
   isPart2?: boolean;
+  /** Called when a recording is completed with the audio blob URL and duration */
+  onRecordingComplete?: (audioUrl: string, durationSeconds: number) => void;
+  /** Called when the recording is reset (re-record) */
+  onRecordingReset?: () => void;
   className?: string;
 }
 
@@ -200,6 +204,8 @@ export function SpeakingRecorder({
   prepTimeSeconds = 60,
   speakingTimeSeconds = 120,
   isPart2 = false,
+  onRecordingComplete,
+  onRecordingReset,
   className,
 }: SpeakingRecorderProps) {
   // Part 2 phase management
@@ -232,6 +238,16 @@ export function SpeakingRecorder({
     stopRecording,
     resetRecording,
   } = recorder;
+
+  // Notify parent when recording completes
+  const onRecordingCompleteRef = useRef(onRecordingComplete);
+  onRecordingCompleteRef.current = onRecordingComplete;
+
+  useEffect(() => {
+    if (state === "recorded" && audioUrl) {
+      onRecordingCompleteRef.current?.(audioUrl, elapsedSeconds);
+    }
+  }, [state, audioUrl, elapsedSeconds]);
 
   // Reset state when questionId changes
   useEffect(() => {
@@ -290,6 +306,7 @@ export function SpeakingRecorder({
   const confirmReRecord = () => {
     setShowReRecordConfirm(false);
     resetRecording();
+    onRecordingReset?.();
     if (isPart2) {
       setPart2Phase("prep");
       setPrepRemaining(prepTimeSeconds);

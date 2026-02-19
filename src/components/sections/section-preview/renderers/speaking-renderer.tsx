@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Clock } from "lucide-react";
+import { ChevronDown, ChevronRight, Clock, Play, Pause, CheckCircle2 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
 import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import { SpeakingRecorder } from "@/components/ui/speaking-recorder";
@@ -19,6 +19,59 @@ function getTextPreview(html: string) {
   return text.length > 50 ? text.slice(0, 50) + "..." : text || "(비어있음)";
 }
 
+function formatTimer(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+interface RecordingInfo {
+  url: string;
+  duration: number;
+}
+
+/** Mini play/pause button for collapsed question headers */
+function MiniPlayer({ recording }: { recording: RecordingInfo }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const toggle = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (isPlaying) {
+      audio.pause();
+    } else {
+      audio.play();
+    }
+  }, [isPlaying]);
+
+  return (
+    <span className="inline-flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+      <audio
+        ref={audioRef}
+        src={recording.url}
+        preload="metadata"
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onEnded={() => setIsPlaying(false)}
+      />
+      <CheckCircle2 className="h-3 w-3 text-green-500" />
+      <button
+        onClick={toggle}
+        className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+      >
+        {isPlaying ? (
+          <Pause className="h-2.5 w-2.5 text-gray-700" />
+        ) : (
+          <Play className="h-2.5 w-2.5 text-gray-700 ml-px" />
+        )}
+      </button>
+      <span className="text-[10px] text-gray-500 tabular-nums">{formatTimer(recording.duration)}</span>
+    </span>
+  );
+}
+
 export function SpeakingRenderer({ item }: SpeakingRendererProps) {
   const q = item.question;
   const fmt = q.question_format;
@@ -26,6 +79,8 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
 
   // Collapsible state: first question open by default
   const [expandedIds, setExpandedIds] = useState<Set<number>>(() => new Set([0]));
+  // Track completed recordings per question index
+  const [recordings, setRecordings] = useState<Record<number, RecordingInfo>>({});
 
   const toggleId = (id: number) => {
     setExpandedIds((prev) => {
@@ -43,6 +98,18 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
     } else {
       setExpandedIds(new Set(Array.from({ length: total }, (_, i) => i)));
     }
+  };
+
+  const handleRecordingComplete = (idx: number, url: string, duration: number) => {
+    setRecordings((prev) => ({ ...prev, [idx]: { url, duration } }));
+  };
+
+  const handleRecordingReset = (idx: number) => {
+    setRecordings((prev) => {
+      const next = { ...prev };
+      delete next[idx];
+      return next;
+    });
   };
 
   // Parse Part 2 cue card content
@@ -129,6 +196,9 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
+                        {!expandedIds.has(idx) && recordings[idx] && (
+                          <MiniPlayer recording={recordings[idx]} />
+                        )}
                         {sq.time_limit_seconds ? (
                           <Badge variant="outline" className="text-[10px] text-gray-500 border-gray-300">
                             <Clock className="h-2.5 w-2.5 mr-0.5" />
@@ -154,6 +224,8 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
                           questionId={`${q.id}-q${idx}`}
                           timeLimitSeconds={sq.time_limit_seconds ? Number(sq.time_limit_seconds) : undefined}
                           allowResponseReset={sq.allow_response_reset !== false}
+                          onRecordingComplete={(url, dur) => handleRecordingComplete(idx, url, dur)}
+                          onRecordingReset={() => handleRecordingReset(idx)}
                         />
                       </div>
                     </div>
@@ -322,6 +394,9 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
+                        {!expandedIds.has(idx) && recordings[idx] && (
+                          <MiniPlayer recording={recordings[idx]} />
+                        )}
                         {sq.time_limit_seconds ? (
                           <Badge variant="outline" className="text-[10px] text-gray-500 border-gray-300">
                             <Clock className="h-2.5 w-2.5 mr-0.5" />
@@ -347,6 +422,8 @@ export function SpeakingRenderer({ item }: SpeakingRendererProps) {
                           questionId={`${q.id}-q${idx}`}
                           timeLimitSeconds={sq.time_limit_seconds ? Number(sq.time_limit_seconds) : undefined}
                           allowResponseReset={sq.allow_response_reset !== false}
+                          onRecordingComplete={(url, dur) => handleRecordingComplete(idx, url, dur)}
+                          onRecordingReset={() => handleRecordingReset(idx)}
                         />
                       </div>
                     </div>
