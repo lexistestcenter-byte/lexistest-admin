@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { GripVertical, Eye, Trash2 } from "lucide-react";
+import { GripVertical, Eye, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -74,6 +74,14 @@ export function SortableQuestionInGroup({
           onClick={() => setExpanded(!expanded)}
         >
           <Eye className="h-3 w-3" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={() => window.open(`/questions/${question.id}`, "_blank")}
+        >
+          <Pencil className="h-3 w-3" />
         </Button>
         <Button
           variant="ghost"

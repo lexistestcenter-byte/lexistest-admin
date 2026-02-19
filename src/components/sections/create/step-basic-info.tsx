@@ -142,12 +142,12 @@ export function StepBasicInfo({
           <CardHeader>
             <CardTitle>안내 페이지</CardTitle>
             <CardDescription>
-              시험 시작 시 학생에게 처음 보여지는 안내 내용입니다. (선택)
+              시험 시작 시 학생에게 처음 보여지는 안내 내용입니다. {sectionType === "speaking" ? "(필수)" : "(선택)"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>안내 페이지 제목</Label>
+              <Label>안내 페이지 제목 {sectionType === "speaking" && <span className="text-red-500">*</span>}</Label>
               <Input
                 placeholder="예: Reading Test Instructions"
                 value={instructionTitle}
@@ -155,7 +155,7 @@ export function StepBasicInfo({
               />
             </div>
             <div className="space-y-2">
-              <Label>안내 페이지 내용</Label>
+              <Label>안내 페이지 내용 {sectionType === "speaking" && <span className="text-red-500">*</span>}</Label>
               <RichTextEditor
                 placeholder="시험 시작 전 표시될 안내 내용..."
                 value={instructionHtml}

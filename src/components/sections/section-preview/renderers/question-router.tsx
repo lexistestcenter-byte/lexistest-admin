@@ -64,6 +64,12 @@ export function QuestionRouter({
   else
     content = <p className="text-sm text-gray-500">Unsupported format: {fmt}</p>;
 
+  // Speaking Part 1/3 master-detail needs full height, no wrapper padding
+  const isSpeakingMasterDetail = fmt === "speaking_part1" || fmt === "speaking_part3";
+  if (isSpeakingMasterDetail) {
+    return <div className="h-full">{content}</div>;
+  }
+
   return (
     <div className="space-y-3">
       {titleText && (

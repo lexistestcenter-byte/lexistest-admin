@@ -60,6 +60,7 @@ export function GroupEditModal({
   }, [open, group, contentBlocks]);
 
   const isWriting = sectionType === "writing";
+  const isSpeaking = sectionType === "speaking";
   const hasContentBlocks = (sectionType === "reading" || sectionType === "listening") && contentBlocks.length > 0;
 
   const handleSave = () => {
@@ -113,6 +114,16 @@ export function GroupEditModal({
         <div className="flex-1 bg-slate-200 overflow-hidden flex flex-col min-h-0">
           {isWriting ? (
             <WritingLayout
+              localTitle={localTitle}
+              setLocalTitle={setLocalTitle}
+              localInstructions={localInstructions}
+              setLocalInstructions={setLocalInstructions}
+              localSubInstructions={localSubInstructions}
+              setLocalSubInstructions={setLocalSubInstructions}
+              items={items}
+            />
+          ) : isSpeaking ? (
+            <SpeakingLayout
               localTitle={localTitle}
               setLocalTitle={setLocalTitle}
               localInstructions={localInstructions}
@@ -299,6 +310,105 @@ function ReadingLayout({
               </>
             )}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Speaking Layout
+   ═══════════════════════════════════════════════════════════════ */
+
+function SpeakingLayout({
+  localTitle,
+  setLocalTitle,
+  localInstructions,
+  setLocalInstructions,
+  localSubInstructions,
+  setLocalSubInstructions,
+  items,
+}: {
+  localTitle: string;
+  setLocalTitle: (v: string) => void;
+  localInstructions: string;
+  setLocalInstructions: (v: string) => void;
+  localSubInstructions: string;
+  setLocalSubInstructions: (v: string) => void;
+  items?: NumberedItem[];
+}) {
+  const [showSubInstructions, setShowSubInstructions] = useState(() =>
+    Boolean(localSubInstructions && localSubInstructions.replace(/<[^>]*>/g, '').trim())
+  );
+
+  return (
+    <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+      {/* 상단: 그룹 헤더 편집 영역 */}
+      <div className="bg-slate-200 px-5 py-4 shrink-0 border-b border-slate-300 space-y-3">
+        {/* 그룹 제목 */}
+        <div className="space-y-1">
+          <Label className="text-xs text-gray-600">그룹 제목 (비워두면 자동 생성)</Label>
+          <Input
+            className="h-9 text-base font-bold bg-white"
+            placeholder="예: Questions 1–3"
+            value={localTitle}
+            onChange={(e) => setLocalTitle(e.target.value)}
+          />
+        </div>
+        {/* 지시문 */}
+        <div className="space-y-1">
+          <Label className="text-xs text-gray-600">지시문</Label>
+          <RichTextEditor
+            placeholder="예: Answer the following questions."
+            minHeight="60px"
+            value={localInstructions}
+            onChange={setLocalInstructions}
+          />
+        </div>
+        {/* 추가 안내문 */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="sub-instructions-toggle-speaking"
+              checked={showSubInstructions}
+              onCheckedChange={setShowSubInstructions}
+            />
+            <Label htmlFor="sub-instructions-toggle-speaking" className="text-xs text-gray-600 cursor-pointer">
+              추가 안내문
+            </Label>
+          </div>
+          {showSubInstructions && (
+            <RichTextEditor
+              placeholder="예: You will have 30 seconds to answer."
+              minHeight="60px"
+              value={localSubInstructions}
+              onChange={setLocalSubInstructions}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* 하단: 문제 항목 리스트 */}
+      <div className="flex-1 overflow-y-auto px-5 py-4 bg-white">
+        <div className="opacity-50 pointer-events-none select-none space-y-4">
+          {items && items.length > 0 ? (
+            items.map((item) => {
+              const qi = item.question_info;
+              const numLabel = item.startNum === item.endNum
+                ? `Q${item.startNum}`
+                : `Q${item.startNum}–${item.endNum}`;
+              const label = qi.title || qi.question_format;
+              return (
+                <div key={item.item_id} className="flex items-center gap-2 py-1.5">
+                  <span className="text-xs font-bold text-gray-700 shrink-0 w-14">{numLabel}</span>
+                  <span className="text-sm text-gray-600 truncate">{label}</span>
+                  <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">{qi.question_format}</span>
+                </div>
+              );
+            })
+          ) : (
+            <p className="text-sm text-gray-400 italic">문제가 추가되면 여기에 표시됩니다.</p>
+          )}
         </div>
       </div>
     </div>

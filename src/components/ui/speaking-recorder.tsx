@@ -189,7 +189,7 @@ function RecordedPlayback({ audioUrl }: { audioUrl: string }) {
         />
       </div>
       <span className="text-xs text-gray-500 tabular-nums shrink-0">
-        {duration > 0 ? formatTimer(Math.floor(duration)) : "--:--"}
+        {duration > 0 && isFinite(duration) ? formatTimer(Math.floor(duration)) : "--:--"}
       </span>
     </div>
   );
@@ -215,6 +215,8 @@ export function SpeakingRecorder({
 
   // Re-record confirmation dialog
   const [showReRecordConfirm, setShowReRecordConfirm] = useState(false);
+  // Submit (lock) state
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   // Effective time limit: for Part 2, use speakingTimeSeconds if no explicit timeLimitSeconds
   const effectiveTimeLimit = isPart2
@@ -255,6 +257,7 @@ export function SpeakingRecorder({
     setPart2Phase("prep");
     setPrepRemaining(prepTimeSeconds);
     setShowReRecordConfirm(false);
+    setIsSubmitted(false);
     if (prepTimerRef.current) {
       clearInterval(prepTimerRef.current);
       prepTimerRef.current = null;
@@ -409,6 +412,8 @@ export function SpeakingRecorder({
             onReRecordRequest={handleReRecordRequest}
             onConfirmReRecord={confirmReRecord}
             onCancelReRecord={() => setShowReRecordConfirm(false)}
+            isSubmitted={isSubmitted}
+            onSubmit={() => setIsSubmitted(true)}
           />
         </div>
       );
@@ -439,6 +444,8 @@ export function SpeakingRecorder({
           onReRecordRequest={handleReRecordRequest}
           onConfirmReRecord={confirmReRecord}
           onCancelReRecord={() => setShowReRecordConfirm(false)}
+          isSubmitted={isSubmitted}
+          onSubmit={() => setIsSubmitted(true)}
         />
       </div>
     );
@@ -630,6 +637,8 @@ function RecordedState({
   onReRecordRequest,
   onConfirmReRecord,
   onCancelReRecord,
+  isSubmitted,
+  onSubmit,
 }: {
   audioUrl: string;
   elapsedSeconds: number;
@@ -639,6 +648,8 @@ function RecordedState({
   onReRecordRequest: () => void;
   onConfirmReRecord: () => void;
   onCancelReRecord: () => void;
+  isSubmitted: boolean;
+  onSubmit: () => void;
 }) {
   return (
     <div className="rounded-lg border-2 border-green-200 bg-green-50 overflow-hidden">
@@ -665,17 +676,35 @@ function RecordedState({
         {/* Playback */}
         <RecordedPlayback audioUrl={audioUrl} />
 
-        {/* Re-record button */}
-        {canReRecord && !showReRecordConfirm && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onReRecordRequest}
-            className="w-full gap-2 text-amber-700 border-amber-300 hover:bg-amber-50"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Re-record
-          </Button>
+        {/* Re-record + Submit buttons */}
+        {canReRecord && !showReRecordConfirm && !isSubmitted && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onReRecordRequest}
+              className="flex-1 gap-2 text-amber-700 border-amber-300 hover:bg-amber-50"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Re-record
+            </Button>
+            <Button
+              size="sm"
+              onClick={onSubmit}
+              className="flex-1 gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Submit
+            </Button>
+          </div>
+        )}
+
+        {/* Submitted state */}
+        {isSubmitted && (
+          <div className="flex items-center gap-1 justify-center text-xs text-blue-600 py-1">
+            <Lock className="h-3 w-3" />
+            <span>Answer submitted</span>
+          </div>
         )}
 
         {/* Re-record confirmation */}
