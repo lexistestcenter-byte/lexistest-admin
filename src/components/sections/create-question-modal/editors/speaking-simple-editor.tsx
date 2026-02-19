@@ -1,13 +1,14 @@
 "use client";
 
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronRight, Play, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { FileUpload } from "@/components/ui/file-upload";
+import { getCdnUrl } from "@/lib/cdn";
 import type { TabState, SpeakingSubQuestion } from "../types";
 import { createSpeakingSubQuestion } from "../types";
 
@@ -54,12 +55,7 @@ export function ModalSpeakingSimpleEditor({
     });
   };
 
-  const filledCount = tab.speakingQuestions.filter((q) => q.text.trim()).length;
-
-  const getTextPreview = (html: string) => {
-    const text = html.replace(/<[^>]*>/g, "").trim();
-    return text.length > 40 ? text.slice(0, 40) + "..." : text || "비어있음";
-  };
+  const filledCount = tab.speakingQuestions.filter((q) => q.text.replace(/<[^>]*>/g, "").trim()).length;
 
   return (
     <div className="space-y-6">
@@ -122,71 +118,43 @@ export function ModalSpeakingSimpleEditor({
               className={cn(
                 "border rounded-lg overflow-hidden",
                 isPart1 ? "border-emerald-200" : "border-violet-200",
-                isExpanded && "col-span-2"
               )}
             >
-              {/* Question header - clickable to toggle */}
-              <div
-                className={cn(
-                  "flex items-center justify-between px-3 py-2 cursor-pointer select-none",
-                  isPart1 ? "bg-emerald-50 hover:bg-emerald-100" : "bg-violet-50 hover:bg-violet-100"
-                )}
-                onClick={() => toggleSpeakingCard(sq.id)}
-              >
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  {isExpanded ? (
-                    <ChevronDown className={cn("h-3.5 w-3.5 shrink-0", isPart1 ? "text-emerald-600" : "text-violet-600")} />
-                  ) : (
-                    <ChevronRight className={cn("h-3.5 w-3.5 shrink-0", isPart1 ? "text-emerald-600" : "text-violet-600")} />
-                  )}
+              {/* Main area - always visible */}
+              <div className={cn("px-3 py-2", isPart1 ? "bg-emerald-50" : "bg-violet-50")}>
+                <div className="flex items-center gap-2">
                   <span className={cn(
                     "text-xs font-semibold shrink-0",
                     isPart1 ? "text-emerald-700" : "text-violet-700"
                   )}>
                     Q{idx + 1}
                   </span>
-                  {!isExpanded && (
-                    <span className="text-xs text-muted-foreground truncate">
-                      {getTextPreview(sq.text)}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                  {isExpanded && (
-                    <>
-                      <div className="flex items-center gap-1">
-                        <Label className="text-[10px] text-muted-foreground">시간:</Label>
-                        <Input
-                          type="text"
-                          inputMode="numeric"
-                          maxLength={3}
-                          className="h-6 w-14 text-[11px] text-center"
-                          value={sq.timeLimitSeconds}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === "" || /^\d{1,3}$/.test(val)) updateSubQuestion(sq.id, { timeLimitSeconds: val });
-                          }}
-                          placeholder="30"
-                          disabled={tab.saved}
-                        />
-                        <span className="text-[10px] text-muted-foreground">초</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Label className="text-[10px] text-muted-foreground">재녹음:</Label>
-                        <Switch
-                          checked={sq.allowResponseReset}
-                          onCheckedChange={(v) => updateSubQuestion(sq.id, { allowResponseReset: v })}
-                          disabled={tab.saved}
-                          className="scale-75"
-                        />
-                      </div>
-                    </>
-                  )}
+                  <Input
+                    className="flex-1 h-7 text-sm bg-transparent border-0 border-b border-dashed focus-visible:ring-0 focus-visible:border-solid px-1"
+                    value={sq.text.replace(/<[^>]*>/g, "")}
+                    onChange={(e) => updateSubQuestion(sq.id, { text: e.target.value })}
+                    placeholder={isPart3
+                      ? "e.g. Why do you think some people prefer..."
+                      : "e.g. What do you do in your free time?"}
+                    disabled={tab.saved}
+                  />
+                  {sq.audioUrl && <AudioPlayButton src={sq.audioUrl} />}
+                  <button
+                    type="button"
+                    onClick={() => toggleSpeakingCard(sq.id)}
+                    className="p-1 rounded hover:bg-black/5 shrink-0"
+                  >
+                    {isExpanded ? (
+                      <ChevronDown className={cn("h-3.5 w-3.5", isPart1 ? "text-emerald-600" : "text-violet-600")} />
+                    ) : (
+                      <ChevronRight className={cn("h-3.5 w-3.5", isPart1 ? "text-emerald-600" : "text-violet-600")} />
+                    )}
+                  </button>
                   {tab.speakingQuestions.length > 1 && !tab.saved && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6"
+                      className="h-6 w-6 shrink-0"
                       onClick={() => removeSubQuestion(sq.id)}
                     >
                       <Trash2 className="h-3.5 w-3.5 text-destructive" />
@@ -195,29 +163,46 @@ export function ModalSpeakingSimpleEditor({
                 </div>
               </div>
 
-              {/* Question body - only shown when expanded */}
+              {/* Expanded area - settings + audio upload */}
               {isExpanded && (
-                <div className="p-4 space-y-3">
-                  <RichTextEditor
-                    value={sq.text}
-                    onChange={(v) => updateSubQuestion(sq.id, { text: v })}
-                    placeholder={isPart3
-                      ? `Q${idx + 1}: e.g. Why do you think some people prefer reading books rather than watching movies?`
-                      : `Q${idx + 1}: e.g. What do you do in your free time?`}
-                    minHeight="60px"
-                  />
-                  <div className="flex items-center gap-2">
+                <div className="px-3 py-2 border-t flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-1">
+                    <Label className="text-[10px] text-muted-foreground">시간:</Label>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={3}
+                      className="h-6 w-14 text-[11px] text-center"
+                      value={sq.timeLimitSeconds}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "" || /^\d{1,3}$/.test(val)) updateSubQuestion(sq.id, { timeLimitSeconds: val });
+                      }}
+                      placeholder="30"
+                      disabled={tab.saved}
+                    />
+                    <span className="text-[10px] text-muted-foreground">초</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Label className="text-[10px] text-muted-foreground">재녹음:</Label>
+                    <Switch
+                      checked={sq.allowResponseReset}
+                      onCheckedChange={(v) => updateSubQuestion(sq.id, { allowResponseReset: v })}
+                      disabled={tab.saved}
+                      className="scale-75"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1 flex-1">
                     <Label className="text-xs text-muted-foreground shrink-0">오디오:</Label>
-                    <div className="flex-1">
-                      <FileUpload
-                        value={sq.audioUrl}
-                        onChange={(v) => updateSubQuestion(sq.id, { audioUrl: v })}
-                        accept="audio"
-                        placeholder="시험관 오디오 업로드 (선택)"
-                        deferred
-                        onFileReady={(file) => updateSubQuestion(sq.id, { audioFile: file })}
-                      />
-                    </div>
+                    <FileUpload
+                      value={sq.audioUrl}
+                      onChange={(v) => updateSubQuestion(sq.id, { audioUrl: v })}
+                      accept="audio"
+                      placeholder="시험관 오디오 (선택)"
+                      deferred
+                      onFileReady={(file) => updateSubQuestion(sq.id, { audioFile: file })}
+                      compact
+                    />
                   </div>
                 </div>
               )}
@@ -226,5 +211,35 @@ export function ModalSpeakingSimpleEditor({
         })}
       </div>
     </div>
+  );
+}
+
+function AudioPlayButton({ src }: { src: string }) {
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const toggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!audioRef.current) {
+      audioRef.current = new Audio(getCdnUrl(src));
+      audioRef.current.onended = () => setPlaying(false);
+    }
+    if (playing) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setPlaying(false);
+    } else {
+      audioRef.current.play();
+      setPlaying(true);
+    }
+  };
+
+  return (
+    <button type="button" onClick={toggle} className="p-1 rounded hover:bg-black/5 shrink-0" title={playing ? "정지" : "재생"}>
+      {playing
+        ? <Square className="h-3.5 w-3.5 text-red-500 fill-red-500" />
+        : <Play className="h-3.5 w-3.5 text-emerald-600 fill-emerald-600" />
+      }
+    </button>
   );
 }

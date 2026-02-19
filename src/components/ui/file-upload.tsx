@@ -22,6 +22,7 @@ interface FileUploadProps {
   deferred?: boolean;
   /** deferred 모드에서 파일 선택/제거 시 File 객체 전달 */
   onFileReady?: (file: File | null) => void;
+  compact?: boolean;
   className?: string;
   placeholder?: string;
   disabled?: boolean;
@@ -63,6 +64,7 @@ export function FileUpload({
   context,
   deferred = false,
   onFileReady,
+  compact = false,
   className,
   placeholder,
   disabled,
@@ -191,6 +193,18 @@ export function FileUpload({
               </Button>
             </div>
           </div>
+        ) : compact ? (
+          <div className="border rounded-md px-3 py-1.5 bg-slate-50 flex items-center gap-2">
+            <AudioPlayer src={displayUrl} />
+            <div className="flex gap-1 shrink-0">
+              <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => fileInputRef.current?.click()} disabled={disabled || isUploading}>
+                <Upload className="h-3 w-3" />
+              </Button>
+              <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={handleRemove} disabled={disabled}>
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
         ) : (
           <div className="border rounded-lg p-4 bg-slate-50 space-y-2">
             <AudioPlayer src={displayUrl} />
@@ -220,6 +234,53 @@ export function FileUpload({
               </div>
             </div>
           </div>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={acceptMime}
+          className="hidden"
+          onChange={handleInputChange}
+          disabled={disabled || isUploading}
+        />
+      </div>
+    );
+  }
+
+  // 파일이 없는 경우: compact 모드
+  if (compact) {
+    return (
+      <div
+        className={cn(
+          "relative flex items-center gap-2 border border-dashed rounded-md px-3 py-1.5 transition-colors",
+          isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-muted-foreground/50",
+          disabled && "opacity-50 cursor-not-allowed",
+          className
+        )}
+        onDrop={!disabled ? handleDrop : undefined}
+        onDragOver={!disabled ? handleDragOver : undefined}
+        onDragLeave={!disabled ? handleDragLeave : undefined}
+      >
+        {isUploading ? (
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        ) : (
+          <>
+            <Icon className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+            <span className="text-xs text-muted-foreground flex-1 truncate">
+              {placeholder || `${accept === "image" ? "이미지" : "오디오"} 파일 선택...`}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 text-xs px-2 shrink-0"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={disabled}
+            >
+              <Upload className="h-3 w-3 mr-1" />
+              선택
+            </Button>
+          </>
         )}
         <input
           ref={fileInputRef}
