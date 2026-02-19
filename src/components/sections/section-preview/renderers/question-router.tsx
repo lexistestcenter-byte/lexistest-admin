@@ -19,6 +19,7 @@ interface QuestionRouterProps {
   activeMatchSlot: number | null;
   setActiveMatchSlot: (num: number | null) => void;
   contentAudioPlaying?: boolean;
+  onPauseContentAudio?: () => void;
 }
 
 export function QuestionRouter({
@@ -26,6 +27,7 @@ export function QuestionRouter({
   toggleMultiAnswer,
   activeMatchSlot, setActiveMatchSlot,
   contentAudioPlaying,
+  onPauseContentAudio,
 }: QuestionRouterProps) {
   const fmt = item.question.question_format;
   const titleText = item.question.title || "";
@@ -62,7 +64,7 @@ export function QuestionRouter({
   else if (fmt === "essay_task1" || fmt === "essay_task2" || fmt === "essay")
     content = <EssayRenderer item={item} answers={answers} setAnswer={setAnswer} />;
   else if (fmt.startsWith("speaking_"))
-    content = <SpeakingRenderer item={item} contentAudioPlaying={contentAudioPlaying} />;
+    content = <SpeakingRenderer item={item} contentAudioPlaying={contentAudioPlaying} onPauseContentAudio={onPauseContentAudio} />;
   else
     content = <p className="text-sm text-gray-500">Unsupported format: {fmt}</p>;
 

@@ -16,6 +16,7 @@ interface QuestionPanelProps {
   activeMatchSlot: number | null;
   setActiveMatchSlot: (num: number | null) => void;
   contentAudioPlaying?: boolean;
+  onPauseContentAudio?: () => void;
 }
 
 export function QuestionPanel({
@@ -29,6 +30,7 @@ export function QuestionPanel({
   activeMatchSlot,
   setActiveMatchSlot,
   contentAudioPlaying,
+  onPauseContentAudio,
 }: QuestionPanelProps) {
   if (items.length === 0) {
     return (
@@ -119,6 +121,7 @@ export function QuestionPanel({
                 activeMatchSlot={activeMatchSlot}
                 setActiveMatchSlot={setActiveMatchSlot}
                 contentAudioPlaying={contentAudioPlaying}
+                onPauseContentAudio={onPauseContentAudio}
               />
             </div>
           );

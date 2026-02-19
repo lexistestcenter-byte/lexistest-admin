@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -64,6 +64,21 @@ export function SectionPreview({
   } = state;
 
   const [contentAudioPlaying, setContentAudioPlaying] = useState(false);
+  const contentAudioRef = useRef<HTMLAudioElement>(null);
+  const instructionAudioRef = useRef<HTMLAudioElement>(null);
+
+  const pauseContentAudio = useCallback(() => {
+    if (contentAudioRef.current) {
+      contentAudioRef.current.pause();
+      contentAudioRef.current.currentTime = 0;
+    }
+  }, []);
+
+  const pauseInstructionAudio = useCallback(() => {
+    if (instructionAudioRef.current) {
+      instructionAudioRef.current.pause();
+    }
+  }, []);
 
   // ─── Layout ────────────────────────────────────────────────────
 
@@ -144,11 +159,9 @@ export function SectionPreview({
                   />
                 )}
                 {instructionAudioUrl && (
-                  <div className="flex justify-center">
-                    <audio autoPlay controls src={getCdnUrl(instructionAudioUrl)} className="w-full max-w-md h-10" />
-                  </div>
+                  <audio ref={instructionAudioRef} autoPlay src={getCdnUrl(instructionAudioUrl)} className="hidden" />
                 )}
-                {isSpeaking && <MicTestSection />}
+                {isSpeaking && <MicTestSection onPauseInstructionAudio={pauseInstructionAudio} />}
                 <div className="flex justify-center pt-4">
                   <button
                     type="button"
@@ -172,6 +185,7 @@ export function SectionPreview({
               {/* Auto-play audio from content block */}
               {activeBlock?.audio_url && (
                 <audio
+                  ref={contentAudioRef}
                   key={activeBlock.id}
                   src={getCdnUrl(activeBlock.audio_url)}
                   autoPlay
@@ -218,6 +232,7 @@ export function SectionPreview({
                     activeMatchSlot={activeMatchSlot}
                     setActiveMatchSlot={setActiveMatchSlot}
                     contentAudioPlaying={contentAudioPlaying}
+                    onPauseContentAudio={pauseContentAudio}
                   />
                 </div>
               </div>
@@ -241,20 +256,96 @@ export function SectionPreview({
 
 // ─── Mic Test Section (Speaking instruction page) ──────────
 
-function MicTestSection() {
+function MicTestSection({ onPauseInstructionAudio }: { onPauseInstructionAudio?: () => void }) {
   const [testState, setTestState] = useState<"idle" | "recording" | "playing" | "done">("idle");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationRef = useRef<number>(0);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  const drawWaveform = useCallback(() => {
+    const canvas = canvasRef.current;
+    const analyser = analyserRef.current;
+    if (!canvas || !analyser) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const draw = () => {
+      animationRef.current = requestAnimationFrame(draw);
+      analyser.getByteTimeDomainData(dataArray);
+
+      ctx.fillStyle = "rgb(239, 246, 255)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgb(59, 130, 246)";
+      ctx.beginPath();
+
+      const sliceWidth = canvas.width / bufferLength;
+      let x = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = (v * canvas.height) / 2;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        x += sliceWidth;
+      }
+      ctx.lineTo(canvas.width, canvas.height / 2);
+      ctx.stroke();
+    };
+    draw();
+  }, []);
+
+  const stopWaveform = useCallback(() => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = 0;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    analyserRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    if (testState === "recording") {
+      drawWaveform();
+    } else {
+      stopWaveform();
+    }
+  }, [testState, drawWaveform, stopWaveform]);
+
+  useEffect(() => {
+    return () => stopWaveform();
+  }, [stopWaveform]);
 
   const startTest = async () => {
+    onPauseInstructionAudio?.();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      const audioCtx = new AudioContext();
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      const source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+      audioContextRef.current = audioCtx;
+      analyserRef.current = analyser;
+
       const recorder = new MediaRecorder(stream);
       chunksRef.current = [];
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       recorder.onstop = () => {
+        stopWaveform();
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
@@ -302,9 +393,17 @@ function MicTestSection() {
         </Button>
       )}
       {testState === "recording" && (
-        <div className="flex items-center gap-2 text-sm text-red-600">
-          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          Recording... (3초)
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm text-red-600">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            Recording... (3초)
+          </div>
+          <canvas
+            ref={canvasRef}
+            width={300}
+            height={60}
+            className="w-full h-[60px] rounded bg-blue-50 border border-blue-200"
+          />
         </div>
       )}
       {testState === "done" && (

@@ -80,10 +80,11 @@ export default function SectionsPage() {
   const [previewData, setPreviewData] = useState<{
     instructionTitle: string;
     instructionHtml: string;
+    instructionAudioUrl: string;
     contentBlocks: { id: string; content_type: "passage" | "audio"; passage_title?: string; passage_content?: string; passage_footnotes?: string; audio_url?: string; audio_transcript?: string }[];
     questionGroups: { id: string; title: string; instructions: string | null; subInstructions: string | null; contentBlockId: string | null; startNum: number; endNum: number; questionIds: string[] }[];
     questions: PreviewQuestion[];
-  }>({ instructionTitle: "", instructionHtml: "", contentBlocks: [], questionGroups: [], questions: [] });
+  }>({ instructionTitle: "", instructionHtml: "", instructionAudioUrl: "", contentBlocks: [], questionGroups: [], questions: [] });
 
   // Filters
   const [selectedType, setSelectedType] = useState("all");
@@ -172,7 +173,7 @@ export default function SectionsPage() {
     try {
       // Fetch section detail (for instruction page) and structure in parallel
       const [sectionDetailRes, structRes] = await Promise.all([
-        api.get<{ instruction_title?: string; instruction_html?: string }>(`/api/sections/${section.id}`),
+        api.get<{ instruction_title?: string; instruction_html?: string; instruction_audio_url?: string }>(`/api/sections/${section.id}`),
         api.get<{
           content_blocks: Record<string, unknown>[];
           question_groups: { id: string; title?: string; instructions?: string; content_block_id?: string; items?: { question_id: string }[] }[];
@@ -182,6 +183,7 @@ export default function SectionsPage() {
       const sectionDetail = sectionDetailRes.data;
       const instructionTitle = sectionDetail?.instruction_title || "";
       const instructionHtml = sectionDetail?.instruction_html || "";
+      const instructionAudioUrl = sectionDetail?.instruction_audio_url || "";
 
       const structData = structRes.data;
       const structError = structRes.error;
@@ -245,7 +247,7 @@ export default function SectionsPage() {
         }
       );
 
-      setPreviewData({ instructionTitle, instructionHtml, contentBlocks: blocks, questionGroups: numberedGroups, questions });
+      setPreviewData({ instructionTitle, instructionHtml, instructionAudioUrl, contentBlocks: blocks, questionGroups: numberedGroups, questions });
     } catch (error) {
       console.error("Error loading preview:", error);
       toast.error("미리보기 데이터를 불러오는데 실패했습니다.");
@@ -439,6 +441,7 @@ export default function SectionsPage() {
         contentBlocks={isLoadingPreview ? [] : previewData.contentBlocks}
         questionGroups={isLoadingPreview ? [] : previewData.questionGroups}
         questions={isLoadingPreview ? [] : previewData.questions}
+        instructionAudioUrl={isLoadingPreview ? undefined : previewData.instructionAudioUrl || undefined}
       />
     </div>
   );

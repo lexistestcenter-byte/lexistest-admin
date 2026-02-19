@@ -11,6 +11,7 @@ import type { QuestionItem } from "../types";
 interface SpeakingRendererProps {
   item: QuestionItem;
   contentAudioPlaying?: boolean;
+  onPauseContentAudio?: () => void;
 }
 
 interface RecordingInfo {
@@ -18,7 +19,7 @@ interface RecordingInfo {
   duration: number;
 }
 
-export function SpeakingRenderer({ item, contentAudioPlaying }: SpeakingRendererProps) {
+export function SpeakingRenderer({ item, contentAudioPlaying, onPauseContentAudio }: SpeakingRendererProps) {
   const q = item.question;
   const fmt = q.question_format;
   const od = q.options_data || {};
@@ -124,7 +125,13 @@ export function SpeakingRenderer({ item, contentAudioPlaying }: SpeakingRenderer
               </div>
               {activeQ.audio_url ? (
                 <div className="p-3 bg-white rounded-lg border">
-                  <audio controls src={getCdnUrl(String(activeQ.audio_url))} className="w-full h-8" />
+                  <audio
+                    controls
+                    controlsList="nodownload"
+                    src={getCdnUrl(String(activeQ.audio_url))}
+                    className="w-full h-8"
+                    onPlay={() => onPauseContentAudio?.()}
+                  />
                 </div>
               ) : null}
               <SpeakingRecorder
@@ -257,7 +264,13 @@ export function SpeakingRenderer({ item, contentAudioPlaying }: SpeakingRenderer
               </div>
               {activeQ.audio_url ? (
                 <div className="p-3 bg-white rounded-lg border">
-                  <audio controls src={getCdnUrl(String(activeQ.audio_url))} className="w-full h-8" />
+                  <audio
+                    controls
+                    controlsList="nodownload"
+                    src={getCdnUrl(String(activeQ.audio_url))}
+                    className="w-full h-8"
+                    onPlay={() => onPauseContentAudio?.()}
+                  />
                 </div>
               ) : null}
               <SpeakingRecorder
