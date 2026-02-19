@@ -100,7 +100,7 @@ export function MCQRenderer({ item, answers, setAnswer, toggleMultiAnswer }: MCQ
       )}
 
       {displayAlphabet ? (
-        <div className="flex flex-wrap gap-2">
+        <div className="space-y-1.5">
           {options.map((opt) => {
             const isSelected = selectedLabels.includes(opt.label);
             const isDisabled = isMultiple && !isSelected && selectionCount >= maxSelectable;
@@ -110,16 +110,28 @@ export function MCQRenderer({ item, answers, setAnswer, toggleMultiAnswer }: MCQ
                 type="button"
                 disabled={isDisabled}
                 className={cn(
-                  "w-10 h-10 rounded-full border-2 font-bold text-sm transition-colors",
+                  "w-full flex items-center gap-3 p-2.5 rounded-lg border text-left transition-colors text-sm",
                   isSelected
-                    ? "border-blue-500 bg-blue-500 text-white"
+                    ? "border-blue-500 bg-blue-50"
                     : isDisabled
-                      ? "border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed"
-                      : "border-gray-300 hover:border-blue-400 hover:bg-blue-50"
+                      ? "border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed"
+                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                 )}
                 onClick={() => handleOptionClick(opt.label)}
               >
-                {opt.label}
+                <span
+                  className={cn(
+                    "w-8 h-8 rounded-full border-2 font-bold text-sm flex items-center justify-center shrink-0 transition-colors",
+                    isSelected
+                      ? "border-blue-500 bg-blue-500 text-white"
+                      : isDisabled
+                        ? "border-gray-200 bg-gray-50 text-gray-300"
+                        : "border-gray-300"
+                  )}
+                >
+                  {opt.label}
+                </span>
+                <span>{String(opt.text)}</span>
               </button>
             );
           })}

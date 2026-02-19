@@ -40,7 +40,7 @@ export function MCQPreview({ data }: { data: QuestionPreviewData }) {
         <p className="text-sm text-blue-600">Choose {maxSelections} answers.</p>
       )}
       {displayAlphabet ? (
-        <div className="flex flex-wrap gap-2 mt-4">
+        <div className="space-y-1.5 mt-4">
           {options.map((option, idx) => {
             const optId = option.id || String(idx);
             const isSelected = selected.has(optId);
@@ -51,13 +51,21 @@ export function MCQPreview({ data }: { data: QuestionPreviewData }) {
                 type="button"
                 onClick={() => toggleOption(optId)}
                 className={cn(
-                  "w-10 h-10 rounded-full border-2 font-bold text-sm transition-colors",
-                  isSelected
-                    ? "border-primary bg-primary text-white"
-                    : "border-gray-300 hover:border-primary hover:bg-primary/10"
+                  "flex items-center gap-3 p-3 border rounded-lg cursor-pointer w-full text-left transition-colors",
+                  isSelected ? "bg-primary/10 border-primary" : "hover:bg-slate-50"
                 )}
               >
-                {label}
+                <span
+                  className={cn(
+                    "w-8 h-8 rounded-full border-2 font-bold text-sm flex items-center justify-center shrink-0 transition-colors",
+                    isSelected
+                      ? "border-primary bg-primary text-white"
+                      : "border-gray-300"
+                  )}
+                >
+                  {label}
+                </span>
+                <span>{option.text || `(선택지 ${label})`}</span>
               </button>
             );
           })}
