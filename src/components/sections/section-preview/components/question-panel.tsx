@@ -90,11 +90,6 @@ export function QuestionPanel({
             {renderBlockHtml(activeGroup.instructions)}
           </div>
         )}
-        {activeGroup.subInstructions && (
-          <div className="text-sm text-gray-700 mt-2 leading-relaxed">
-            {renderBlockHtml(activeGroup.subInstructions)}
-          </div>
-        )}
       </div>
 
       {/* 문제 그룹 레벨 오디오 — 자동재생 */}
@@ -104,6 +99,11 @@ export function QuestionPanel({
 
       {/* Questions in this group */}
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2">
+        {activeGroup.subInstructions && (
+          <div className="bg-white border border-amber-200 rounded-lg px-4 py-2.5 text-sm text-amber-800 leading-relaxed">
+            {renderBlockHtml(activeGroup.subInstructions)}
+          </div>
+        )}
         {activeGroupItems.map((item) => {
           const isItemActive =
             activeNum >= item.startNum && activeNum <= item.endNum;

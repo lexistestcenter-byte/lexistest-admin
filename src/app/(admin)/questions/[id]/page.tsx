@@ -3,6 +3,8 @@
 import { use } from "react";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
 import { ArrowLeft, Eye, Trash2, Save, Loader2 } from "lucide-react";
 import { questionFormats } from "@/components/questions/types";
@@ -149,6 +151,20 @@ export default function EditQuestionPage({
         {/* 오른쪽: 에디터 영역 */}
         <div className="flex-1 overflow-y-auto bg-white">
           <div className="max-w-4xl mx-auto p-8">
+            {/* Instructions (MCQ/T·F·NG/flowchart/essay/speaking 제외) */}
+            {selectedFormat && selectedFormat !== "mcq" && selectedFormat !== "true_false_ng" && selectedFormat !== "flowchart" && selectedFormat !== "essay" && !selectedFormat.startsWith("speaking_") && (
+              <div className="mb-6">
+                <Label className="text-sm font-medium">지시문 (Instructions)</Label>
+                <Textarea
+                  className="mt-1"
+                  placeholder="예: Choose the correct letter, A, B, C or D."
+                  value={form.instructions}
+                  onChange={(e) => form.setInstructions(e.target.value)}
+                  rows={2}
+                />
+              </div>
+            )}
+
             {/* MCQ (통합: 단일/복수) */}
             {selectedFormat === "mcq" && (
               <MCQEditor
