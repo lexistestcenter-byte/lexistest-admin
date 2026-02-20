@@ -10,7 +10,7 @@ const cspDirectives = [
   "style-src 'self' 'unsafe-inline'",
   `img-src 'self' data: blob: ${supabaseUrl} ${cdnUrl}`.trim(),
   `media-src 'self' blob: ${supabaseUrl} ${cdnUrl}`.trim(),
-  `connect-src 'self' ${supabaseUrl} ${cdnUrl} https://accounts.google.com`.trim(),
+  `connect-src 'self' ${supabaseUrl} ${cdnUrl} https://accounts.google.com https://*.r2.cloudflarestorage.com`.trim(),
   "font-src 'self'",
   "frame-src 'self' https://accounts.google.com",
   "object-src 'none'",
