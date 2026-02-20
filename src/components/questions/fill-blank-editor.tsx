@@ -95,16 +95,10 @@ export function FillBlankEditor({
     if (from === to) return;
     const selectedText = editor.state.doc.textBetween(from, to).trim();
     if (!selectedText) return;
-    if (blankMode === "word") {
-      if (/\s/.test(selectedText)) {
-        toast.warning("공백이 포함된 단어는 빈칸으로 만들 수 없습니다. 단어 하나만 선택해주세요.");
-        return;
-      }
-    } else {
-      if (/^\s/.test(editor.state.doc.textBetween(from, to))) {
-        toast.warning("첫 글자가 공백인 텍스트는 빈칸으로 만들 수 없습니다.");
-        return;
-      }
+    const trimmed = selectedText.trim();
+    if (trimmed !== selectedText) {
+      toast.warning("선택한 텍스트의 앞뒤에 공백이 포함되어 있습니다. 공백 없이 선택해주세요.");
+      return;
     }
     setEditorContextMenu({ x: e.clientX, y: e.clientY, text: selectedText, from, to });
   };
@@ -128,7 +122,7 @@ export function FillBlankEditor({
   };
 
   const updateBlankAnswer = (id: string, newAnswer: string) => {
-    const clean = blankMode === "word" ? newAnswer.replace(/\s/g, "") : newAnswer.replace(/^\s+/, "");
+    const clean = newAnswer.trim();
     setBlanks(blanks.map(b => b.id === id ? { ...b, answer: clean } : b));
   };
 
@@ -143,28 +137,10 @@ export function FillBlankEditor({
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="지문 제목" />
       </div>
 
-      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border">
-        <span className={`text-sm font-medium ${blankMode === "word" ? "text-primary" : "text-muted-foreground"}`}>워드형</span>
-        <Switch
-          checked={blankMode === "sentence"}
-          onCheckedChange={(checked) => {
-            const newMode = checked ? "sentence" : "word";
-            if (content.trim() || blanks.length > 0) {
-              setContent("");
-              setBlanks([]);
-              if (editor) editor.commands.setContent("");
-              toast.info("모드가 변경되어 내용이 초기화되었습니다");
-            }
-            setBlankMode(newMode);
-          }}
-        />
-        <span className={`text-sm font-medium ${blankMode === "sentence" ? "text-primary" : "text-muted-foreground"}`}>문장형</span>
-      </div>
-
       <div className="space-y-2">
         <Label>문제 <span className="text-red-500">*</span></Label>
         <p className="text-xs text-muted-foreground">
-          단어를 드래그로 선택 후 <strong>우클릭</strong> → 빈칸 만들기 / 직접 <code className="bg-slate-100 px-1 rounded">[번호]</code> 입력도 가능
+          텍스트를 드래그로 선택 후 <strong>우클릭</strong> → 빈칸 만들기 / 직접 <code className="bg-slate-100 px-1 rounded">[번호]</code> 입력도 가능
         </p>
         <div className="relative">
           <div className="border rounded-md overflow-hidden" onContextMenu={handleEditorContextMenu}>
@@ -223,7 +199,7 @@ export function FillBlankEditor({
                   <span className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0">{blank.number}</span>
                   <Input className="flex-1 h-8 text-sm" value={blank.answer}
                     onChange={(e) => updateBlankAnswer(blank.id, e.target.value)}
-                    placeholder={blankMode === "word" ? "정답 단어 입력" : "정답 (문장 가능)"} />
+                    placeholder="정답 입력" />
                   <Button
                     variant="ghost"
                     size="sm"
@@ -382,16 +358,10 @@ export function FillBlankDragEditor({
     if (from === to) return;
     const selectedText = editor.state.doc.textBetween(from, to).trim();
     if (!selectedText) return;
-    if (blankMode === "word") {
-      if (/\s/.test(selectedText)) {
-        toast.warning("공백이 포함된 단어는 빈칸으로 만들 수 없습니다. 단어 하나만 선택해주세요.");
-        return;
-      }
-    } else {
-      if (/^\s/.test(editor.state.doc.textBetween(from, to))) {
-        toast.warning("첫 글자가 공백인 텍스트는 빈칸으로 만들 수 없습니다.");
-        return;
-      }
+    const trimmed = selectedText.trim();
+    if (trimmed !== selectedText) {
+      toast.warning("선택한 텍스트의 앞뒤에 공백이 포함되어 있습니다. 공백 없이 선택해주세요.");
+      return;
     }
     setEditorContextMenu({ x: e.clientX, y: e.clientY, text: selectedText, from, to });
   };
@@ -404,7 +374,7 @@ export function FillBlankDragEditor({
     pendingAnswers.current.set(nextNum, text);
     editor.chain().focus().deleteRange({ from, to }).insertContent(`[${nextNum}]`).run();
     const trimmed = text.trim();
-    if (trimmed && !trimmed.includes(" ") && !wordBank.includes(trimmed)) setWordBank([...wordBank, trimmed]);
+    if (trimmed && !wordBank.includes(trimmed)) setWordBank([...wordBank, trimmed]);
     setEditorContextMenu(null);
   };
 
@@ -417,20 +387,19 @@ export function FillBlankDragEditor({
   };
 
   const updateBlankAnswer = (id: string, newAnswer: string) => {
-    const clean = blankMode === "word" ? newAnswer.replace(/\s/g, "") : newAnswer.replace(/^\s+/, "");
+    const clean = newAnswer.trim();
     const blank = blanks.find(b => b.id === id);
     if (!blank) return;
     const oldAnswer = blank.answer;
     setBlanks(blanks.map(b => b.id === id ? { ...b, answer: clean } : b));
-    const wbWord = clean.trim();
-    const validWbWord = wbWord && !wbWord.includes(" ");
+    const wbWord = clean;
     if (oldAnswer && oldAnswer !== clean) {
       const stillUsed = blanks.some(b => b.id !== id && b.answer === oldAnswer);
       let wb = [...wordBankRef.current];
       if (!stillUsed) wb = wb.filter(w => w !== oldAnswer);
-      if (validWbWord && !wb.includes(wbWord)) wb.push(wbWord);
+      if (wbWord && !wb.includes(wbWord)) wb.push(wbWord);
       setWordBank(wb);
-    } else if (validWbWord && !wordBankRef.current.includes(wbWord)) {
+    } else if (wbWord && !wordBankRef.current.includes(wbWord)) {
       setWordBank([...wordBankRef.current, wbWord]);
     }
   };
@@ -446,33 +415,15 @@ export function FillBlankDragEditor({
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="지문 제목" />
       </div>
 
-      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border">
-        <span className={`text-sm font-medium ${blankMode === "word" ? "text-primary" : "text-muted-foreground"}`}>워드형</span>
-        <Switch
-          checked={blankMode === "sentence"}
-          onCheckedChange={(checked) => {
-            const newMode = checked ? "sentence" : "word";
-            if (content.trim() || blanks.length > 0) {
-              setContent("");
-              setBlanks([]);
-              setWordBank([]);
-              if (editor) editor.commands.setContent("");
-              toast.info("모드가 변경되어 내용이 초기화되었습니다");
-            }
-            setBlankMode(newMode);
-          }}
-        />
-        <span className={`text-sm font-medium ${blankMode === "sentence" ? "text-primary" : "text-muted-foreground"}`}>문장형</span>
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">중복 단어 허용</span>
-          <Switch checked={allowDuplicate} onCheckedChange={setAllowDuplicate} />
-        </div>
+      <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border">
+        <span className="text-sm text-muted-foreground">중복 단어 허용</span>
+        <Switch checked={allowDuplicate} onCheckedChange={setAllowDuplicate} />
       </div>
 
       <div className="space-y-2">
         <Label>문제 <span className="text-red-500">*</span></Label>
         <p className="text-xs text-muted-foreground">
-          단어를 드래그로 선택 후 <strong>우클릭</strong> → 빈칸 만들기 / 직접 <code className="bg-slate-100 px-1 rounded">[번호]</code> 입력도 가능
+          텍스트를 드래그로 선택 후 <strong>우클릭</strong> → 빈칸 만들기 / 직접 <code className="bg-slate-100 px-1 rounded">[번호]</code> 입력도 가능
         </p>
         <div className="relative">
           <div className="border rounded-md overflow-hidden" onContextMenu={handleEditorContextMenu}>
@@ -597,7 +548,7 @@ export function FillBlankDragEditor({
             <Label className="text-xs text-muted-foreground">Word Bank 미리보기</Label>
             <span className="text-[10px] text-muted-foreground">(드래그하여 순서 변경)</span>
           </div>
-          <div className={`${blankMode === "sentence" ? "flex flex-col" : "flex flex-wrap"} gap-2 p-3 bg-slate-50 rounded-lg border border-dashed`}>
+          <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-lg border border-dashed">
             {wordBank.map((word, i) => {
               const isAnswer = blanks.some(b => b.answer === word);
               return (

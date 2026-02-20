@@ -10,8 +10,6 @@ export function FillBlankDragPreview({ data }: { data: QuestionPreviewData }) {
   const contentTitle = getStr(o, "title", data.title || "");
   const wordBank = getArr(o, "word_bank").map(String);
   const allowDuplicate = getBool(o, "allowDuplicate") || getBool(o, "allow_duplicate");
-  const blankMode = getStr(o, "blank_mode", "word");
-  const isSentenceMode = blankMode === "sentence";
   const inputStyle = getStr(o, "input_style", "editor");
   const items = getArr(o, "items").map(String);
 
@@ -93,7 +91,7 @@ export function FillBlankDragPreview({ data }: { data: QuestionPreviewData }) {
       {wordBank.length > 0 && (
         <div className="pt-4 border-t">
           <p className="text-sm font-medium mb-2">Word Bank</p>
-          <div className={isSentenceMode ? "flex flex-col gap-2" : "flex flex-wrap gap-2"}>
+          <div className="flex flex-wrap gap-2">
             {availableWords.map((word, i) => (
               <span
                 key={`${word}-${i}`}

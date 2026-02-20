@@ -37,24 +37,38 @@ export async function uploadFile(
   type: "image" | "audio",
   context?: string
 ): Promise<{ path: string }> {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("type", type);
-  if (context) {
-    formData.append("context", context);
-  }
-
-  const response = await fetch("/api/upload", {
+  // 1. presigned URL 요청
+  const presignRes = await fetch("/api/upload/presign", {
     method: "POST",
-    body: formData,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+      type,
+      context,
+    }),
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "업로드 실패");
+  if (!presignRes.ok) {
+    const error = await presignRes.json().catch(() => null);
+    throw new Error(error?.error || "presigned URL 요청 실패");
   }
 
-  return response.json();
+  const { uploadUrl, path } = await presignRes.json();
+
+  // 2. presigned URL로 파일 직접 업로드
+  const uploadRes = await fetch(uploadUrl, {
+    method: "PUT",
+    body: file,
+    headers: { "Content-Type": file.type },
+  });
+
+  if (!uploadRes.ok) {
+    throw new Error("파일 업로드 실패");
+  }
+
+  return { path };
 }
 
 export function FileUpload({
