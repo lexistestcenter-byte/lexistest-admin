@@ -344,6 +344,16 @@ export default function EditQuestionPage({
         onDelete={handleDelete}
       />
 
+      {/* 저장 중 오버레이 */}
+      {isSaving && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+          <div className="bg-white rounded-lg px-8 py-6 flex flex-col items-center gap-3 shadow-lg">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm font-medium">저장 중...</p>
+          </div>
+        </div>
+      )}
+
       {/* 미리보기 모달 */}
       <EditPreviewDialog
         open={isPreviewOpen}
