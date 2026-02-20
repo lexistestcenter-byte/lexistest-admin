@@ -143,7 +143,7 @@ export function StepStructure({
                   </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground text-sm">
-                    콘텐츠 블록이 없습니다.
+                    {sectionType === "reading" ? "지문이 없습니다." : "오디오가 없습니다."}
                   </div>
                 )}
               </CardContent>

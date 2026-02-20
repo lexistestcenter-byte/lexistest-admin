@@ -135,6 +135,8 @@ export function QuestionPanel({
                 answers={answers}
                 setAnswer={setAnswer}
                 toggleMultiAnswer={toggleMultiAnswer}
+                activeNum={activeNum}
+                setActiveNum={setActiveNum}
                 activeMatchSlot={activeMatchSlot}
                 setActiveMatchSlot={setActiveMatchSlot}
                 contentAudioPlaying={contentAudioPlaying}
@@ -194,6 +196,8 @@ export function QuestionPanel({
                     answers={answers}
                     setAnswer={setAnswer}
                     toggleMultiAnswer={toggleMultiAnswer}
+                    activeNum={activeNum}
+                    setActiveNum={setActiveNum}
                     activeMatchSlot={activeMatchSlot}
                     setActiveMatchSlot={setActiveMatchSlot}
                     contentAudioPlaying={contentAudioPlaying}

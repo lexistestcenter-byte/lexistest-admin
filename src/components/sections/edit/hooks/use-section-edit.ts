@@ -248,7 +248,7 @@ export function useSectionEdit(id: string) {
 
   const handleAddContentBlock = async () => {
     if (!section) return;
-    const contentType = section.section_type === "speaking" ? "audio" : "passage";
+    const contentType = (section.section_type === "speaking" || section.section_type === "listening") ? "audio" : "passage";
     try {
       const { error } = await api.post(`/api/sections/${id}/content-blocks`, {
         display_order: contentBlocks.length,
@@ -276,7 +276,7 @@ export function useSectionEdit(id: string) {
     } else {
       // Create new block with data
       if (!section) return;
-      const contentType = section.section_type === "speaking" ? "audio" : "passage";
+      const contentType = (section.section_type === "speaking" || section.section_type === "listening") ? "audio" : "passage";
       try {
         const { error } = await api.post(`/api/sections/${id}/content-blocks`, {
           display_order: contentBlocks.length,

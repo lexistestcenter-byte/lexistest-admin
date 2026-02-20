@@ -76,6 +76,8 @@ export interface RendererProps {
   item: QuestionItem;
   answers: Record<number, string>;
   setAnswer: (num: number, value: string) => void;
+  activeNum?: number;
+  setActiveNum?: (num: number) => void;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────

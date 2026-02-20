@@ -17,6 +17,8 @@ interface QuestionRouterProps {
   answers: Record<number, string>;
   setAnswer: (num: number, value: string) => void;
   toggleMultiAnswer: (num: number, value: string) => void;
+  activeNum?: number;
+  setActiveNum?: (num: number) => void;
   activeMatchSlot: number | null;
   setActiveMatchSlot: (num: number | null) => void;
   contentAudioPlaying?: boolean;
@@ -33,6 +35,7 @@ interface QuestionRouterProps {
 export function QuestionRouter({
   item, answers, setAnswer,
   toggleMultiAnswer,
+  activeNum, setActiveNum,
   activeMatchSlot, setActiveMatchSlot,
   contentAudioPlaying,
   onPauseContentAudio,
@@ -60,16 +63,16 @@ export function QuestionRouter({
   else if (fmt === "true_false_ng")
     content = <TFNGRenderer item={item} answers={answers} setAnswer={setAnswer} />;
   else if (fmt === "fill_blank_typing")
-    content = <FillBlankTypingRenderer item={item} answers={answers} setAnswer={setAnswer} />;
+    content = <FillBlankTypingRenderer item={item} answers={answers} setAnswer={setAnswer} activeNum={activeNum} setActiveNum={setActiveNum} />;
   else if (fmt === "fill_blank_drag")
-    content = <FillBlankDragRenderer item={item} answers={answers} setAnswer={setAnswer} />;
+    content = <FillBlankDragRenderer item={item} answers={answers} setAnswer={setAnswer} activeNum={activeNum} setActiveNum={setActiveNum} />;
   else if (fmt === "table_completion") {
     const od = item.question.options_data || {};
     const inputMode = String(od.input_mode || "typing");
     if (inputMode === "drag")
-      content = <FillBlankDragRenderer item={item} answers={answers} setAnswer={setAnswer} />;
+      content = <FillBlankDragRenderer item={item} answers={answers} setAnswer={setAnswer} activeNum={activeNum} setActiveNum={setActiveNum} />;
     else
-      content = <FillBlankTypingRenderer item={item} answers={answers} setAnswer={setAnswer} />;
+      content = <FillBlankTypingRenderer item={item} answers={answers} setAnswer={setAnswer} activeNum={activeNum} setActiveNum={setActiveNum} />;
   } else if (fmt === "heading_matching" || fmt === "matching")
     content = <MatchingRenderer item={item} answers={answers} setAnswer={setAnswer} activeMatchSlot={activeMatchSlot} setActiveMatchSlot={setActiveMatchSlot} />;
   else if (fmt === "flowchart")

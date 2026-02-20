@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { FileText, Headphones, Pencil, Trash2 } from "lucide-react";
+import { FileText, Volume2, Pencil, Trash2 } from "lucide-react";
 import type { ContentBlock } from "./types";
 
 interface ContentBlockEditorProps {
@@ -17,11 +17,10 @@ export function ContentBlockEditor({
   onEdit,
   onRemove,
 }: ContentBlockEditorProps) {
-  const isAudio = block.content_type === "audio";
-  const label =
-    block.content_type === "passage"
-      ? block.passage_title || `Passage ${index + 1}`
-      : block.passage_title || `Audio ${index + 1}`;
+  const isAudio = block.content_type === "audio" || !!block.audio_url;
+  const label = isAudio
+    ? block.passage_title || `Audio ${index + 1}`
+    : block.passage_title || `Passage ${index + 1}`;
 
   // Compact row with edit button (opens modal)
   const hasContent = isAudio
@@ -31,7 +30,7 @@ export function ContentBlockEditor({
     ? (hasContent ? "오디오 업로드됨" : "오디오 없음")
     : (hasContent ? "지문 입력됨" : "내용 없음");
   const icon = isAudio
-    ? <Headphones className="h-4 w-4 text-sky-500 shrink-0" />
+    ? <Volume2 className="h-4 w-4 text-sky-500 shrink-0" />
     : <FileText className="h-4 w-4 text-emerald-500 shrink-0" />;
 
   return (

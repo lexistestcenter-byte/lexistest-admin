@@ -1,16 +1,74 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import type { RendererProps } from "../types";
 
-export function FillBlankTypingRenderer({ item, answers, setAnswer }: RendererProps) {
+export function FillBlankTypingRenderer({ item, answers, setAnswer, activeNum, setActiveNum }: RendererProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Event delegation: listen for input and focusin events on the container
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const handleInput = (e: Event) => {
+      const input = e.target as HTMLInputElement;
+      if (input.tagName === "INPUT" && input.dataset.num) {
+        setAnswer(parseInt(input.dataset.num), input.value);
+      }
+    };
+    const handleFocusIn = (e: FocusEvent) => {
+      const input = e.target as HTMLInputElement;
+      if (input.tagName === "INPUT" && input.dataset.num && setActiveNum) {
+        setActiveNum(parseInt(input.dataset.num));
+      }
+    };
+    container.addEventListener("input", handleInput);
+    container.addEventListener("focusin", handleFocusIn);
+    return () => {
+      container.removeEventListener("input", handleInput);
+      container.removeEventListener("focusin", handleFocusIn);
+    };
+  }, [setAnswer, setActiveNum]);
+
+  // Navigator → input focus: scroll to and focus the input matching activeNum
+  useEffect(() => {
+    if (activeNum == null) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const input = container.querySelector(`input[data-num="${activeNum}"]`) as HTMLInputElement | null;
+    if (input && document.activeElement !== input) {
+      input.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      input.focus();
+    }
+  }, [activeNum]);
+
+  // Sync answers to DOM inputs
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.querySelectorAll<HTMLInputElement>("input[data-num]").forEach((input) => {
+      const num = parseInt(input.dataset.num || "0");
+      const val = answers[num] || "";
+      if (input.value !== val) input.value = val;
+      if (val) {
+        input.style.color = "#2563eb";
+        input.style.borderBottomColor = "#3b82f6";
+        input.style.borderBottomStyle = "solid";
+      } else {
+        input.style.color = "";
+        input.style.borderBottomColor = "#d1d5db";
+        input.style.borderBottomStyle = "dashed";
+      }
+    });
+  }, [answers]);
+
   const od = item.question.options_data || {};
   const content = String(od.content || item.question.content || "");
   if (!content) return <p className="text-sm text-gray-500">No content available.</p>;
 
-  // table_completion: render HTML as a whole to preserve <table> structure
+  // table_completion: existing approach (already uses dangerouslySetInnerHTML)
   if (item.question.question_format === "table_completion") {
     let processed = sanitizeHtmlForDisplay(content);
     processed = processed.replace(/\[(\d+)\]/g, (_, numStr) => {
@@ -26,40 +84,103 @@ export function FillBlankTypingRenderer({ item, answers, setAnswer }: RendererPr
     );
   }
 
-  const isMulti = (item.question.item_count || 1) > 1;
-  const parts = content.split(/\[(\d+)\]/);
+  // Build HTML: sanitize first, then replace [N] with <input>
+  let processed = sanitizeHtmlForDisplay(content);
+  processed = processed.replace(/\[(\d+)\]/g, (_, numStr) => {
+    const blankNum = parseInt(numStr);
+    const num = item.startNum + blankNum - 1;
+    return `<input type="text" data-num="${num}" style="display:inline;width:100px;border:none;border-bottom:1px dashed #d1d5db;background:transparent;padding:0 4px;font-size:14px;text-align:center;outline:none;vertical-align:baseline" placeholder="${num}" />`;
+  });
+
   return (
-    <div className="text-sm leading-relaxed">
-      <div>
-        {parts.map((part, i) => {
-          if (i % 2 === 0) return <span key={i} dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(part) }} />;
-          const blankNum = parseInt(part, 10);
-          const num = item.startNum + blankNum - 1;
-          return (
-            <span key={i} className="relative inline-flex items-center mx-0.5 align-baseline">
-              {isMulti && !answers[num] && (
-                <span className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-400 pointer-events-none z-10">
-                  {num}
-                </span>
-              )}
-              <input
-                type="text"
-                className={cn(
-                  "border-b border-dashed border-gray-300 bg-transparent px-1 py-0 w-28 text-center text-sm focus:outline-none focus:border-blue-400",
-                  answers[num] ? "text-blue-600 border-blue-400 border-solid" : ""
-                )}
-                value={answers[num] || ""}
-                onChange={(e) => setAnswer(num, e.target.value)}
-              />
-            </span>
-          );
-        })}
-      </div>
-    </div>
+    <div
+      ref={containerRef}
+      className="text-sm leading-[2] [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1 [&_p]:my-2 [&_p:first-child]:mt-0"
+      dangerouslySetInnerHTML={{ __html: processed }}
+    />
   );
 }
 
-export function FillBlankDragRenderer({ item, answers, setAnswer }: RendererProps) {
+export function FillBlankDragRenderer({ item, answers, setAnswer, activeNum, setActiveNum }: RendererProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const answersRef = useRef(answers);
+  const draggedWordRef = useRef<string | null>(null);
+  const setActiveNumRef = useRef(setActiveNum);
+  const [draggedWord, setDraggedWord] = useState<string | null>(null);
+
+  // Keep refs in sync
+  useEffect(() => { answersRef.current = answers; }, [answers]);
+  useEffect(() => { draggedWordRef.current = draggedWord; }, [draggedWord]);
+  useEffect(() => { setActiveNumRef.current = setActiveNum; }, [setActiveNum]);
+
+  // Event delegation: dragover, drop, click on slots
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const handleDragOver = (e: DragEvent) => {
+      if ((e.target as HTMLElement).closest("[data-slot]")) e.preventDefault();
+    };
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      const target = (e.target as HTMLElement).closest("[data-slot]") as HTMLElement | null;
+      if (target && draggedWordRef.current) {
+        const num = parseInt(target.dataset.slot || "0");
+        setAnswer(num, draggedWordRef.current);
+        setDraggedWord(null);
+        setActiveNumRef.current?.(num);
+      }
+    };
+    const handleClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement).closest("[data-slot]") as HTMLElement | null;
+      if (target) {
+        const num = parseInt(target.dataset.slot || "0");
+        setActiveNumRef.current?.(num);
+        if (answersRef.current[num]) setAnswer(num, "");
+      }
+    };
+    container.addEventListener("dragover", handleDragOver);
+    container.addEventListener("drop", handleDrop);
+    container.addEventListener("click", handleClick);
+    return () => {
+      container.removeEventListener("dragover", handleDragOver);
+      container.removeEventListener("drop", handleDrop);
+      container.removeEventListener("click", handleClick);
+    };
+  }, [setAnswer]);
+
+  // Navigator → slot scroll: scroll to the slot matching activeNum
+  useEffect(() => {
+    if (activeNum == null) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const slot = container.querySelector(`[data-slot="${activeNum}"]`) as HTMLElement | null;
+    if (slot) {
+      slot.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [activeNum]);
+
+  // Sync slot content and styles
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.querySelectorAll<HTMLElement>("[data-slot]").forEach((el) => {
+      const num = parseInt(el.dataset.slot || "0");
+      const val = answers[num] || "";
+      el.textContent = val || String(num);
+      if (val) {
+        el.style.borderBottomColor = "#3b82f6";
+        el.style.borderBottomStyle = "solid";
+        el.style.backgroundColor = "#eff6ff";
+        el.style.color = "#1d4ed8";
+      } else {
+        el.style.borderBottomColor = "#d1d5db";
+        el.style.borderBottomStyle = "dashed";
+        el.style.backgroundColor = "";
+        el.style.color = "#9ca3af";
+      }
+    });
+  }, [answers]);
+
   const od = item.question.options_data || {};
   const content = String(od.content || item.question.content || "");
   // word_bank (snake_case from DB) or wordBank (camelCase)
@@ -71,15 +192,12 @@ export function FillBlankDragRenderer({ item, answers, setAnswer }: RendererProp
   const allowDuplicate = Boolean(od.allow_duplicate || od.allowDuplicate);
   if (!content) return <p className="text-sm text-gray-500">No content available.</p>;
 
-  const [draggedWord, setDraggedWord] = useState<string | null>(null);
-
   const usedWords = Object.values(answers).filter(Boolean);
   const availableWords = allowDuplicate
     ? wordBank.filter((w) => w)
     : wordBank.filter((w) => w && !usedWords.includes(w));
 
-  // table_completion: render HTML as a whole to preserve <table> structure
-  // Click-to-fill for table_completion (drag-drop not possible with dangerouslySetInnerHTML)
+  // table_completion: existing approach (click-to-fill)
   if (item.question.question_format === "table_completion") {
     let processed = sanitizeHtmlForDisplay(content);
     processed = processed.replace(/\[(\d+)\]/g, (_, numStr) => {
@@ -124,46 +242,21 @@ export function FillBlankDragRenderer({ item, answers, setAnswer }: RendererProp
     );
   }
 
-  const isMulti = (item.question.item_count || 1) > 1;
-  const parts = content.split(/\[(\d+)\]/);
+  // Build HTML: sanitize first, then replace [N] with <span data-slot>
+  let processed = sanitizeHtmlForDisplay(content);
+  processed = processed.replace(/\[(\d+)\]/g, (_, numStr) => {
+    const blankNum = parseInt(numStr);
+    const num = item.startNum + blankNum - 1;
+    return `<span data-slot="${num}" style="display:inline-block;min-width:80px;border-bottom:1px dashed #d1d5db;padding:0 4px;text-align:center;font-size:14px;cursor:pointer;vertical-align:baseline;color:#9ca3af">${num}</span>`;
+  });
+
   return (
     <div className="space-y-4">
-      <div className="text-sm leading-relaxed">
-        {parts.map((part, i) => {
-          if (i % 2 === 0) return <span key={i} dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(part) }} />;
-          const blankNum = parseInt(part, 10);
-          const num = item.startNum + blankNum - 1;
-          return (
-            <span key={i} className="relative inline-flex items-center mx-0.5 align-baseline">
-              {isMulti && !answers[num] && (
-                <span className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-400 pointer-events-none z-10">
-                  {num}
-                </span>
-              )}
-              <span
-                className={cn(
-                  "inline-block min-w-[80px] border-b border-dashed px-2 py-0.5 text-center text-sm select-none transition-colors",
-                  answers[num]
-                    ? "border-blue-500 border-solid bg-blue-50 text-blue-700 cursor-pointer"
-                    : draggedWord
-                      ? "border-primary bg-primary/5"
-                      : "border-gray-300"
-                )}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => {
-                  if (draggedWord) {
-                    setAnswer(num, draggedWord);
-                    setDraggedWord(null);
-                  }
-                }}
-                onClick={() => answers[num] && setAnswer(num, "")}
-              >
-                {answers[num] || "\u00A0"}
-              </span>
-            </span>
-          );
-        })}
-      </div>
+      <div
+        ref={containerRef}
+        className="text-sm leading-[2] [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1 [&_p]:my-2 [&_p:first-child]:mt-0"
+        dangerouslySetInnerHTML={{ __html: processed }}
+      />
       {wordBank.length > 0 && (
         <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
           <p className="text-xs font-semibold text-slate-600 mb-2">Word Bank</p>
