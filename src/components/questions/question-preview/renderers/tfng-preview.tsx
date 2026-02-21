@@ -9,6 +9,8 @@ import type { QuestionPreviewData } from "../types";
 export function TFNGPreview({ data }: { data: QuestionPreviewData }) {
   const o = od(data);
   const items = getArr(o, "items") as { id?: string; statement?: string }[];
+  const isYesNo = data.question_format === "yes_no_ng";
+  const optionLabels = isYesNo ? ["YES", "NO", "NOT GIVEN"] : ["TRUE", "FALSE", "NOT GIVEN"];
 
   const [answers, setAnswers] = useState<Record<number, string>>({});
 
@@ -26,7 +28,7 @@ export function TFNGPreview({ data }: { data: QuestionPreviewData }) {
         <div className="p-4 border rounded-lg">
           <p className="mb-4" dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(data.content || "(진술문 입력)") }} />
           <div className="flex gap-4">
-            {["TRUE", "FALSE", "NOT GIVEN"].map((label) => (
+            {optionLabels.map((label) => (
               <button
                 key={label}
                 type="button"
@@ -61,7 +63,7 @@ export function TFNGPreview({ data }: { data: QuestionPreviewData }) {
             <p className="flex-1" dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(item.statement || "(진술문)") }} />
           </div>
           <div className="flex gap-4 mt-3 ml-9">
-            {["TRUE", "FALSE", "NOT GIVEN"].map((label) => (
+            {optionLabels.map((label) => (
               <button
                 key={label}
                 type="button"

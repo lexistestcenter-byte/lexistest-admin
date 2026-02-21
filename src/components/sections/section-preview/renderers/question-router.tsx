@@ -8,6 +8,7 @@ import { FillBlankTypingRenderer, FillBlankDragRenderer } from "./fill-blank-ren
 import { MatchingRenderer } from "./matching-renderer";
 import { FlowchartRenderer } from "./flowchart-renderer";
 import { MapLabelingRenderer } from "./map-labeling-renderer";
+import { ShortAnswerRenderer } from "./short-answer-renderer";
 import { EssayRenderer } from "./essay-renderer";
 import { SpeakingRenderer } from "./speaking-renderer";
 import type { SpeakingQuestionState } from "../hooks/use-preview-state";
@@ -60,7 +61,7 @@ export function QuestionRouter({
 
   if (fmt === "mcq_single" || fmt === "mcq_multiple")
     content = <MCQRenderer item={item} answers={answers} setAnswer={setAnswer} toggleMultiAnswer={toggleMultiAnswer} />;
-  else if (fmt === "true_false_ng")
+  else if (fmt === "true_false_ng" || fmt === "yes_no_ng")
     content = <TFNGRenderer item={item} answers={answers} setAnswer={setAnswer} />;
   else if (fmt === "fill_blank_typing")
     content = <FillBlankTypingRenderer item={item} answers={answers} setAnswer={setAnswer} activeNum={activeNum} setActiveNum={setActiveNum} />;
@@ -77,6 +78,8 @@ export function QuestionRouter({
     content = <MatchingRenderer item={item} answers={answers} setAnswer={setAnswer} activeMatchSlot={activeMatchSlot} setActiveMatchSlot={setActiveMatchSlot} />;
   else if (fmt === "flowchart")
     content = <FlowchartRenderer item={item} answers={answers} setAnswer={setAnswer} />;
+  else if (fmt === "short_answer")
+    content = <ShortAnswerRenderer item={item} answers={answers} setAnswer={setAnswer} activeNum={activeNum} setActiveNum={setActiveNum} />;
   else if (fmt === "map_labeling")
     content = <MapLabelingRenderer item={item} answers={answers} setAnswer={setAnswer} />;
   else if (fmt === "essay_task1" || fmt === "essay_task2" || fmt === "essay")
@@ -103,7 +106,7 @@ export function QuestionRouter({
         </div>
       )}
       {instructionsText && (
-        <div className="text-sm text-gray-600 leading-relaxed italic">
+        <div className="text-sm text-gray-600 leading-relaxed font-semibold">
           {renderBlockHtml(instructionsText)}
         </div>
       )}

@@ -27,6 +27,7 @@ const MatchingEditor = dynamic(() => import("@/components/questions/create/match
 const SpeakingPart1Editor = dynamic(() => import("@/components/questions/speaking-part1-editor").then(m => ({ default: m.SpeakingPart1Editor })), { ssr: false });
 const SpeakingPart2Editor = dynamic(() => import("@/components/questions/create/speaking-part2-editor").then(m => ({ default: m.SpeakingPart2Editor })), { ssr: false });
 const SpeakingPart3Editor = dynamic(() => import("@/components/questions/speaking-part3-editor").then(m => ({ default: m.SpeakingPart3Editor })), { ssr: false });
+const ShortAnswerEditor = dynamic(() => import("@/components/questions/short-answer-editor").then(m => ({ default: m.ShortAnswerEditor })), { ssr: false });
 
 export default function NewQuestionPage() {
   const form = useQuestionForm();
@@ -84,7 +85,7 @@ export default function NewQuestionPage() {
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={resetCurrentTabFormat}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            형태 변경
+            유형 변경
           </Button>
           <div className="h-6 w-px bg-border" />
           <div className="flex items-center gap-2">
@@ -175,7 +176,7 @@ export default function NewQuestionPage() {
         <div className="flex-1 overflow-y-auto bg-white">
           <div className="max-w-4xl mx-auto p-8">
             {/* 지시문 - MCQ/T·F·NG/flowchart/essay 제외 */}
-            {currentTab.format && currentTab.format !== "mcq" && currentTab.format !== "true_false_ng" && currentTab.format !== "flowchart" && currentTab.format !== "essay" && (
+            {currentTab.format && currentTab.format !== "mcq" && currentTab.format !== "true_false_ng" && currentTab.format !== "yes_no_ng" && currentTab.format !== "flowchart" && currentTab.format !== "essay" && (
               <div className="mb-6">
                 <Label className="text-sm font-medium">지시문 (Instructions)</Label>
                 <Textarea
@@ -204,12 +205,13 @@ export default function NewQuestionPage() {
               />
             )}
 
-            {currentTab.format === "true_false_ng" && (
+            {(currentTab.format === "true_false_ng" || currentTab.format === "yes_no_ng") && (
               <TFNGEditor
                 statement={currentTab.tfngStatement}
                 setStatement={(v) => updateCurrentTab("tfngStatement", v)}
                 answer={currentTab.tfngAnswer}
                 setAnswer={(v) => updateCurrentTab("tfngAnswer", v)}
+                isYesNo={currentTab.format === "yes_no_ng"}
               />
             )}
 
@@ -339,6 +341,17 @@ export default function NewQuestionPage() {
                 setLabels={(v) => updateCurrentTab("mapLabelingLabels", v)}
                 items={currentTab.mapLabelingItems}
                 setItems={(v) => updateCurrentTab("mapLabelingItems", v)}
+              />
+            )}
+
+            {currentTab.format === "short_answer" && (
+              <ShortAnswerEditor
+                question={currentTab.shortAnswerQuestion}
+                setQuestion={(v) => updateCurrentTab("shortAnswerQuestion", v)}
+                answer={currentTab.shortAnswerAnswer}
+                setAnswer={(v) => updateCurrentTab("shortAnswerAnswer", v)}
+                alternatives={currentTab.shortAnswerAlternatives}
+                setAlternatives={(v) => updateCurrentTab("shortAnswerAlternatives", v)}
               />
             )}
           </div>

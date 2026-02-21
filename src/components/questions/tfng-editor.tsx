@@ -10,13 +10,19 @@ export function TFNGEditor({
   answer,
   setAnswer,
   disabled,
+  isYesNo,
 }: {
   statement: string;
   setStatement: (v: string) => void;
   answer: "true" | "false" | "not_given";
   setAnswer: (v: "true" | "false" | "not_given") => void;
   disabled?: boolean;
+  isYesNo?: boolean;
 }) {
+  const labels = isYesNo
+    ? { true: "YES", false: "NO", not_given: "NOT GIVEN" }
+    : { true: "TRUE", false: "FALSE", not_given: "NOT GIVEN" };
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -44,7 +50,7 @@ export function TFNGEditor({
                   : "bg-slate-50 hover:bg-slate-100 border-slate-200"
               )}
             >
-              {opt === "true" ? "TRUE" : opt === "false" ? "FALSE" : "NOT GIVEN"}
+              {labels[opt]}
             </button>
           ))}
         </div>

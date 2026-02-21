@@ -19,12 +19,12 @@ interface TabPayload {
 
 /** Validate a single tab and return error message or null */
 function validateTab(tab: TabState): string | null {
-  if (!tab.selectedFormat) return "형태가 선택되지 않았습니다.";
+  if (!tab.selectedFormat) return "유형이 선택되지 않았습니다.";
 
   if (tab.selectedFormat === "mcq") {
     if (!tab.mcqQuestion.trim()) return "문제를 입력해주세요.";
     if (!tab.mcqOptions.some((o) => o.isCorrect)) return "정답을 하나 이상 선택해주세요.";
-  } else if (tab.selectedFormat === "true_false_ng") {
+  } else if (tab.selectedFormat === "true_false_ng" || tab.selectedFormat === "yes_no_ng") {
     if (!tab.tfngStatement.trim()) return "진술문을 입력해주세요.";
   } else if (tab.selectedFormat === "matching") {
     if (tab.matchingOptions.length < 2) return "보기를 2개 이상 추가해주세요.";
@@ -38,6 +38,9 @@ function validateTab(tab: TabState): string | null {
   } else if (tab.selectedFormat === "flowchart") {
     if (tab.flowchartNodes.length === 0) return "노드를 1개 이상 추가해주세요.";
     if (tab.flowchartBlanks.length === 0) return "빈칸을 1개 이상 추가해주세요.";
+  } else if (tab.selectedFormat === "short_answer") {
+    if (!tab.shortAnswerQuestion.trim()) return "질문을 입력해주세요.";
+    if (!tab.shortAnswerAnswer.trim()) return "정답을 입력해주세요.";
   } else if (tab.selectedFormat === "map_labeling") {
     if (tab.mapItems.length === 0) return "문항을 1개 이상 추가해주세요.";
   } else if (tab.selectedFormat === "essay") {
@@ -74,7 +77,7 @@ function buildPayload(tab: TabState): TabPayload {
     } else {
       answerData = { correct: tab.mcqOptions.find((o) => o.isCorrect)?.label || "" };
     }
-  } else if (tab.selectedFormat === "true_false_ng") {
+  } else if (tab.selectedFormat === "true_false_ng" || tab.selectedFormat === "yes_no_ng") {
     content = tab.tfngStatement;
     optionsData = { separateNumbers: tab.separateNumbers };
     answerData = { answer: tab.tfngAnswer };
@@ -98,7 +101,7 @@ function buildPayload(tab: TabState): TabPayload {
       title: tab.fillTitle || undefined,
       separateNumbers: tab.separateNumbers,
       blank_mode: tab.blankMode,
-      ...(tab.selectedFormat === "fill_blank_drag" ? { word_bank: tab.wordBank, allow_duplicate: tab.fillBlankDragAllowDuplicate } : {}),
+      ...(tab.selectedFormat === "fill_blank_drag" ? { word_bank: tab.wordBank, allow_duplicate: tab.fillBlankDragAllowDuplicate, bank_label: tab.bankLabel, bank_layout: tab.bankLayout } : {}),
     };
     answerData = {
       blanks: tab.blanks.map((b) => ({
@@ -137,6 +140,12 @@ function buildPayload(tab: TabState): TabPayload {
         answer: b.answer,
         alternatives: (b.alternatives || []).filter(Boolean),
       })),
+    };
+  } else if (tab.selectedFormat === "short_answer") {
+    content = tab.shortAnswerQuestion;
+    answerData = {
+      answer: tab.shortAnswerAnswer,
+      alternatives: tab.shortAnswerAlternatives.filter(Boolean),
     };
   } else if (tab.selectedFormat === "map_labeling") {
     content = stripBlobImages(tab.mapPassage) || " ";
@@ -214,7 +223,7 @@ export function useModalSave(
       question_format: actualFormat,
       content,
       title,
-      instructions: (tab.selectedFormat !== "mcq" && tab.selectedFormat !== "true_false_ng") ? tab.instructions || undefined : undefined,
+      instructions: (tab.selectedFormat !== "mcq" && tab.selectedFormat !== "true_false_ng" && tab.selectedFormat !== "yes_no_ng") ? tab.instructions || undefined : undefined,
       options_data: Object.keys(optionsData).length > 0 ? optionsData : undefined,
       answer_data: Object.keys(answerData).length > 0 ? answerData : undefined,
       is_practice: tab.isPractice,

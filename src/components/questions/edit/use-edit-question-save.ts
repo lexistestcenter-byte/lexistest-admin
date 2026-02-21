@@ -21,7 +21,7 @@ export function useEditQuestionSave(id: string, form: EditQuestionForm) {
     const { selectedQuestionType, selectedFormat } = form;
 
     if (!selectedQuestionType || !selectedFormat) {
-      toast.error("문제 유형과 형태가 필요합니다.");
+      toast.error("문제 유형이 필요합니다.");
       return;
     }
 
@@ -47,8 +47,8 @@ export function useEditQuestionSave(id: string, form: EditQuestionForm) {
       }
     }
 
-    // T/F/NG 유효성 검사
-    if (selectedFormat === "true_false_ng") {
+    // T/F/NG & Y/N/NG 유효성 검사
+    if (selectedFormat === "true_false_ng" || selectedFormat === "yes_no_ng") {
       if (!form.tfngStatement.trim()) {
         toast.error("진술문을 입력해주세요.");
         return;
@@ -139,6 +139,18 @@ export function useEditQuestionSave(id: string, form: EditQuestionForm) {
       }
     }
 
+    // 단답형 유효성 검사
+    if (selectedFormat === "short_answer") {
+      if (!form.shortAnswerQuestion.trim()) {
+        toast.error("질문을 입력해주세요.");
+        return;
+      }
+      if (!form.shortAnswerAnswer.trim()) {
+        toast.error("정답을 입력해주세요.");
+        return;
+      }
+    }
+
     // 테이블 완성하기 유효성 검사
     if (selectedFormat === "table_completion") {
       if (!form.contentHtml.trim()) {
@@ -200,7 +212,7 @@ export function useEditQuestionSave(id: string, form: EditQuestionForm) {
         };
         optionsData = {
           blank_mode: form.blankMode,
-          ...(selectedFormat === "fill_blank_drag" ? { word_bank: form.wordBank, allow_duplicate: form.fillBlankDragAllowDuplicate } : {}),
+          ...(selectedFormat === "fill_blank_drag" ? { word_bank: form.wordBank, allow_duplicate: form.fillBlankDragAllowDuplicate, bank_label: form.bankLabel, bank_layout: form.bankLayout } : {}),
         };
       }
       // MCQ (통합: 단일/복수)
@@ -226,8 +238,8 @@ export function useEditQuestionSave(id: string, form: EditQuestionForm) {
           answerData = { correct: correctOption?.label || "" };
         }
       }
-      // T/F/NG
-      else if (selectedFormat === "true_false_ng") {
+      // T/F/NG & Y/N/NG
+      else if (selectedFormat === "true_false_ng" || selectedFormat === "yes_no_ng") {
         content = form.tfngStatement;
         answerData = {
           answer: form.tfngAnswer,
@@ -262,6 +274,14 @@ export function useEditQuestionSave(id: string, form: EditQuestionForm) {
             answer: b.answer,
             alternatives: b.alternatives || [],
           })),
+        };
+      }
+      // Short Answer
+      else if (selectedFormat === "short_answer") {
+        content = form.shortAnswerQuestion;
+        answerData = {
+          answer: form.shortAnswerAnswer,
+          alternatives: form.shortAnswerAlternatives.filter(Boolean),
         };
       }
       // Table Completion
@@ -350,7 +370,7 @@ export function useEditQuestionSave(id: string, form: EditQuestionForm) {
 
       // separateNumbers를 multi-item 유형에 공통 추가
       if ([
-        "true_false_ng", "matching", "heading_matching",
+        "true_false_ng", "yes_no_ng", "matching", "heading_matching",
         "fill_blank_typing", "fill_blank_drag",
         "flowchart", "table_completion", "map_labeling",
       ].includes(selectedFormat!) || (selectedFormat === "mcq" && form.mcqIsMultiple)) {
@@ -362,13 +382,13 @@ export function useEditQuestionSave(id: string, form: EditQuestionForm) {
         question_format: actualFormat,
         content,
         title: form.contentTitle || form.flowchartTitle || form.mapLabelingTitle || null,
-        instructions: (selectedFormat !== "mcq" && selectedFormat !== "true_false_ng") ? (form.instructions || null) : null,
+        instructions: (selectedFormat !== "mcq" && selectedFormat !== "true_false_ng" && selectedFormat !== "yes_no_ng") ? (form.instructions || null) : null,
         options_data: optionsData,
         answer_data: answerData,
         model_answers: modelAnswers,
         generate_followup: form.generateFollowup,
         is_practice: form.isPractice,
-        tags: (selectedFormat !== "mcq" && selectedFormat !== "true_false_ng") && form.tags ? form.tags.split(",").map(t => t.trim()) : null,
+        tags: (selectedFormat !== "mcq" && selectedFormat !== "true_false_ng" && selectedFormat !== "yes_no_ng") && form.tags ? form.tags.split(",").map(t => t.trim()) : null,
         // Audio fields (Listening & Speaking Part 2)
         audio_url: (selectedQuestionType === "listening" || selectedFormat === "speaking_part2") && form.audioUrl ? form.audioUrl : null,
         audio_transcript: (selectedQuestionType === "listening" || selectedFormat === "speaking_part2") && form.audioTranscript ? form.audioTranscript : null,

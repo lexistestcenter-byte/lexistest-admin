@@ -78,6 +78,8 @@ export function useEditQuestionLoad(id: string, form: EditQuestionForm) {
                 form.setWordBank(optionsData.word_bank);
               }
               form.setFillBlankDragAllowDuplicate(optionsData.allow_duplicate || false);
+              form.setBankLabel(optionsData.bank_label !== undefined ? String(optionsData.bank_label) : "Word Bank");
+              form.setBankLayout((optionsData.bank_layout as "row" | "column") || "row");
             }
           }
         }
@@ -102,8 +104,8 @@ export function useEditQuestionLoad(id: string, form: EditQuestionForm) {
             }
           }
         }
-        // T/F/NG
-        else if (format === "true_false_ng") {
+        // T/F/NG & Y/N/NG
+        else if (format === "true_false_ng" || format === "yes_no_ng") {
           form.setTfngStatement(content || "");
           if (answerData?.answer) {
             form.setTfngAnswer(answerData.answer as "true" | "false" | "not_given");
@@ -221,6 +223,14 @@ export function useEditQuestionLoad(id: string, form: EditQuestionForm) {
           }
           form.setRelatedPart2Id(data.related_part2_id || "");
           form.setDepthLevel((data.depth_level || 1) as 1 | 2 | 3);
+        }
+        // Short Answer
+        else if (format === "short_answer") {
+          form.setShortAnswerQuestion(content || "");
+          if (answerData) {
+            form.setShortAnswerAnswer((answerData.answer as string) || "");
+            form.setShortAnswerAlternatives((answerData.alternatives as string[]) || []);
+          }
         }
         // Map Labeling
         else if (format === "map_labeling") {

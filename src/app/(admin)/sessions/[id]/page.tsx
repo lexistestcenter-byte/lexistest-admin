@@ -146,6 +146,7 @@ const questionFormatLabels: Record<string, string> = {
   matching: "매칭",
   ordering: "순서 배열",
   true_false_ng: "참/거짓/NG",
+  yes_no_ng: "예/아니오/NG",
   essay: "에세이",
 };
 

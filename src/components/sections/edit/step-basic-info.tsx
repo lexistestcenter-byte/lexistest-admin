@@ -65,12 +65,12 @@ export function StepBasicInfo({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Left: 기본 정보 */}
+      {/* Left: 시험 정보 */}
       <Card>
         <CardHeader>
-          <CardTitle>기본 정보</CardTitle>
+          <CardTitle>시험 정보</CardTitle>
           <CardDescription>
-            목록에 표시되는 시험의 기본 정보입니다.
+            해당 내용을 시험 관리 목록과 시험 응시 화면에 표시되는 정보 입니다.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -79,20 +79,20 @@ export function StepBasicInfo({
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="예: Reading Passage 1"
+              placeholder="IELTS AC READING #36"
             />
           </div>
           <div className="space-y-2">
-            <Label>설명</Label>
+            <Label>관리자용 설명</Label>
             <RichTextEditor
               value={description}
               onChange={setDescription}
-              placeholder="시험 설명..."
+              placeholder="모의고사 IELTS AC WRITING #36 입니다."
               minHeight="80px"
             />
           </div>
           <div className="space-y-2">
-            <Label>제한 시간 (분)</Label>
+            <Label>시험시간 (분)</Label>
             <Input
               type="text"
               inputMode="numeric"
@@ -132,7 +132,7 @@ export function StepBasicInfo({
               <div>
                 <CardTitle>안내 페이지</CardTitle>
                 <CardDescription>
-                  시험 시작 시 학생에게 처음 보여지는 안내 내용입니다. {(sectionType === "speaking" || sectionType === "listening") ? "(필수)" : "(선택)"}
+                  해당 내용을 시험 시작 전 응시자에게 공지할 안내사항 및 규정을 입력해주세요. {(sectionType === "speaking" || sectionType === "listening") ? "(필수)" : "(선택)"}
                 </CardDescription>
               </div>
               <Button
@@ -152,7 +152,7 @@ export function StepBasicInfo({
               <Input
                 value={instructionTitle}
                 onChange={(e) => setInstructionTitle(e.target.value)}
-                placeholder="예: Reading Test Instructions"
+                placeholder="IELTS ACADEMIC WRITING"
               />
             </div>
             {(sectionType === "listening" || sectionType === "speaking") && (

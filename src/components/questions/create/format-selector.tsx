@@ -78,10 +78,10 @@ export function FormatSelector({
       {/* 형태 선택 */}
       <div className="max-w-3xl mx-auto p-8">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold">문제 형태 선택</h1>
+          <h1 className="text-2xl font-bold">문제 유형 선택</h1>
           <p className="text-muted-foreground mt-1">
-            {selectedQuestionType === "reading" && "Reading 문제 형태를 선택하세요"}
-            {selectedQuestionType === "listening" && "Listening 문제 형태를 선택하세요"}
+            {selectedQuestionType === "reading" && "Reading 문제 유형을 선택하세요"}
+            {selectedQuestionType === "listening" && "Listening 문제 유형을 선택하세요"}
             {selectedQuestionType === "writing" && "Writing Task를 선택하세요"}
             {selectedQuestionType === "speaking" && "Speaking Part를 선택하세요"}
           </p>

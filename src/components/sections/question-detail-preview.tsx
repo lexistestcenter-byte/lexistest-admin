@@ -131,7 +131,7 @@ export function QuestionDetailPreview({ question }: QuestionDetailPreviewProps) 
     <div className="mt-2 p-3 bg-white border rounded-lg text-sm space-y-2">
       {question.instructions && (
         <div
-          className="text-xs text-gray-500 italic bg-gray-50 p-2 rounded prose prose-xs max-w-none [&_p]:my-2 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
+          className="text-xs text-gray-500 font-semibold bg-gray-50 p-2 rounded prose prose-xs max-w-none [&_p]:my-2 [&_p:empty]:min-h-[1em] [&_p:has(br:only-child)]:min-h-[1em]"
           dangerouslySetInnerHTML={{ __html: sanitizeHtmlForDisplay(question.instructions) }}
         />
       )}
@@ -247,7 +247,7 @@ export function QuestionDetailPreview({ question }: QuestionDetailPreviewProps) 
         )}
 
       {/* T/F/NG */}
-      {fmt === "true_false_ng" && (
+      {(fmt === "true_false_ng" || fmt === "yes_no_ng") && (
         <div className="space-y-1">
           {tfngItems.length > 0 ? (
             tfngItems.map((item) => (
@@ -297,9 +297,13 @@ export function QuestionDetailPreview({ question }: QuestionDetailPreviewProps) 
 
       {/* 빈칸 - word bank */}
       {(fmt === "fill_blank_drag" || fmt === "table_completion") &&
-        wordBank.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            <span className="text-xs text-gray-500 mr-1">Word Bank:</span>
+        wordBank.length > 0 && (() => {
+          const rawBL = od.bank_label !== undefined ? String(od.bank_label) : od.bankLabel !== undefined ? String(od.bankLabel) : undefined;
+          const blText = fmt === "fill_blank_drag" ? (rawBL !== undefined ? rawBL : "Word Bank") : "Word Bank";
+          const blLayout = fmt === "fill_blank_drag" ? (String(od.bank_layout || od.bankLayout || "row")) : "row";
+          return (
+          <div className={blLayout === "column" ? "flex flex-col gap-1" : "flex flex-wrap gap-1"}>
+            {blText && <span className="text-xs text-gray-500 mr-1">{blText}:</span>}
             {wordBank.map((w, i) => (
               <span
                 key={i}
@@ -309,7 +313,8 @@ export function QuestionDetailPreview({ question }: QuestionDetailPreviewProps) 
               </span>
             ))}
           </div>
-        )}
+          );
+        })()}
 
       {/* 정답 (빈칸 계열) */}
       {(fmt === "fill_blank_typing" ||
@@ -326,6 +331,22 @@ export function QuestionDetailPreview({ question }: QuestionDetailPreviewProps) 
             ))}
           </div>
         )}
+
+      {/* Short Answer */}
+      {fmt === "short_answer" && (() => {
+        const saAnswer = String((ad as Record<string, unknown>)?.answer ?? "");
+        const saAlts = Array.isArray((ad as Record<string, unknown>)?.alternatives)
+          ? ((ad as Record<string, unknown>).alternatives as string[])
+          : [];
+        return saAnswer ? (
+          <div className="text-xs text-green-700 pl-2">
+            Answer: {saAnswer}
+            {saAlts.length > 0 && (
+              <span className="text-gray-400 ml-1">({saAlts.join(", ")})</span>
+            )}
+          </div>
+        ) : null;
+      })()}
 
       {/* 에세이 조건 */}
       {fmt === "essay" && essayCondition && (

@@ -65,8 +65,10 @@ export type QuestionFormat =
   | "mcq_single"
   | "mcq_multiple"
   | "true_false_ng"
+  | "yes_no_ng"
   | "flowchart"
   | "table_completion"
+  | "short_answer"
   // Writing (1)
   | "essay"
   // Speaking (3)

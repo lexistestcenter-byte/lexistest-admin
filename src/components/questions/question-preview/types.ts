@@ -43,6 +43,8 @@ export interface QuestionTabLike {
   wordBank: string[];
   blankMode: "word" | "sentence";
   fillBlankDragAllowDuplicate: boolean;
+  bankLabel: string;
+  bankLayout: "row" | "column";
   // Table
   tableInputMode: "typing" | "drag";
   // Flowchart
@@ -66,6 +68,10 @@ export interface QuestionTabLike {
   mapLabelingPassage: string;
   mapLabelingLabels: string[];
   mapLabelingItems: { id: string; number: number; statement: string; correctLabel: string }[];
+  // Short answer
+  shortAnswerQuestion: string;
+  shortAnswerAnswer: string;
+  shortAnswerAlternatives: string[];
   // Common
   instructions: string;
   subInstructions?: string;
@@ -92,7 +98,7 @@ export function tabToPreviewData(
     if (tab.mcqDisplayAlphabet) {
       options_data.displayMode = "alphabet";
     }
-  } else if (fmt === "true_false_ng") {
+  } else if (fmt === "true_false_ng" || fmt === "yes_no_ng") {
     content = tab.tfngStatement;
   } else if (fmt === "matching") {
     content = tab.contentHtml;
@@ -112,6 +118,8 @@ export function tabToPreviewData(
     options_data.word_bank = tab.wordBank;
     options_data.blank_mode = tab.blankMode;
     options_data.allowDuplicate = tab.fillBlankDragAllowDuplicate;
+    options_data.bank_label = tab.bankLabel;
+    options_data.bank_layout = tab.bankLayout;
   } else if (fmt === "table_completion") {
     content = tab.contentHtml;
     options_data.title = tab.contentTitle;
@@ -129,6 +137,8 @@ export function tabToPreviewData(
       number: i.number,
       statement: i.statement,
     }));
+  } else if (fmt === "short_answer") {
+    content = tab.shortAnswerQuestion || "";
   } else if (fmt === "essay") {
     content = tab.writingPrompt;
     options_data.title = tab.writingTitle;

@@ -32,6 +32,8 @@ export function useEditQuestionForm() {
   const [contentTitle, setContentTitle] = useState("");
   const [blankMode, setBlankMode] = useState<"word" | "sentence">("word");
   const [fillBlankDragAllowDuplicate, setFillBlankDragAllowDuplicate] = useState(false);
+  const [bankLabel, setBankLabel] = useState("");
+  const [bankLayout, setBankLayout] = useState<"row" | "column">("row");
 
   // Table Completion
   const [tableInputMode, setTableInputMode] = useState<"typing" | "drag">("typing");
@@ -88,6 +90,11 @@ export function useEditQuestionForm() {
   // Audio (Listening)
   const [audioUrl, setAudioUrl] = useState("");
   const [audioTranscript, setAudioTranscript] = useState("");
+
+  // Short Answer
+  const [shortAnswerQuestion, setShortAnswerQuestion] = useState("");
+  const [shortAnswerAnswer, setShortAnswerAnswer] = useState("");
+  const [shortAnswerAlternatives, setShortAnswerAlternatives] = useState<string[]>([]);
 
   // Map Labeling
   const [mapLabelingTitle, setMapLabelingTitle] = useState("");
@@ -278,6 +285,8 @@ export function useEditQuestionForm() {
     contentTitle, setContentTitle,
     blankMode, setBlankMode,
     fillBlankDragAllowDuplicate, setFillBlankDragAllowDuplicate,
+    bankLabel, setBankLabel,
+    bankLayout, setBankLayout,
     tableInputMode, setTableInputMode,
     mcqQuestion, setMcqQuestion,
     mcqOptions, setMcqOptions,
@@ -310,6 +319,9 @@ export function useEditQuestionForm() {
     mapLabelingPassage, setMapLabelingPassage,
     mapLabelingLabels, setMapLabelingLabels,
     mapLabelingItems, setMapLabelingItems,
+    shortAnswerQuestion, setShortAnswerQuestion,
+    shortAnswerAnswer, setShortAnswerAnswer,
+    shortAnswerAlternatives, setShortAnswerAlternatives,
     isPreviewOpen, setIsPreviewOpen,
     // Helpers
     addBlank, updateBlank, removeBlank,

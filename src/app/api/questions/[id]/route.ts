@@ -18,8 +18,10 @@ const READING_FORMATS = [
   "mcq_multiple",
   "matching",
   "true_false_ng",
+  "yes_no_ng",
   "flowchart",
   "table_completion",
+  "short_answer",
 ] as const;
 
 // Listening 문제 형식

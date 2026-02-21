@@ -7,11 +7,13 @@ export { questionTypeInfo, formatIcons, formatDescriptions } from "@/components/
 export const formatLabels: Record<string, string> = {
   mcq: "객관식",
   true_false_ng: "T/F/NG",
+  yes_no_ng: "Y/N/NG",
   matching: "제목매칭",
   fill_blank_typing: "빈칸(직접입력)",
   fill_blank_drag: "빈칸(드래그)",
   flowchart: "플로우차트",
   table_completion: "테이블(완성)",
+  short_answer: "단답형",
   map_labeling: "지도라벨링",
   essay: "에세이",
   speaking_part1: "Part 1",

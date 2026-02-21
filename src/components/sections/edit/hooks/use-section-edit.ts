@@ -88,39 +88,39 @@ export function useSectionEdit(id: string) {
 
   // ─── Load section data ─────────────────────────────────────
 
-  useEffect(() => {
-    const loadSection = async () => {
-      setIsLoading(true);
-      try {
-        const { data, error } = await api.get<SectionData>(`/api/sections/${id}`);
-        if (error) {
-          if (error.includes("404") || error.includes("not found")) {
-            toast.error("시험을 찾을 수 없습니다.");
-            router.push("/sections");
-            return;
-          }
-          throw new Error(error);
+  const loadSection = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await api.get<SectionData>(`/api/sections/${id}`);
+      if (error) {
+        if (error.includes("404") || error.includes("not found")) {
+          toast.error("시험을 찾을 수 없습니다.");
+          router.push("/sections");
+          return;
         }
-
-        if (!data) throw new Error("시험 데이터가 없습니다.");
-        setSection(data);
-        setTitle(data.title);
-        setDescription(data.description || "");
-        setTimeLimit(data.time_limit_minutes?.toString() || "");
-        setIsPractice(data.is_practice ?? false);
-        setInstructionTitle(data.instruction_title || "");
-        setInstructionHtml(data.instruction_html || "");
-        setInstructionAudioUrl(data.instruction_audio_url || "");
-      } catch (error) {
-        console.error("Error loading section:", error);
-        toast.error("시험 정보를 불러오는데 실패했습니다.");
-      } finally {
-        setIsLoading(false);
+        throw new Error(error);
       }
-    };
 
-    loadSection();
+      if (!data) throw new Error("시험 데이터가 없습니다.");
+      setSection(data);
+      setTitle(data.title);
+      setDescription(data.description || "");
+      setTimeLimit(data.time_limit_minutes?.toString() || "");
+      setIsPractice(data.is_practice ?? false);
+      setInstructionTitle(data.instruction_title || "");
+      setInstructionHtml(data.instruction_html || "");
+      setInstructionAudioUrl(data.instruction_audio_url || "");
+    } catch (error) {
+      console.error("Error loading section:", error);
+      toast.error("시험 정보를 불러오는데 실패했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
   }, [id, router]);
+
+  useEffect(() => {
+    loadSection();
+  }, [loadSection]);
 
   // ─── Load structure (blocks + groups) ──────────────────────
 
@@ -690,7 +690,9 @@ export function useSectionEdit(id: string) {
       setPendingDeletedQuestions([]);
 
       toast.success("시험이 저장되었습니다.");
-      router.push("/sections");
+      // Refetch section data to reflect saved changes
+      await loadSection();
+      await loadStructure();
     } catch (error) {
       console.error("Error saving section:", error);
       toast.error(
@@ -857,6 +859,7 @@ export function useSectionEdit(id: string) {
     sensors,
 
     // Actions
+    loadSection,
     handleAddContentBlock,
     handleUpdateContentBlockLocal,
     handleRemoveContentBlock,

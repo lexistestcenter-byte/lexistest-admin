@@ -35,6 +35,19 @@ export function TFNGRenderer({ item, answers, setAnswer }: RendererProps) {
     );
   }
 
+  const isYesNo = item.question.question_format === "yes_no_ng";
+  const options = isYesNo
+    ? [
+        { value: "true", label: "YES" },
+        { value: "false", label: "NO" },
+        { value: "not_given", label: "NOT GIVEN" },
+      ]
+    : [
+        { value: "true", label: "TRUE" },
+        { value: "false", label: "FALSE" },
+        { value: "not_given", label: "NOT GIVEN" },
+      ];
+
   return (
     <div className="space-y-4">
       {itemsList.map((entry, idx) => {
@@ -46,11 +59,7 @@ export function TFNGRenderer({ item, answers, setAnswer }: RendererProps) {
               {renderFormattedText(String(entry.statement))}
             </p>
             <div className="flex gap-2">
-              {[
-                { value: "true", label: "TRUE" },
-                { value: "false", label: "FALSE" },
-                { value: "not_given", label: "NOT GIVEN" },
-              ].map((opt) => {
+              {options.map((opt) => {
                 const isSelected = answers[num] === opt.value;
                 return (
                   <button

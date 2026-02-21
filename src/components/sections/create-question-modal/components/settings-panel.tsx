@@ -37,7 +37,7 @@ export function SettingsPanel({
   const isSpeaking = fmt === "speaking_part1" || fmt === "speaking_part2" || fmt === "speaking_part3";
   const isListening = questionType === "listening";
   const hasSeparateNumbers =
-    fmt === "true_false_ng" || fmt === "matching" || fmt === "fill_blank_typing" ||
+    fmt === "true_false_ng" || fmt === "yes_no_ng" || fmt === "matching" || fmt === "fill_blank_typing" ||
     fmt === "fill_blank_drag" || fmt === "table_completion" || fmt === "flowchart" ||
     fmt === "map_labeling" || (fmt === "mcq" && tab.mcqIsMultiple);
   const hasFillBlankMode = fmt === "fill_blank_typing" || fmt === "fill_blank_drag";
@@ -174,6 +174,43 @@ export function SettingsPanel({
           <div className="flex items-center justify-between">
             <Label className="text-xs">같은 제목 중복 사용 허용</Label>
             <Switch checked={tab.matchingAllowDuplicate} onCheckedChange={(v) => updateTab({ matchingAllowDuplicate: v })} disabled={tab.saved} />
+          </div>
+        </div>
+      )}
+
+      {/* ─── Word Bank 표시 설정 (fill_blank_drag only) ─── */}
+      {fmt === "fill_blank_drag" && (
+        <div className="space-y-3">
+          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">보기 설정</h4>
+          <div className="space-y-1.5">
+            <Label className="text-xs">보기 라벨명</Label>
+            <Input
+              className="h-7 text-xs"
+              value={tab.bankLabel}
+              onChange={(e) => updateTab({ bankLabel: e.target.value })}
+              placeholder="Word Bank"
+              disabled={tab.saved}
+            />
+            <p className="text-[10px] text-muted-foreground">비워두면 라벨 미표시</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">보기 배치</Label>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => updateTab({ bankLayout: "row" })}
+                disabled={tab.saved}
+                className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${tab.bankLayout === "row" ? "bg-primary text-white" : "bg-white border hover:bg-slate-50"}`}
+              >
+                가로 (Row)
+              </button>
+              <button
+                onClick={() => updateTab({ bankLayout: "column" })}
+                disabled={tab.saved}
+                className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${tab.bankLayout === "column" ? "bg-primary text-white" : "bg-white border hover:bg-slate-50"}`}
+              >
+                세로 (Column)
+              </button>
+            </div>
           </div>
         </div>
       )}

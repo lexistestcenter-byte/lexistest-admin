@@ -29,6 +29,7 @@ const ModalTableCompletionEditor = dynamic(() => import("./editors/table-complet
 const ModalFlowchartEditor = dynamic(() => import("./editors/flowchart-wrapper").then(m => ({ default: m.ModalFlowchartEditor })), { ssr: false });
 const ModalSpeakingSimpleEditor = dynamic(() => import("./editors/speaking-simple-editor").then(m => ({ default: m.ModalSpeakingSimpleEditor })), { ssr: false });
 const ModalSpeakingPart2Editor = dynamic(() => import("./editors/speaking-part2-editor").then(m => ({ default: m.ModalSpeakingPart2Editor })), { ssr: false });
+const ShortAnswerEditor = dynamic(() => import("@/components/questions/short-answer-editor").then(m => ({ default: m.ShortAnswerEditor })), { ssr: false });
 
 export function CreateQuestionModal({
   open,
@@ -96,7 +97,7 @@ export function CreateQuestionModal({
               <div className="flex items-center gap-3">
                 <Button variant="ghost" size="sm" onClick={() => updateTab({ selectedFormat: null })} disabled={tab.saved}>
                   <ArrowLeft className="mr-1 h-4 w-4" />
-                  형태 변경
+                  유형 변경
                 </Button>
                 <Badge variant="outline">{formats.find((f) => f.value === fmt)?.label || fmt}</Badge>
                 {tab.saved && (
@@ -135,7 +136,7 @@ export function CreateQuestionModal({
                   )}
 
                   {/* Instructions (공통, MCQ/T/F/NG/flowchart/essay 제외) */}
-                  {fmt !== "mcq" && fmt !== "true_false_ng" && fmt !== "flowchart" && fmt !== "essay" && (
+                  {fmt !== "mcq" && fmt !== "true_false_ng" && fmt !== "yes_no_ng" && fmt !== "flowchart" && fmt !== "essay" && (
                     <div>
                       <Label className="text-sm font-medium">지시문 (Instructions)</Label>
                       <Textarea
@@ -172,13 +173,14 @@ export function CreateQuestionModal({
                       disabled={tab.saved}
                     />
                   )}
-                  {fmt === "true_false_ng" && (
+                  {(fmt === "true_false_ng" || fmt === "yes_no_ng") && (
                     <TFNGEditor
                       statement={tab.tfngStatement}
                       setStatement={(v) => updateTab({ tfngStatement: v })}
                       answer={tab.tfngAnswer}
                       setAnswer={(v) => updateTab({ tfngAnswer: v })}
                       disabled={tab.saved}
+                      isYesNo={fmt === "yes_no_ng"}
                     />
                   )}
                   {fmt === "matching" && (
@@ -239,6 +241,17 @@ export function CreateQuestionModal({
                   )}
                   {fmt === "speaking_part2" && (
                     <ModalSpeakingPart2Editor tab={tab} updateTab={updateTab} />
+                  )}
+                  {fmt === "short_answer" && (
+                    <ShortAnswerEditor
+                      question={tab.shortAnswerQuestion}
+                      setQuestion={(v) => updateTab({ shortAnswerQuestion: v })}
+                      answer={tab.shortAnswerAnswer}
+                      setAnswer={(v) => updateTab({ shortAnswerAnswer: v })}
+                      alternatives={tab.shortAnswerAlternatives}
+                      setAlternatives={(v) => updateTab({ shortAnswerAlternatives: v })}
+                      disabled={tab.saved}
+                    />
                   )}
                 </div>
               </div>

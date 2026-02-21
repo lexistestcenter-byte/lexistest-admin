@@ -84,9 +84,11 @@ const formatLabels: Record<string, string> = {
   mcq_single: "단일선택",
   mcq_multiple: "복수선택",
   true_false_ng: "T/F/NG",
+  yes_no_ng: "Y/N/NG",
   matching: "제목 매칭",
   flowchart: "플로우차트",
   table_completion: "테이블 완성",
+  short_answer: "단답형",
   map_labeling: "지도 라벨링",
   essay: "에세이",
   speaking_part1: "Part 1",
@@ -100,10 +102,12 @@ const formatFilters: Record<string, { value: string; label: string }[]> = {
     { value: "mcq_single", label: "단일선택" },
     { value: "mcq_multiple", label: "복수선택" },
     { value: "true_false_ng", label: "T/F/NG" },
+    { value: "yes_no_ng", label: "Y/N/NG" },
     { value: "matching", label: "제목 매칭" },
     { value: "fill_blank_typing", label: "빈칸채우기 (직접입력)" },
     { value: "fill_blank_drag", label: "빈칸채우기 (드래그)" },
     { value: "flowchart", label: "플로우차트" },
+    { value: "short_answer", label: "단답형" },
     { value: "table_completion", label: "테이블 완성" },
   ],
   listening: [
@@ -247,7 +251,7 @@ export default function QuestionsPage() {
     },
     {
       key: "format",
-      header: "형태",
+      header: "유형",
       cell: (q) => (
         <Badge variant="outline">{formatLabels[q.question_format] || q.question_format}</Badge>
       ),
@@ -371,10 +375,10 @@ export default function QuestionsPage() {
               }}
             >
               <SelectTrigger className="w-[180px] h-9 text-sm">
-                <SelectValue placeholder="형태" />
+                <SelectValue placeholder="유형" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">전체 형태</SelectItem>
+                <SelectItem value="all">전체 유형</SelectItem>
                 {formatFilters[selectedType].map((f) => (
                   <SelectItem key={f.value} value={f.value}>
                     {f.label}

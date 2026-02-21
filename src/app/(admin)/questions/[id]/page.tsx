@@ -31,6 +31,7 @@ const FillBlankEditor = dynamic(() => import("@/components/questions/fill-blank-
 const FillBlankDragEditor = dynamic(() => import("@/components/questions/fill-blank-editor").then(m => ({ default: m.FillBlankDragEditor })), { ssr: false });
 const SpeakingPart1Editor = dynamic(() => import("@/components/questions/speaking-part1-editor").then(m => ({ default: m.SpeakingPart1Editor })), { ssr: false });
 const SpeakingPart3Editor = dynamic(() => import("@/components/questions/speaking-part3-editor").then(m => ({ default: m.SpeakingPart3Editor })), { ssr: false });
+const ShortAnswerEditor = dynamic(() => import("@/components/questions/short-answer-editor").then(m => ({ default: m.ShortAnswerEditor })), { ssr: false });
 
 export default function EditQuestionPage({
   params,
@@ -143,6 +144,10 @@ export default function EditQuestionPage({
           tableInputMode={form.tableInputMode}
           generateFollowup={form.generateFollowup}
           setGenerateFollowup={form.setGenerateFollowup}
+          bankLabel={form.bankLabel}
+          setBankLabel={form.setBankLabel}
+          bankLayout={form.bankLayout}
+          setBankLayout={form.setBankLayout}
           addWord={form.addWord}
           updateWord={form.updateWord}
           removeWord={form.removeWord}
@@ -152,7 +157,7 @@ export default function EditQuestionPage({
         <div className="flex-1 overflow-y-auto bg-white">
           <div className="max-w-4xl mx-auto p-8">
             {/* Instructions (MCQ/T·F·NG/flowchart/essay/speaking 제외) */}
-            {selectedFormat && selectedFormat !== "mcq" && selectedFormat !== "true_false_ng" && selectedFormat !== "flowchart" && selectedFormat !== "essay" && (
+            {selectedFormat && selectedFormat !== "mcq" && selectedFormat !== "true_false_ng" && selectedFormat !== "yes_no_ng" && selectedFormat !== "flowchart" && selectedFormat !== "essay" && (
               <div className="mb-6">
                 <Label className="text-sm font-medium">지시문 (Instructions)</Label>
                 <Textarea
@@ -182,13 +187,14 @@ export default function EditQuestionPage({
               />
             )}
 
-            {/* T/F/NG */}
-            {selectedFormat === "true_false_ng" && (
+            {/* T/F/NG & Y/N/NG */}
+            {(selectedFormat === "true_false_ng" || selectedFormat === "yes_no_ng") && (
               <TFNGEditor
                 statement={form.tfngStatement}
                 setStatement={form.setTfngStatement}
                 answer={form.tfngAnswer}
                 setAnswer={form.setTfngAnswer}
+                isYesNo={selectedFormat === "yes_no_ng"}
               />
             )}
 
@@ -331,6 +337,18 @@ export default function EditQuestionPage({
               />
             )}
 
+            {/* Short Answer */}
+            {selectedFormat === "short_answer" && (
+              <ShortAnswerEditor
+                question={form.shortAnswerQuestion}
+                setQuestion={form.setShortAnswerQuestion}
+                answer={form.shortAnswerAnswer}
+                setAnswer={form.setShortAnswerAnswer}
+                alternatives={form.shortAnswerAlternatives}
+                setAlternatives={form.setShortAnswerAlternatives}
+              />
+            )}
+
           </div>
         </div>
       </div>
@@ -366,6 +384,8 @@ export default function EditQuestionPage({
           matchingTitle: form.matchingTitle, matchingAllowDuplicate: form.matchingAllowDuplicate, matchingOptions: form.matchingOptions,
           contentTitle: form.contentTitle, contentHtml: form.contentHtml, blanks: form.blanks, wordBank: form.wordBank,
           fillBlankDragAllowDuplicate: form.fillBlankDragAllowDuplicate,
+          bankLabel: form.bankLabel,
+          bankLayout: form.bankLayout,
           tableInputMode: form.tableInputMode,
           flowchartTitle: form.flowchartTitle, flowchartNodes: form.flowchartNodes,
           writingTitle: form.writingTitle, writingCondition: form.writingCondition, writingPrompt: form.writingPrompt, writingMinWords: form.writingMinWords,
@@ -375,6 +395,9 @@ export default function EditQuestionPage({
           mapLabelingTitle: form.mapLabelingTitle, mapLabelingPassage: form.mapLabelingPassage,
           mapLabelingLabels: form.mapLabelingLabels,
           mapLabelingItems: form.mapLabelingItems,
+          shortAnswerQuestion: form.shortAnswerQuestion,
+          shortAnswerAnswer: form.shortAnswerAnswer,
+          shortAnswerAlternatives: form.shortAnswerAlternatives,
           instructions: form.instructions,
           blankMode: form.blankMode,
         }, selectedQuestionType || "") : null}

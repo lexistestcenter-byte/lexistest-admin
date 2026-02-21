@@ -45,6 +45,8 @@ export interface QuestionTab {
   wordBank: string[];
   blankMode: "word" | "sentence";
   fillBlankDragAllowDuplicate: boolean;
+  bankLabel: string;
+  bankLayout: "row" | "column";
 
   // Table Completion
   tableInputMode: "typing" | "drag";
@@ -72,6 +74,11 @@ export interface QuestionTab {
   audioUrl: string;
   audioTranscript: string;
   audioFile: File | null;
+
+  // Short Answer
+  shortAnswerQuestion: string;
+  shortAnswerAnswer: string;
+  shortAnswerAlternatives: string[];
 
   // Map Labeling
   mapLabelingTitle: string;
@@ -123,6 +130,8 @@ export const createDefaultTab = (): QuestionTab => ({
   wordBank: [],
   blankMode: "word",
   fillBlankDragAllowDuplicate: false,
+  bankLabel: "",
+  bankLayout: "row",
 
   tableInputMode: "typing",
 
@@ -152,6 +161,10 @@ export const createDefaultTab = (): QuestionTab => ({
   audioUrl: "",
   audioTranscript: "",
   audioFile: null,
+
+  shortAnswerQuestion: "",
+  shortAnswerAnswer: "",
+  shortAnswerAlternatives: [],
 
   mapLabelingTitle: "",
   mapLabelingPassage: "",

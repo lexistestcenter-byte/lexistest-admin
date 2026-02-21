@@ -16,6 +16,7 @@ import {
 import {
   MoreHorizontal,
   Pencil,
+  Eye,
   Trash2,
   FileText,
   Headphones,
@@ -30,6 +31,7 @@ import { getCdnUrl } from "@/lib/cdn";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/contexts/auth-context";
 import { stripHtml } from "@/lib/utils/sanitize";
 import { SectionPreview, type PreviewQuestion } from "@/components/sections/section-preview";
 
@@ -70,6 +72,8 @@ const sectionTypeColors = {
 
 export default function SectionsPage() {
   const router = useRouter();
+  const { admin } = useAuth();
+  const canEdit = admin?.role === "super_admin" || admin?.role === "admin";
   const [sections, setSections] = useState<SectionRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -282,7 +286,7 @@ export default function SectionsPage() {
             <button
               type="button"
               className="font-medium text-left hover:text-blue-600 hover:underline transition-colors truncate block max-w-full"
-              onClick={() => openPreview(section)}
+              onClick={() => canEdit ? router.push(`/sections/${section.id}`) : openPreview(section)}
             >
               {section.title}
             </button>
@@ -305,7 +309,7 @@ export default function SectionsPage() {
     },
     {
       key: "time",
-      header: "제한시간",
+      header: "시험시간",
       className: "w-[90px]",
       cell: (section) => (
         <span className="text-muted-foreground">
@@ -338,6 +342,10 @@ export default function SectionsPage() {
             <DropdownMenuItem onClick={() => router.push(`/sections/${section.id}`)}>
               <Pencil className="mr-2 h-4 w-4" />
               편집
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openPreview(section)}>
+              <Eye className="mr-2 h-4 w-4" />
+              미리보기
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem

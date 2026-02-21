@@ -83,6 +83,8 @@ export interface TabState {
   newWord: string;
   blankMode: "word" | "sentence";
   fillBlankDragAllowDuplicate: boolean;
+  bankLabel: string;
+  bankLayout: "row" | "column";
   // Table completion
   tableInputMode: "typing" | "drag";
   // Flowchart
@@ -90,6 +92,10 @@ export interface TabState {
   flowchartContent: string;
   flowchartNodes: FlowchartNode[];
   flowchartBlanks: BlankItem[];
+  // Short Answer
+  shortAnswerQuestion: string;
+  shortAnswerAnswer: string;
+  shortAnswerAlternatives: string[];
   // Map labeling
   mapTitle: string;
   mapPassage: string;
@@ -175,11 +181,16 @@ export function createEmptyTab(): TabState {
     newWord: "",
     blankMode: "word",
     fillBlankDragAllowDuplicate: false,
+    bankLabel: "",
+    bankLayout: "row",
     tableInputMode: "typing",
     flowchartTitle: "",
     flowchartContent: "",
     flowchartNodes: [],
     flowchartBlanks: [],
+    shortAnswerQuestion: "",
+    shortAnswerAnswer: "",
+    shortAnswerAlternatives: [],
     mapTitle: "",
     mapPassage: "",
     mapLabels: ["A", "B", "C", "D", "E", "F", "G", "H"],
@@ -210,11 +221,13 @@ export { formatIcons, formatDescriptions } from "@/components/questions/constant
 
 const formatShortLabels: Record<string, string> = {
   true_false_ng: "T/F/NG",
+  yes_no_ng: "Y/N/NG",
   matching: "매칭",
   fill_blank_typing: "빈칸(입력)",
   fill_blank_drag: "빈칸(드래그)",
   flowchart: "플로우차트",
   table_completion: "테이블",
+  short_answer: "단답형",
   map_labeling: "지도라벨링",
   essay: "에세이",
   speaking_part1: "Part 1 (Interview)",

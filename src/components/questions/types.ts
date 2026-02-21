@@ -15,9 +15,11 @@ export type ReadingFormat =
   | "mcq_single"           // 객관식 단일선택 (DB 저장용)
   | "mcq_multiple"         // 객관식 복수선택 (DB 저장용)
   | "true_false_ng"        // True/False/Not Given
+  | "yes_no_ng"            // Yes/No/Not Given
   | "matching"             // 매칭 (드래그앤드랍)
   | "flowchart"            // 플로우차트 빈칸채우기
-  | "table_completion";    // 테이블 완성하기
+  | "table_completion"     // 테이블 완성하기
+  | "short_answer";       // 단답형
 
 // Listening 문제 형태
 export type ListeningFormat =
@@ -54,9 +56,11 @@ export const formatLabels: Record<string, string> = {
   mcq_single: "객관식 (단일선택)",
   mcq_multiple: "객관식 (복수선택)",
   true_false_ng: "True/False/Not Given",
+  yes_no_ng: "Yes/No/Not Given",
   matching: "제목 매칭 (드래그앤드랍)",
   flowchart: "플로우차트",
   table_completion: "테이블 완성하기",
+  short_answer: "단답형",
   map_labeling: "지도 라벨링",
   // Writing
   essay: "에세이",
@@ -72,11 +76,13 @@ export const questionFormats = {
   reading: [
     { value: "mcq", label: "객관식" },
     { value: "true_false_ng", label: "True/False/Not Given" },
+    { value: "yes_no_ng", label: "Yes/No/Not Given" },
     { value: "matching", label: "제목 매칭 (드래그앤드랍)" },
     { value: "fill_blank_typing", label: "빈칸채우기 (직접입력)" },
     { value: "fill_blank_drag", label: "빈칸채우기 (드래그앤드랍)" },
     { value: "flowchart", label: "플로우차트" },
     { value: "table_completion", label: "테이블 완성하기" },
+    { value: "short_answer", label: "단답형" },
   ],
   listening: [
     { value: "mcq", label: "객관식" },

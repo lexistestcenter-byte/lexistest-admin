@@ -15,9 +15,9 @@ export function FormatSelection({ formats, questionType, updateTab }: FormatSele
   return (
     <div className="p-8">
       <div className="text-center mb-6">
-        <h2 className="text-lg font-bold">문제 형태 선택</h2>
+        <h2 className="text-lg font-bold">문제 유형 선택</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          {questionType.charAt(0).toUpperCase() + questionType.slice(1)} 문제 형태를 선택하세요.
+          {questionType.charAt(0).toUpperCase() + questionType.slice(1)} 문제 유형을 선택하세요.
         </p>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 max-w-3xl mx-auto">

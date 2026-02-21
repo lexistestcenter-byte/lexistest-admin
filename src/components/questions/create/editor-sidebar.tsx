@@ -43,7 +43,7 @@ export function EditorSidebar({
 
           {/* 별도 문항 번호 토글 — multi-item 유형 공통 */}
           {currentTab.format && [
-            "true_false_ng", "matching", "heading_matching",
+            "true_false_ng", "yes_no_ng", "matching", "heading_matching",
             "fill_blank_typing", "fill_blank_drag",
             "flowchart", "table_completion", "map_labeling",
           ].includes(currentTab.format) && (
@@ -96,6 +96,40 @@ export function EditorSidebar({
                   deferred
                   onFileReady={(file) => updateCurrentTab("audioFile", file)}
                 />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Word Bank 표시 설정 (fill_blank_drag only) */}
+        {currentTab.format === "fill_blank_drag" && (
+          <div className="space-y-3">
+            <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">보기 설정</h3>
+            <div className="space-y-1.5">
+              <Label className="text-xs">보기 라벨명</Label>
+              <Input
+                className="h-7 text-xs"
+                value={currentTab.bankLabel}
+                onChange={(e) => updateCurrentTab("bankLabel", e.target.value)}
+                placeholder="Word Bank"
+              />
+              <p className="text-[10px] text-muted-foreground">비워두면 라벨 미표시</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">보기 배치</Label>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => updateCurrentTab("bankLayout", "row")}
+                  className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${currentTab.bankLayout === "row" ? "bg-primary text-white" : "bg-white border hover:bg-slate-50"}`}
+                >
+                  가로 (Row)
+                </button>
+                <button
+                  onClick={() => updateCurrentTab("bankLayout", "column")}
+                  className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${currentTab.bankLayout === "column" ? "bg-primary text-white" : "bg-white border hover:bg-slate-50"}`}
+                >
+                  세로 (Column)
+                </button>
               </div>
             </div>
           </div>

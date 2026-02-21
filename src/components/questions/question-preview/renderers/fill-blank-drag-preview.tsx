@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import { od, getStr, getArr, getBool } from "../helpers";
 import type { QuestionPreviewData } from "../types";
@@ -81,6 +81,9 @@ export function FillBlankDragPreview({ data }: { data: QuestionPreviewData }) {
   const contentTitle = getStr(o, "title", data.title || "");
   const wordBank = getArr(o, "word_bank").map(String);
   const allowDuplicate = getBool(o, "allowDuplicate") || getBool(o, "allow_duplicate");
+  const rawBankLabel = o.bank_label !== undefined ? String(o.bank_label) : o.bankLabel !== undefined ? String(o.bankLabel) : undefined;
+  const bankLabelText = rawBankLabel !== undefined ? rawBankLabel : "Word Bank";
+  const bankLayout = (getStr(o, "bank_layout") || getStr(o, "bankLayout") || "row") as "row" | "column";
   const inputStyle = getStr(o, "input_style", "editor");
   const items = getArr(o, "items").map(String);
 
@@ -96,17 +99,26 @@ export function FillBlankDragPreview({ data }: { data: QuestionPreviewData }) {
     });
   };
 
-  // Build full HTML preserving structure (ul/ol/li/p)
-  let fullHtml: string;
-  if (inputStyle === "items" && items.length > 0) {
-    const lis = items
-      .filter((i) => i.trim())
-      .map((i) => `<li>${replaceWithSlot(sanitizeHtmlForDisplay(i))}</li>`)
-      .join("");
-    fullHtml = `<ul>${lis}</ul>`;
-  } else {
-    fullHtml = replaceWithSlot(sanitizeHtmlForDisplay(data.content || ""));
-  }
+  // Memoize the processed HTML so draggedWord state changes don't cause
+  // React to replace the DOM (which would wipe slot content set by useEffect).
+  const fullHtml = useMemo(() => {
+    if (inputStyle === "items" && items.length > 0) {
+      const lis = items
+        .filter((i) => i.trim())
+        .map((i) => `<li>${replaceWithSlot(sanitizeHtmlForDisplay(i))}</li>`)
+        .join("");
+      return `<ul>${lis}</ul>`;
+    }
+    return replaceWithSlot(sanitizeHtmlForDisplay(data.content || ""));
+  }, [data.content, inputStyle, items]);
+
+  const prevHtmlRef = useRef("");
+  useEffect(() => {
+    if (containerRef.current && fullHtml && fullHtml !== prevHtmlRef.current) {
+      containerRef.current.innerHTML = fullHtml;
+      prevHtmlRef.current = fullHtml;
+    }
+  }, [fullHtml]);
 
   return (
     <div className="bg-white rounded-lg border p-6 space-y-4 flex-1 overflow-y-auto">
@@ -114,12 +126,11 @@ export function FillBlankDragPreview({ data }: { data: QuestionPreviewData }) {
       <div
         ref={containerRef}
         className="text-sm leading-[2] [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1 [&_p]:my-2 [&_p:first-child]:mt-0"
-        dangerouslySetInnerHTML={{ __html: fullHtml }}
       />
       {wordBank.length > 0 && (
         <div className="pt-4 border-t">
-          <p className="text-sm font-medium mb-2">Word Bank</p>
-          <div className="flex flex-wrap gap-2">
+          {bankLabelText && <p className="text-sm font-medium mb-2">{bankLabelText}</p>}
+          <div className={bankLayout === "column" ? "flex flex-col gap-2" : "flex flex-wrap gap-2"}>
             {availableWords.map((word, i) => (
               <span
                 key={`${word}-${i}`}

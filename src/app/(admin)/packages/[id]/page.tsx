@@ -575,7 +575,7 @@ export default function EditPackagePage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>시간 제한 (분)</Label>
+                  <Label>시험시간(분)</Label>
                   <Input
                     type="number"
                     placeholder="예: 180"

@@ -23,7 +23,7 @@ export function useQuestionSave(
     const format = tab.format;
 
     if (!format) {
-      return { valid: false, message: `탭 ${index + 1}: 문제 형태를 선택하세요.` };
+      return { valid: false, message: `탭 ${index + 1}: 문제 유형을 선택하세요.` };
     }
 
     // MCQ 검증
@@ -47,8 +47,8 @@ export function useQuestionSave(
       }
     }
 
-    // T/F/NG 검증
-    if (format === "true_false_ng") {
+    // T/F/NG & Y/N/NG 검증
+    if (format === "true_false_ng" || format === "yes_no_ng") {
       if (!tab.tfngStatement.trim()) {
         return { valid: false, message: `탭 ${index + 1}: 진술문을 입력하세요.` };
       }
@@ -91,6 +91,16 @@ export function useQuestionSave(
       const emptyBlanks = tab.blanks.filter(b => !b.answer.trim());
       if (emptyBlanks.length > 0) {
         return { valid: false, message: `탭 ${index + 1}: 모든 빈칸의 정답을 입력하세요.` };
+      }
+    }
+
+    // 단답형 검증
+    if (format === "short_answer") {
+      if (!tab.shortAnswerQuestion.trim()) {
+        return { valid: false, message: `탭 ${index + 1}: 질문을 입력하세요.` };
+      }
+      if (!tab.shortAnswerAnswer.trim()) {
+        return { valid: false, message: `탭 ${index + 1}: 정답을 입력하세요.` };
       }
     }
 
@@ -199,7 +209,7 @@ export function useQuestionSave(
                     isCorrect: o.isCorrect,
                   })),
                 };
-              } else if (tab.format === "true_false_ng") {
+              } else if (tab.format === "true_false_ng" || tab.format === "yes_no_ng") {
                 content = tab.tfngStatement;
                 optionsData = {
                   separateNumbers: tab.separateNumbers,
@@ -232,7 +242,7 @@ export function useQuestionSave(
                   title: tab.contentTitle || undefined,
                   separateNumbers: tab.separateNumbers,
                   blank_mode: tab.blankMode,
-                  ...(tab.format === "fill_blank_drag" ? { word_bank: tab.wordBank, allow_duplicate: tab.fillBlankDragAllowDuplicate } : {}),
+                  ...(tab.format === "fill_blank_drag" ? { word_bank: tab.wordBank, allow_duplicate: tab.fillBlankDragAllowDuplicate, bank_label: tab.bankLabel, bank_layout: tab.bankLayout } : {}),
                 };
                 answerData = {
                   blanks: tab.blanks.map(b => ({
@@ -256,6 +266,12 @@ export function useQuestionSave(
                     answer: b.answer,
                     alternatives: b.alternatives,
                   })),
+                };
+              } else if (tab.format === "short_answer") {
+                content = tab.shortAnswerQuestion;
+                answerData = {
+                  answer: tab.shortAnswerAnswer,
+                  alternatives: tab.shortAnswerAlternatives.filter(Boolean),
                 };
               } else if (tab.format === "flowchart") {
                 content = JSON.stringify({
@@ -343,10 +359,10 @@ export function useQuestionSave(
                     : tab.format === "map_labeling"
                       ? tab.mapLabelingTitle || undefined
                       : undefined,
-                instructions: (tab.format !== "mcq" && tab.format !== "true_false_ng") ? tab.instructions || undefined : undefined,
+                instructions: (tab.format !== "mcq" && tab.format !== "true_false_ng" && tab.format !== "yes_no_ng") ? tab.instructions || undefined : undefined,
                 options_data: Object.keys(optionsData).length > 0 ? optionsData : undefined,
                 answer_data: Object.keys(answerData).length > 0 ? answerData : undefined,
-                tags: (tab.format !== "mcq" && tab.format !== "true_false_ng" && tab.tags) ? tab.tags.split(",").map(t => t.trim()).filter(Boolean) : undefined,
+                tags: (tab.format !== "mcq" && tab.format !== "true_false_ng" && tab.format !== "yes_no_ng" && tab.tags) ? tab.tags.split(",").map(t => t.trim()).filter(Boolean) : undefined,
                 is_practice: tab.isPractice,
                 generate_followup: tab.format === "speaking_part2" ? tab.generateFollowup : undefined,
                 audio_url: (selectedQuestionType === "listening" || tab.format === "speaking_part2") && tab.audioUrl && !tab.audioFile ? tab.audioUrl : undefined,

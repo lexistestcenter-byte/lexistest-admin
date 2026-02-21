@@ -1,27 +1,36 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import type { RendererProps } from "../types";
 
 export function FillBlankTypingRenderer({ item, answers, setAnswer, activeNum, setActiveNum }: RendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const setAnswerRef = useRef(setAnswer);
+  const setActiveNumRef = useRef(setActiveNum);
+  // Track whether activeNum change originated from user focus (not Navigator)
+  const activeNumFromFocusRef = useRef(false);
+  useEffect(() => { setAnswerRef.current = setAnswer; }, [setAnswer]);
+  useEffect(() => { setActiveNumRef.current = setActiveNum; }, [setActiveNum]);
 
   // Event delegation: listen for input and focusin events on the container
+  // Use stable refs so this effect only runs once (on mount)
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     const handleInput = (e: Event) => {
       const input = e.target as HTMLInputElement;
       if (input.tagName === "INPUT" && input.dataset.num) {
-        setAnswer(parseInt(input.dataset.num), input.value);
+        setAnswerRef.current(parseInt(input.dataset.num), input.value);
       }
     };
     const handleFocusIn = (e: FocusEvent) => {
       const input = e.target as HTMLInputElement;
-      if (input.tagName === "INPUT" && input.dataset.num && setActiveNum) {
-        setActiveNum(parseInt(input.dataset.num));
+      if (input.tagName === "INPUT" && input.dataset.num && setActiveNumRef.current) {
+        // Mark as user-initiated so useEffect([activeNum]) skips re-focusing
+        activeNumFromFocusRef.current = true;
+        setActiveNumRef.current(parseInt(input.dataset.num));
       }
     };
     container.addEventListener("input", handleInput);
@@ -30,10 +39,15 @@ export function FillBlankTypingRenderer({ item, answers, setAnswer, activeNum, s
       container.removeEventListener("input", handleInput);
       container.removeEventListener("focusin", handleFocusIn);
     };
-  }, [setAnswer, setActiveNum]);
+  }, []);
 
   // Navigator → input focus: scroll to and focus the input matching activeNum
+  // Skip when the change came from user clicking/focusing an input directly
   useEffect(() => {
+    if (activeNumFromFocusRef.current) {
+      activeNumFromFocusRef.current = false;
+      return;
+    }
     if (activeNum == null) return;
     const container = containerRef.current;
     if (!container) return;
@@ -44,14 +58,19 @@ export function FillBlankTypingRenderer({ item, answers, setAnswer, activeNum, s
     }
   }, [activeNum]);
 
-  // Sync answers to DOM inputs
+  // Sync answers to DOM inputs — skip the focused input to prevent
+  // overwriting while the user is typing (race: answers state lags behind DOM)
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     container.querySelectorAll<HTMLInputElement>("input[data-num]").forEach((input) => {
       const num = parseInt(input.dataset.num || "0");
       const val = answers[num] || "";
-      if (input.value !== val) input.value = val;
+      // Never overwrite the currently focused input — user may have typed
+      // ahead and the state hasn't caught up yet
+      if (input !== document.activeElement && input.value !== val) {
+        input.value = val;
+      }
       if (val) {
         input.style.color = "#2563eb";
         input.style.borderBottomColor = "#3b82f6";
@@ -66,37 +85,65 @@ export function FillBlankTypingRenderer({ item, answers, setAnswer, activeNum, s
 
   const od = item.question.options_data || {};
   const content = String(od.content || item.question.content || "");
-  if (!content) return <p className="text-sm text-gray-500">No content available.</p>;
 
-  // table_completion: existing approach (already uses dangerouslySetInnerHTML)
-  if (item.question.question_format === "table_completion") {
-    let processed = sanitizeHtmlForDisplay(content);
-    processed = processed.replace(/\[(\d+)\]/g, (_, numStr) => {
+  // Memoize the processed HTML so it only changes when content/startNum change.
+  // innerHTML is set via useEffect below, outside React's render cycle.
+  const tableHtml = useMemo(() => {
+    if (item.question.question_format !== "table_completion" || !content) return "";
+    let html = sanitizeHtmlForDisplay(content);
+    html = html.replace(/\[(\d+)\]/g, (_, numStr) => {
       const blankNum = parseInt(numStr);
       const num = item.startNum + blankNum - 1;
-      return `<input type="text" data-blank-num="${num}" style="width:80px;height:28px;border:none;border-bottom:2px solid #3b82f6;background:transparent;padding:0 4px;font-size:14px;text-align:center;outline:none" placeholder="(${num})" />`;
+      return `<input type="text" data-num="${num}" style="width:80px;height:28px;border:none;border-bottom:2px solid #3b82f6;background:transparent;padding:0 4px;font-size:14px;text-align:center;outline:none" placeholder="(${num})" />`;
     });
+    return html;
+  }, [content, item.startNum, item.question.question_format]);
+
+  const normalHtml = useMemo(() => {
+    if (item.question.question_format === "table_completion" || !content) return "";
+    let html = sanitizeHtmlForDisplay(content);
+    html = html.replace(/\[(\d+)\]/g, (_, numStr) => {
+      const blankNum = parseInt(numStr);
+      const num = item.startNum + blankNum - 1;
+      return `<input type="text" data-num="${num}" style="display:inline;width:100px;border:none;border-bottom:1px dashed #d1d5db;background:transparent;padding:0 4px;font-size:14px;text-align:center;outline:none;vertical-align:baseline" placeholder="${num}" />`;
+    });
+    return html;
+  }, [content, item.startNum, item.question.question_format]);
+
+  const prevTableHtmlRef = useRef("");
+  const prevNormalHtmlRef = useRef("");
+
+  // Set innerHTML outside React render cycle to prevent DOM replacement
+  useEffect(() => {
+    if (containerRef.current && tableHtml && tableHtml !== prevTableHtmlRef.current) {
+      containerRef.current.innerHTML = tableHtml;
+      prevTableHtmlRef.current = tableHtml;
+    }
+  }, [tableHtml]);
+
+  useEffect(() => {
+    if (containerRef.current && normalHtml && normalHtml !== prevNormalHtmlRef.current) {
+      containerRef.current.innerHTML = normalHtml;
+      prevNormalHtmlRef.current = normalHtml;
+    }
+  }, [normalHtml]);
+
+  if (!content) return <p className="text-sm text-gray-500">No content available.</p>;
+
+  // table_completion
+  if (item.question.question_format === "table_completion") {
     return (
       <div
+        ref={containerRef}
         className="text-sm leading-relaxed [&_table]:border-collapse [&_table]:w-full [&_table]:table-fixed [&_td]:border [&_td]:border-slate-300 [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-slate-300 [&_th]:px-3 [&_th]:py-2 [&_th]:bg-slate-100 [&_th]:font-semibold"
-        dangerouslySetInnerHTML={{ __html: processed }}
       />
     );
   }
-
-  // Build HTML: sanitize first, then replace [N] with <input>
-  let processed = sanitizeHtmlForDisplay(content);
-  processed = processed.replace(/\[(\d+)\]/g, (_, numStr) => {
-    const blankNum = parseInt(numStr);
-    const num = item.startNum + blankNum - 1;
-    return `<input type="text" data-num="${num}" style="display:inline;width:100px;border:none;border-bottom:1px dashed #d1d5db;background:transparent;padding:0 4px;font-size:14px;text-align:center;outline:none;vertical-align:baseline" placeholder="${num}" />`;
-  });
 
   return (
     <div
       ref={containerRef}
       className="text-sm leading-[2] [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1 [&_p]:my-2 [&_p:first-child]:mt-0"
-      dangerouslySetInnerHTML={{ __html: processed }}
     />
   );
 }
@@ -190,6 +237,9 @@ export function FillBlankDragRenderer({ item, answers, setAnswer, activeNum, set
       ? (od.wordBank as string[])
       : [];
   const allowDuplicate = Boolean(od.allow_duplicate || od.allowDuplicate);
+  const rawBankLabel = od.bank_label !== undefined ? String(od.bank_label) : od.bankLabel !== undefined ? String(od.bankLabel) : undefined;
+  const bankLabelText = rawBankLabel !== undefined ? rawBankLabel : "Word Bank";
+  const bankLayout = (String(od.bank_layout || od.bankLayout || "row")) as "row" | "column";
   if (!content) return <p className="text-sm text-gray-500">No content available.</p>;
 
   const usedWords = Object.values(answers).filter(Boolean);
@@ -242,25 +292,36 @@ export function FillBlankDragRenderer({ item, answers, setAnswer, activeNum, set
     );
   }
 
-  // Build HTML: sanitize first, then replace [N] with <span data-slot>
-  let processed = sanitizeHtmlForDisplay(content);
-  processed = processed.replace(/\[(\d+)\]/g, (_, numStr) => {
-    const blankNum = parseInt(numStr);
-    const num = item.startNum + blankNum - 1;
-    return `<span data-slot="${num}" style="display:inline-block;min-width:80px;border-bottom:1px dashed #d1d5db;padding:0 4px;text-align:center;font-size:14px;cursor:pointer;vertical-align:baseline;color:#9ca3af">${num}</span>`;
-  });
+  // Memoize the processed HTML so draggedWord state changes don't cause
+  // React to replace the DOM (which would wipe slot content set by useEffect).
+  const processed = useMemo(() => {
+    let html = sanitizeHtmlForDisplay(content);
+    html = html.replace(/\[(\d+)\]/g, (_, numStr) => {
+      const blankNum = parseInt(numStr);
+      const num = item.startNum + blankNum - 1;
+      return `<span data-slot="${num}" style="display:inline-block;min-width:80px;border-bottom:1px dashed #d1d5db;padding:0 4px;text-align:center;font-size:14px;cursor:pointer;vertical-align:baseline;color:#9ca3af">${num}</span>`;
+    });
+    return html;
+  }, [content, item.startNum]);
+
+  const prevProcessedRef = useRef("");
+  useEffect(() => {
+    if (containerRef.current && processed && processed !== prevProcessedRef.current) {
+      containerRef.current.innerHTML = processed;
+      prevProcessedRef.current = processed;
+    }
+  }, [processed]);
 
   return (
     <div className="space-y-4">
       <div
         ref={containerRef}
         className="text-sm leading-[2] [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1 [&_p]:my-2 [&_p:first-child]:mt-0"
-        dangerouslySetInnerHTML={{ __html: processed }}
       />
       {wordBank.length > 0 && (
         <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-          <p className="text-xs font-semibold text-slate-600 mb-2">Word Bank</p>
-          <div className="flex flex-wrap gap-1.5">
+          {bankLabelText && <p className="text-xs font-semibold text-slate-600 mb-2">{bankLabelText}</p>}
+          <div className={bankLayout === "column" ? "flex flex-col gap-1.5" : "flex flex-wrap gap-1.5"}>
             {availableWords.map((word, i) => (
               <span
                 key={i}

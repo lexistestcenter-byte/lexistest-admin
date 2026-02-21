@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { sanitizeHtmlForDisplay } from "@/lib/utils/sanitize";
 import { od, getStr, getArr } from "../helpers";
 import type { QuestionPreviewData } from "../types";
@@ -30,7 +30,7 @@ export function FillBlankTypingPreview({ data }: { data: QuestionPreviewData }) 
     container.querySelectorAll<HTMLInputElement>("input[data-num]").forEach((input) => {
       const num = parseInt(input.dataset.num || "0");
       const val = answers[num] || "";
-      if (input.value !== val) input.value = val;
+      if (input !== document.activeElement && input.value !== val) input.value = val;
       if (val) {
         input.style.color = "#2563eb";
         input.style.borderBottomColor = "#3b82f6";
@@ -56,17 +56,26 @@ export function FillBlankTypingPreview({ data }: { data: QuestionPreviewData }) 
     });
   };
 
-  // Build full HTML preserving structure (ul/ol/li/p)
-  let fullHtml: string;
-  if (inputStyle === "items" && items.length > 0) {
-    const lis = items
-      .filter((i) => i.trim())
-      .map((i) => `<li>${replaceWithInput(sanitizeHtmlForDisplay(i))}</li>`)
-      .join("");
-    fullHtml = `<ul>${lis}</ul>`;
-  } else {
-    fullHtml = replaceWithInput(sanitizeHtmlForDisplay(data.content || ""));
-  }
+  // Memoize the processed HTML so state changes don't cause React to replace
+  // the DOM and destroy the live <input> elements.
+  const fullHtml = useMemo(() => {
+    if (inputStyle === "items" && items.length > 0) {
+      const lis = items
+        .filter((i) => i.trim())
+        .map((i) => `<li>${replaceWithInput(sanitizeHtmlForDisplay(i))}</li>`)
+        .join("");
+      return `<ul>${lis}</ul>`;
+    }
+    return replaceWithInput(sanitizeHtmlForDisplay(data.content || ""));
+  }, [data.content, inputStyle, items]);
+
+  const prevHtmlRef = useRef("");
+  useEffect(() => {
+    if (containerRef.current && fullHtml && fullHtml !== prevHtmlRef.current) {
+      containerRef.current.innerHTML = fullHtml;
+      prevHtmlRef.current = fullHtml;
+    }
+  }, [fullHtml]);
 
   return (
     <div className="bg-white rounded-lg border p-6 space-y-4 flex-1 overflow-y-auto">
@@ -74,7 +83,6 @@ export function FillBlankTypingPreview({ data }: { data: QuestionPreviewData }) 
       <div
         ref={containerRef}
         className="text-sm leading-[2] [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1 [&_p]:my-2 [&_p:first-child]:mt-0 [&_strong]:font-bold"
-        dangerouslySetInnerHTML={{ __html: fullHtml }}
       />
     </div>
   );
